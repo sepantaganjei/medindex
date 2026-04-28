@@ -1,2 +1,1 @@
 print("Test")
-print("Test")
