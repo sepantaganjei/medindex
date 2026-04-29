@@ -1,5 +1,5 @@
 # Role of the package:
-# provide the functions that are between the data access and the frontend.
+# provide the functions that are between the data storage and the frontend.
 # They prepare the data to be presented in the interface.
 
 import pandas as pd

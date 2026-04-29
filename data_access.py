@@ -1,16 +1,9 @@
 # Role of the package:
-# provide the functions needed to access the data from the DICOM repo
+# provide the functions needed to access the data from TCIA
 
 import requests
 
 # Patient → Study → Series → Images
-
-# What would a researcher want to see?
-
-# simple statistics about the patients, and selection criteria with associated values
-# ability to requests series based on selection criteria
-# perform series query once the series id has been selected
-# download the series with those criteria
 
 def getCollectionDescription(name_of_the_collection):
     # specify endpoint
@@ -56,4 +49,3 @@ def getImageZip(series_uid):
         print("Downloaded images.zip")
     else:
         print("Error: ", response.text)
-
