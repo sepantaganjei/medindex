@@ -1,6 +1,6 @@
 # Main program
 
-from views import *
+from app.views import *
 import streamlit as st
 
 st.button(

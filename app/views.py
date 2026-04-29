@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 from bs4 import BeautifulSoup
 import re
-from data_access import *
+from app.data_access import *
 
 
 def viewCollectionDescription(name_of_the_collection):
