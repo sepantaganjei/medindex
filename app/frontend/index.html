@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BioImages Mockup</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <h1>MedVault</h1>
+      <p class="subtitle">BioImage browser</p>
+
+      <h2>Collections</h2>
+      <div id="collections-list"></div>
+
+      <div class="upload-box">
+        <p>Drop scan/image here</p>
+        <button>Upload</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <input id="search-input" type="text" placeholder="Search series, patient, modality..." />
+        <div class="source-tabs">
+          <button>TCIA</button>
+          <button>OpenSpecimen</button>
+          <button>Local</button>
+        </div>
+      </header>
+
+      <section class="table-section">
+        <h2>Series</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Series UID</th>
+              <th>Patient</th>
+              <th>Modality</th>
+              <th>Body Part</th>
+              <th>Description</th>
+              <th>Slices</th>
+              <th>Collection</th>
+            </tr>
+          </thead>
+          <tbody id="series-table"></tbody>
+        </table>
+      </section>
+
+      <section class="details-section">
+        <div class="viewer-panel">
+          <h2>Image Viewer</h2>
+          <div class="image-placeholder">
+            <span>No real DICOM rendering yet</span>
+          </div>
+
+          <label>
+            Slice
+            <input type="range" min="1" max="128" value="64" />
+          </label>
+
+          <label>
+            Window Level
+            <input type="range" min="0" max="100" value="50" />
+          </label>
+        </div>
+
+        <div class="metadata-panel">
+          <h2>Metadata Inspector</h2>
+          <div id="metadata-content">
+            Select a series to inspect metadata.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
