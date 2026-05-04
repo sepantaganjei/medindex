@@ -1,74 +1,50 @@
 # Role of the package:
-# provide the functions that are between the data storage and the frontend.
-# They prepare the data to be presented in the interface.
+# View building. Here we build what the user sees.
+# views = orchestration + display only. 
+# Here we combine the orchestrated operations and the components made available by streamlit.
 
-import pandas as pd
 import streamlit as st
-from bs4 import BeautifulSoup
-import re
-from app.data_access import *
+import etl.pipeline as pipe
+
+# Add a new dataset
+def add_dataset(collection_name, dataset_type):
+
+    pipe.add_new_dataset(session, collection_name, dataset_type)
 
 
-def viewCollectionDescription(name_of_the_collection):
-    response = getCollectionDescription(name_of_the_collection)
-    # convert response to json
-    description = response.json()
+def some_functions():
+    st.button(
+        "View collection dataset",
+        on_click=lambda: viewCollectionDataset()
+    )
 
-    # convert description to a readable format
-    raw_html_text = description[0]["description"]
-    soup = BeautifulSoup(raw_html_text, "html.parser")
-    text = soup.get_text(separator="\n")
+    st.button(
+        "View study dataset",
+        on_click=lambda: viewStudyDataset()
+    )
 
-    text = text.replace("\n", ' ').replace("\t", ' ')
-    text = re.sub(r"\s+", " ", text).strip()
-    clean_text = re.sub(r"\.\s*", ".\n", text)
+    st.button(
+        "View patient dataset",
+        on_click=lambda: viewPatientDataset()
+    )
 
-    description[0]['description'] = clean_text
+    st.button(
+        "View series dataset",
+        on_click=lambda: viewSeriesDataset()
+    )
 
-    # print the descripiton of the collection
-    st.write(f"Collection name: {description[0]['collectionName']}")
-    st.write(f"Description ID: {description[0]['id']}")
-    st.write(f"Description URI: {description[0]['descriptionURI']}")
-    st.text(f"Description: {description[0]['description']}")
+    with st.form("download_series_form"):
+        st.write("Insert the series id you are interested in downloading:")
+        series_uid = st.text_input("Series ID") 
+        submitted = st.form_submit_button("Download")
 
-
-def viewPatientsData(name_of_the_collection):
-    # Original patient data
-    response = getPatientsData(name_of_the_collection)
-    patient_df = pd.DataFrame(response.json())
-    patient_df = patient_df.rename(columns={"PatientId": "PatientID"})
-
-    # Data from study series
-    response = getSeriesMetadataForEntireCollection(name_of_the_collection)
-    series_metadata_df = pd.DataFrame(response.json())
-    series_metadata_df = series_metadata_df.drop_duplicates(subset="PatientID").reset_index(drop=True)
-
-    # Merge data from both sources
-    full_patient_df = pd.merge(patient_df, series_metadata_df, on='PatientID', how="inner")
-    # Reorder by patient id
-    full_patient_df = full_patient_df.sort_values(by="PatientID").reset_index(drop=True)
-
-    # Keep only relevant data
-    columns_not_to_drop = ['PatientID',
-                           'PatientSex_x',
-                           'EthnicGroup',
-                           'SpeciesDescription',
-                           'PatientAge']
-    full_patient_df = full_patient_df[columns_not_to_drop]
-    full_patient_df = full_patient_df.rename(columns={'PatientSex_x': 'Sex'})
-    full_patient_df = full_patient_df.fillna('Missing')
-
-    st.dataframe(full_patient_df)
-
-
-def viewSeriesMetadata(name_of_the_collection):
-    response = getSeriesMetadataForEntireCollection(name_of_the_collection)
-
-    try:
-        data = response.json()
-        series_metadata_df = pd.DataFrame(data)
-        st.dataframe(series_metadata_df)
-
-    except ValueError:
-        st.error("Response is not valid JSON")
-        st.text(response.text)
+        if submitted:
+            if not series_uid.strip():
+                st.warning("Please enter a valid series ID.")
+            else:
+                try:
+                    with st.spinner("Downloading images..."):
+                        getImageZip(series_uid)
+                    st.success("Download completed!")
+                except Exception as e:
+                    st.error(f"An error as occurred: {e}")
