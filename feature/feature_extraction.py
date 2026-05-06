@@ -107,16 +107,62 @@ def cut_image(points, image):
     cropped_image = new_image[max(0, y_min):y_max, max(0, x_min):x_max]
     
     # 5. Salvataggio
-    output_dir = "transparent_cuts"
+    output_dir = "."
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
         
-    file_path = os.path.join(output_dir, f"cut_{uuid.uuid4().hex[:8]}.png")
+    file_path = os.path.join(output_dir, "cut_.png")
     
     # plt.imsave gestisce correttamente l'array RGBA
     plt.imsave(file_path, cropped_image)
     
     return file_path
+
+
+def standard_deviation(image):
+    """
+    Calcola la standard deviation ignorando i pixel completamente trasparenti (alpha=0).
+    
+    Parameters:
+        image: numpy array (H×W), (H×W×3) o (H×W×4)
+    
+    Returns:
+        float: standard deviation
+    """
+    
+    image = np.asarray(image)
+    
+    # Caso RGBA → usa alpha channel come maschera
+    if image.ndim == 3 and image.shape[2] == 4:
+        rgb = image[:, :, :3]
+        alpha = image[:, :, 3]
+        
+        # Maschera: pixel visibili
+        mask = alpha > 0
+        
+        # Converti in grayscale (media semplice)
+        gray = rgb.mean(axis=2)
+        
+        values = gray[mask]
+    
+    # Caso RGB (senza trasparenza)
+    elif image.ndim == 3 and image.shape[2] == 3:
+        gray = image.mean(axis=2)
+        values = gray.flatten()
+    
+    # Caso grayscale
+    elif image.ndim == 2:
+        values = image.flatten()
+    
+    else:
+        raise ValueError("Formato immagine non supportato")
+    
+    # Evita array vuoto
+    if values.size == 0:
+        return 0.0
+    
+    return float(np.std(values))
+
 
 
 if __name__ == "__main__":
@@ -130,3 +176,12 @@ if __name__ == "__main__":
     img = plt.imread(path_file)
 
     cut_image(list(zip(selector.punti_x, selector.punti_y)), img)
+
+    # Caricamento immagine con matplotlib
+    image_path = "cut_.png"
+    img = mpimg.imread(image_path)
+
+    print("La Standard Deviation è: ", standard_deviation(img))
+
+
+
