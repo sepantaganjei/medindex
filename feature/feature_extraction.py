@@ -4,6 +4,8 @@ import matplotlib.path as mpath
 import numpy as np
 import os
 import uuid
+from skimage.measure import label, regionprops
+from skimage.filters import threshold_otsu
 
 class RoiSelector:
     def __init__(self, image_path):
@@ -120,15 +122,6 @@ def cut_image(points, image):
 
 
 def standard_deviation(image):
-    """
-    Calcola la standard deviation ignorando i pixel completamente trasparenti (alpha=0).
-    
-    Parameters:
-        image: numpy array (H×W), (H×W×3) o (H×W×4)
-    
-    Returns:
-        float: standard deviation
-    """
     
     image = np.asarray(image)
     
@@ -164,6 +157,111 @@ def standard_deviation(image):
     return float(np.std(values))
 
 
+def mean(image):
+    
+    image = np.asarray(image)
+    
+    # Caso RGBA → usa alpha channel come maschera
+    if image.ndim == 3 and image.shape[2] == 4:
+        rgb = image[:, :, :3]
+        alpha = image[:, :, 3]
+        
+        # Maschera: pixel visibili
+        mask = alpha > 0
+        
+        # Converti in grayscale (media semplice)
+        gray = rgb.mean(axis=2)
+        
+        values = gray[mask]
+    
+    # Caso RGB (senza trasparenza)
+    elif image.ndim == 3 and image.shape[2] == 3:
+        gray = image.mean(axis=2)
+        values = gray.flatten()
+    
+    # Caso grayscale
+    elif image.ndim == 2:
+        values = image.flatten()
+    
+    else:
+        raise ValueError("Formato immagine non supportato")
+    
+    # Evita array vuoto
+    if values.size == 0:
+        return 0.0
+    
+    return float(np.mean(values))
+
+
+def eccentricity(image):
+    
+    image = np.asarray(image)
+    
+    # Se RGB → grayscale
+    if image.ndim == 3:
+        image = image.mean(axis=2)
+    
+    # Calcolo soglia automatica (Otsu)
+    try:
+        thresh = threshold_otsu(image)
+        mask = image > thresh
+    except:
+        # fallback se immagine uniforme
+        mask = image > image.mean()
+    
+    # Etichetta componenti
+    labeled = label(mask)
+    regions = regionprops(labeled)
+    
+    if len(regions) == 0:
+        return 0.0
+    
+    # Regione principale (la ROI vera)
+    largest_region = max(regions, key=lambda r: r.area)
+    
+    return float(largest_region.eccentricity)
+
+
+def show_roi_and_histogram(image, bins=256):
+    
+    image = np.asarray(image)
+    
+    # grayscale
+    if image.ndim == 3:
+        image = image.mean(axis=2)
+    
+    # crea maschera (ROI vs background)
+    mask = image > 0   # oppure threshold se serve
+    
+    values = image[mask]
+    
+    if values.size == 0:
+        print("ROI vuota")
+        return
+    
+    # immagine con trasparenza
+    img_rgba = np.zeros((*image.shape, 4))
+    
+    img_rgba[..., 0] = image
+    img_rgba[..., 1] = image
+    img_rgba[..., 2] = image
+    img_rgba[..., 3] = mask.astype(float)  # alpha channel
+    
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    
+    ax[0].imshow(img_rgba)
+    ax[0].set_title("ROI")
+    ax[0].axis("off")
+    
+    ax[1].hist(values, bins=bins)
+    ax[1].set_title("Histogram")
+    ax[1].set_xlabel("Intensity")
+    ax[1].set_ylabel("Frequency")
+    
+    plt.tight_layout()
+    plt.show()
+
+
 
 if __name__ == "__main__":
 
@@ -183,5 +281,9 @@ if __name__ == "__main__":
 
     print("La Standard Deviation è: ", standard_deviation(img))
 
+    print("La media è: ", mean(img))
 
+    print("L'eccentricità è: ", eccentricity(img))
+
+    show_roi_and_histogram(img)
 
