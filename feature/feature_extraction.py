@@ -262,6 +262,114 @@ def show_roi_and_histogram(image, bins=256):
     plt.show()
 
 
+def compute_glrlm(image, levels=None, direction=(0, 1)):
+    """
+    Calcola la Gray Level Run Length Matrix (GLRLM).
+
+    Parameters
+    ----------
+    image : ndarray
+        Immagine 2D della ROI già quantizzata.
+    levels : int, optional
+        Numero di livelli di grigio.
+        Se None, viene ricavato automaticamente.
+    direction : tuple
+        Direzione del run:
+        (0,1)=orizzontale
+        (1,0)=verticale
+        (1,1)=diagonale
+        (-1,1)=antidiagonale
+
+    Returns
+    -------
+    glrlm : ndarray
+        Matrice GLRLM di shape (Ng, Nr)
+    """
+
+    image = np.asarray(image)
+
+    # Se RGB -> grayscale
+    if len(image.shape) == 3:
+
+        # RGB/RGBA
+        image = image[:, :, 0]
+
+    if levels is None:
+        levels = int(image.max()) + 1
+
+    dx, dy = direction
+
+    rows, cols = image.shape
+
+    max_run = max(rows, cols)
+
+    glrlm = np.zeros((levels, max_run), dtype=np.float64)
+
+    visited = np.zeros_like(image, dtype=bool)
+
+    for i in range(rows):
+        for j in range(cols):
+
+            if visited[i, j]:
+                continue
+
+            gray = image[i, j]
+
+            run_length = 1
+
+            x, y = i + dx, j + dy
+
+            visited[i, j] = True
+
+            while (
+                0 <= x < rows and
+                0 <= y < cols and
+                image[x, y] == gray
+            ):
+                visited[x, y] = True
+                run_length += 1
+                x += dx
+                y += dy
+
+            glrlm[int(gray), run_length - 1] += 1
+
+    return glrlm
+
+
+def GLRLM_short_run_emphasis(image, levels=None, direction=(0, 1)):
+    """
+    Calcola la feature GLRLM Short Run Emphasis (SRE).
+
+    Parameters
+    ----------
+    image : ndarray
+        ROI 2D quantizzata.
+    levels : int, optional
+        Numero livelli di grigio.
+    direction : tuple
+        Direzione della GLRLM.
+
+    Returns
+    -------
+    sre : float
+        Short Run Emphasis
+    """
+
+    glrlm = compute_glrlm(image, levels, direction)
+
+    Nr = np.sum(glrlm)
+
+    if Nr == 0:
+        return 0.0
+
+    run_lengths = np.arange(1, glrlm.shape[1] + 1)
+
+    denominator = run_lengths ** 2
+
+    sre = np.sum(glrlm / denominator[np.newaxis, :]) / Nr
+
+    return sre
+
 
 if __name__ == "__main__":
 
@@ -287,3 +395,5 @@ if __name__ == "__main__":
 
     show_roi_and_histogram(img)
 
+    sre = GLRLM_short_run_emphasis(img)
+    print("Short Run Emphasis:", sre)
