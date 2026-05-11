@@ -12,6 +12,9 @@ from scipy.ndimage import generic_filter
 from scipy.signal import convolve
 from skimage.color import rgb2gray
 from skimage import img_as_ubyte
+from skimage.feature import graycomatrix, graycoprops
+
+
 
 class RoiSelector:
     def __init__(self, image_path):
@@ -670,6 +673,56 @@ def compute_ngtdm_busyness(image, d=1):
     return numerator / (denominator + 1e-6)
 
 
+# def _preprocess_image(image):
+#     """Gestisce la conversione in scala di grigi e 8-bit (RGBA/RGB -> Gray)"""
+#     img = np.asanyarray(image)
+    
+#     # Se ha 4 canali (RGBA), scartiamo l'alfa; se ne ha 3 (RGB), convertiamo
+#     if img.ndim == 3:
+#         if img.shape[-1] == 4:
+#             img = img[:, :, :3]
+#         img = rgb2gray(img)
+    
+#     # Portiamo a 8-bit (0-255)
+#     if img.dtype != np.uint8:
+#         img = img_as_ubyte(img)
+#     return img
+
+def get_glcm(image, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4]):
+    """
+    Pre-processa l'immagine e calcola la matrice GLCM.
+    """
+    # 1. Gestione immagine (RGBA -> RGB -> Gray -> 8-bit)
+    img = np.asanyarray(image)
+    if img.ndim == 3:
+        if img.shape[-1] == 4: # Fix per errore (H, W, 4)
+            img = img[:, :, :3]
+        img = rgb2gray(img)
+    
+    if img.dtype != np.uint8:
+        img = img_as_ubyte(img)
+    
+    # 2. Calcolo GLCM
+    # Usiamo symmetric=True e normed=True come standard per feature radiomiche
+    glcm = graycomatrix(img, 
+                        distances=distances, 
+                        angles=angles, 
+                        levels=256, 
+                        symmetric=True, 
+                        normed=True)
+    return glcm
+
+def compute_glcm_correlation(glcm):
+    """Calcola la correlazione media tra tutte le direzioni/distanze"""
+    correlation = graycoprops(glcm, 'correlation')
+    return np.mean(correlation)
+
+def compute_glcm_homogeneity(glcm):
+    """Calcola l'omogeneità media tra tutte le direzioni/distanze"""
+    homogeneity = graycoprops(glcm, 'homogeneity')
+    return np.mean(homogeneity)
+
+
 if __name__ == "__main__":
 
     path_file = '../../img.jpg'
@@ -693,3 +746,8 @@ if __name__ == "__main__":
     print("NGTDM Coarsness: ", compute_ngtdm_coarseness(img))
     print("NGTDM Business: ", compute_ngtdm_busyness(img))
     print("NGTDM Contrast: ", compute_ngtdm_contrast(img))
+
+    matrice_glcm = get_glcm(img)
+
+    print("GLCM Correlation: ", compute_glcm_correlation(matrice_glcm))
+    print("GLCM homogeneity: ", compute_glcm_homogeneity(matrice_glcm))
