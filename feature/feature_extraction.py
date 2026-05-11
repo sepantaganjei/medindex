@@ -8,7 +8,10 @@ from skimage.measure import label, regionprops
 from skimage.filters import threshold_otsu
 import tkinter as tk
 from tkinter import messagebox
-
+from scipy.ndimage import generic_filter
+from scipy.signal import convolve
+from skimage.color import rgb2gray
+from skimage import img_as_ubyte
 
 class RoiSelector:
     def __init__(self, image_path):
@@ -575,6 +578,98 @@ def GLRLM_short_run_emphasis(image, levels=None, direction=(0, 1)):
     return sre
 
 
+def compute_ngtdm(image, d=1):
+    # Assicuriamoci che sia un array numpy
+    image = np.asanyarray(image)
+
+    # 1. Gestione Colore e Canale Alfa
+    if image.ndim == 3:
+        # Se ha 4 canali (RGBA), prendiamo solo i primi 3 (RGB)
+        if image.shape[-1] == 4:
+            image = image[:, :, :3]
+        
+        # Ora che siamo sicuri di avere 3 canali, convertiamo in grigio
+        if image.shape[-1] == 3:
+            image = rgb2gray(image)
+    
+    # 2. Conversione in ubyte (0-255)
+    # skimage.rgb2gray restituisce float tra 0 e 1, lo riportiamo a interi
+    if image.dtype != np.uint8:
+        from skimage import img_as_ubyte
+        image = img_as_ubyte(image)
+    
+    image = image.astype(float)
+    rows, cols = image.shape
+    
+    # 3. Calcolo Media Locale tramite Convoluzione (Molto più veloce)
+    # Creiamo un kernel che somma i vicini escludendo il centro
+    size = 2 * d + 1
+    kernel = np.ones((size, size))
+    kernel[d, d] = 0
+    # Normalizziamo il kernel per ottenere la media
+    kernel /= kernel.sum()
+    
+    # Calcoliamo la media dei vicini
+    avg_neighbor = convolve(image, kernel, mode='same')
+    
+    # 4. Calcolo differenze
+    diff_image = np.abs(image - avg_neighbor)
+    
+    # 5. Estrazione statistiche di base
+    levels = np.unique(image.astype(int))
+    total_pixels = image.size
+    
+    n_i = {}
+    s_i = {}
+    p_i = {}
+    
+    for i in levels:
+        mask_i = (image == i)
+        n_i_val = np.sum(mask_i)
+        if n_i_val > 0:
+            n_i[i] = n_i_val
+            s_i[i] = np.sum(diff_image[mask_i])
+            p_i[i] = n_i_val / total_pixels
+        
+    return s_i, p_i, levels
+
+
+def compute_ngtdm_coarseness(image, d=1):
+    s_i, p_i, levels = compute_ngtdm(image, d)
+    # Formula: 1 / [sum(p_i * s_i)]
+    sum_ps = sum(p_i[i] * s_i[i] for i in levels)
+    return 1.0 / (sum_ps + 1e-6) # Protezione divisione per zero
+
+
+def compute_ngtdm_contrast(image, d=1):
+    s_i, p_i, levels = compute_ngtdm(image, d)
+    # Formula legata alla differenza tra i e j pesata per p_i * p_j
+    # Semplificata: [1 / (Ng*(Ng-1))] * [sum(p_i * p_j * (i-j)^2)] * [sum(s_i)]
+    Ng = len(levels)
+    if Ng <= 1: return 0
+    
+    sum_s = sum(s_i.values())
+    total_sum = 0
+    for i in levels:
+        for j in levels:
+            total_sum += p_i[i] * p_i[j] * (i - j)**2
+            
+    return (total_sum / (Ng * (Ng - 1))) * (sum_s / image.size)
+
+
+def compute_ngtdm_busyness(image, d=1):
+    s_i, p_i, levels = compute_ngtdm(image, d)
+    # Formula: [sum(p_i * s_i)] / [sum(i*p_i - j*p_j)]
+    numerator = sum(p_i[i] * s_i[i] for i in levels)
+    denominator = 0
+    for i in levels:
+        for j in levels:
+            if p_i[i] > 0 and p_i[j] > 0:
+                denominator += abs(i * p_i[i] - j * p_i[j])
+                
+    return numerator / (denominator + 1e-6)
+
+
 if __name__ == "__main__":
 
     path_file = '../../img.jpg'
@@ -594,3 +689,7 @@ if __name__ == "__main__":
 
     sre = GLRLM_short_run_emphasis(img)
     print("Short Run Emphasis:", sre)
+
+    print("NGTDM Coarsness: ", compute_ngtdm_coarseness(img))
+    print("NGTDM Business: ", compute_ngtdm_busyness(img))
+    print("NGTDM Contrast: ", compute_ngtdm_contrast(img))
