@@ -6,9 +6,13 @@ import os
 import uuid
 from skimage.measure import label, regionprops
 from skimage.filters import threshold_otsu
+import tkinter as tk
+from tkinter import messagebox
+
 
 class RoiSelector:
     def __init__(self, image_path):
+        self.image_path = image_path 
         self.img = mpimg.imread(image_path)
         self.fig, self.ax = plt.subplots()
         self.ax.imshow(self.img)
@@ -26,41 +30,126 @@ class RoiSelector:
         self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
         
         self.roi_done = False
+        self.roi_pending = False
 
         plt.title("Click SX: punto | Click DX: chiudi | ESC: esci")
         plt.show()
 
     def on_click(self, event):
-        if not self.roi_done:
-            # 1. Ignora se il click è fuori dagli assi
-            if event.inaxes != self.ax: 
+        if not self.roi_done and not self.roi_pending:
+            if event.inaxes != self.ax:
                 return
-            
-            # 2. Ignora se lo strumento Zoom o Pan è attivo
-            # Se mode è diverso da una stringa vuota, l'utente sta navigando
             if self.fig.canvas.toolbar.mode != "":
                 return
 
-            # Click sinistro: aggiungi punto
             if event.button == 1:
                 self.punti_x.append(event.xdata)
                 self.punti_y.append(event.ydata)
                 self.linea_def.set_data(self.punti_x, self.punti_y)
                 self.fig.canvas.draw()
-                
-            # Click destro: chiudi poligono e termina
+
             elif event.button == 3 and len(self.punti_x) > 2:
+                valid, error_msg = is_valid_polygon(self.punti_x, self.punti_y)
+
+                if not valid:
+                    root = tk.Tk()
+                    root.withdraw()
+                    messagebox.showerror("ROI non valida", f"Poligono non valido:\n{error_msg}\n\nRidisegna la ROI.")
+                    root.destroy()
+                    self.punti_x.clear()
+                    self.punti_y.clear()
+                    self.linea_def.set_data([], [])
+                    self.linea_temp.set_data([], [])
+                    self.fig.canvas.draw()
+                    return
+
+                # Chiudi il poligono visivamente
                 self.punti_x.append(self.punti_x[0])
                 self.punti_y.append(self.punti_y[0])
                 self.linea_def.set_data(self.punti_x, self.punti_y)
-                self.linea_temp.set_data([], []) # Rimuovi l'elastico
+                self.linea_temp.set_data([], [])
+                self.roi_pending = True
                 self.fig.canvas.draw()
-                self.roi_done = True
-                print("ROI completata!")
+
+                # Ritaglia subito la ROI
+                img = mpimg.imread(self.image_path)
+                points = list(zip(self.punti_x, self.punti_y))
+                file_path = cut_image(points, img)
+
+                # Dialog di conferma con anteprima
+                confirmed = confirm_roi(file_path, self.fig)
+
+                if confirmed:
+                    self.roi_done = True
+                    self.confirmed_path = file_path
+                    print("ROI confermata!")
+                else:
+                    # Reset: l'utente ridisegna
+                    self.roi_pending = False
+                    self.punti_x.clear()
+                    self.punti_y.clear()
+                    self.linea_def.set_data([], [])
+                    self.linea_temp.set_data([], [])
+                    self.fig.canvas.draw()
+                    print("ROI rifiutata, ridisegna.")
+
+    # def on_click(self, event):
+    #     if not self.roi_done:
+    #         # 1. Ignora se il click è fuori dagli assi
+    #         if event.inaxes != self.ax: 
+    #             return
+            
+    #         # 2. Ignora se lo strumento Zoom o Pan è attivo
+    #         # Se mode è diverso da una stringa vuota, l'utente sta navigando
+    #         if self.fig.canvas.toolbar.mode != "":
+    #             return
+
+    #         # Click sinistro: aggiungi punto
+    #         if event.button == 1:
+    #             self.punti_x.append(event.xdata)
+    #             self.punti_y.append(event.ydata)
+    #             self.linea_def.set_data(self.punti_x, self.punti_y)
+    #             self.fig.canvas.draw()
+
+    #         elif event.button == 3 and len(self.punti_x) > 2:
+    #             valid, error_msg = is_valid_polygon(self.punti_x, self.punti_y)
+
+    #             if not valid:
+    #                 # Mostra finestra di errore (tkinter, sempre disponibile con matplotlib)
+    #                 root = tk.Tk()
+    #                 root.withdraw()  # Nasconde la finestra principale
+    #                 messagebox.showerror("ROI non valida", f"Poligono non valido:\n{error_msg}\n\nRidisegna la ROI.")
+    #                 root.destroy()
+
+    #                 # Reset: riparte da zero
+    #                 self.punti_x.clear()
+    #                 self.punti_y.clear()
+    #                 self.linea_def.set_data([], [])
+    #                 self.linea_temp.set_data([], [])
+    #                 self.fig.canvas.draw()
+    #                 return
+
+    #             # Poligono valido: chiudi e segna come completato
+    #             self.punti_x.append(self.punti_x[0])
+    #             self.punti_y.append(self.punti_y[0])
+    #             self.linea_def.set_data(self.punti_x, self.punti_y)
+    #             self.linea_temp.set_data([], [])
+    #             self.fig.canvas.draw()
+    #             self.roi_done = True
+    #             print("ROI completata!")    
+    #         # # Click destro: chiudi poligono e termina
+    #         # elif event.button == 3 and len(self.punti_x) > 2:
+    #         #     self.punti_x.append(self.punti_x[0])
+    #         #     self.punti_y.append(self.punti_y[0])
+    #         #     self.linea_def.set_data(self.punti_x, self.punti_y)
+    #         #     self.linea_temp.set_data([], []) # Rimuovi l'elastico
+    #         #     self.fig.canvas.draw()
+    #         #     self.roi_done = True
+    #         #     print("ROI completata!")
 
 
     def on_move(self, event):
-        if not self.roi_done:
+        if not self.roi_done and not self.roi_pending:
             if event.inaxes != self.ax or len(self.punti_x) == 0:
                 return
             
@@ -68,6 +157,121 @@ class RoiSelector:
             self.linea_temp.set_data([self.punti_x[-1], event.xdata], 
                                     [self.punti_y[-1], event.ydata])
             self.fig.canvas.draw()
+
+
+def confirm_roi(image_path, selector_fig):  # <-- aggiungi selector_fig
+    img = mpimg.imread(image_path)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.imshow(img)
+    ax.set_title("ROI ritagliata")
+    ax.axis("off")
+    plt.tight_layout()
+    plt.show(block=False)
+    fig.canvas.flush_events()
+
+    manager = plt.get_current_fig_manager()
+    manager.window.lift()
+    manager.window.attributes('-topmost', True)
+    manager.window.attributes('-topmost', False)
+    fig.canvas.flush_events()
+
+    root = tk.Tk()
+    root.withdraw()
+
+    dialog = tk.Toplevel(root)
+    dialog.title("Conferma ROI")
+    dialog.resizable(False, False)
+    dialog.attributes('-topmost', True)
+    dialog.lift()
+
+    tk.Label(dialog, text="La ROI selezionata è corretta?\n\nPremi 'Sì' per procedere o 'No' per ridisegnare.",
+             padx=20, pady=15).pack()
+
+    result = tk.BooleanVar(value=False)
+
+    def on_yes():
+        result.set(True)
+        dialog.grab_release()
+        dialog.destroy()
+        plt.close(selector_fig)  # <-- chiude il selettore
+        root.quit()
+
+    def on_no():
+        result.set(False)
+        dialog.grab_release()
+        dialog.destroy()
+        root.quit()
+
+    btn_frame = tk.Frame(dialog)
+    btn_frame.pack(pady=10)
+    tk.Button(btn_frame, text="Sì", width=10, command=on_yes).pack(side=tk.LEFT, padx=5)
+    tk.Button(btn_frame, text="No", width=10, command=on_no).pack(side=tk.LEFT, padx=5)
+
+    dialog.grab_set()
+    root.mainloop()
+    root.destroy()
+
+    confirmed = result.get()
+    plt.close(fig)
+
+    return confirmed
+
+
+def segments_intersect(p1, p2, p3, p4):
+    """
+    Controlla se il segmento p1-p2 interseca il segmento p3-p4.
+    Usa il metodo delle orientazioni (cross product).
+    """
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    def on_segment(p, q, r):
+        return (min(p[0], r[0]) <= q[0] <= max(p[0], r[0]) and
+                min(p[1], r[1]) <= q[1] <= max(p[1], r[1]))
+
+    d1 = cross(p3, p4, p1)
+    d2 = cross(p3, p4, p2)
+    d3 = cross(p1, p2, p3)
+    d4 = cross(p1, p2, p4)
+
+    if ((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and \
+       ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0)):
+        return True
+
+    # Casi collineari
+    if d1 == 0 and on_segment(p3, p1, p4): return True
+    if d2 == 0 and on_segment(p3, p2, p4): return True
+    if d3 == 0 and on_segment(p1, p3, p2): return True
+    if d4 == 0 and on_segment(p1, p4, p2): return True
+
+    return False
+
+
+def is_valid_polygon(points_x, points_y):
+    """
+    Controlla che nessun lato del poligono si intersechi con un altro
+    (esclusi i vertici adiacenti condivisi).
+    Restituisce (True, None) se valido, (False, messaggio) se no.
+    """
+    n = len(points_x)
+    if n < 3:
+        return False, "Servono almeno 3 punti per formare un poligono."
+
+    pts = list(zip(points_x, points_y))
+    segments = [(pts[i], pts[(i + 1) % n]) for i in range(n)]
+
+    for i in range(len(segments)):
+        for j in range(i + 2, len(segments)):
+            # Salta il caso in cui i segmenti sono "adiacenti" (condividono un vertice)
+            if i == 0 and j == len(segments) - 1:
+                continue
+            p1, p2 = segments[i]
+            p3, p4 = segments[j]
+            if segments_intersect(p1, p2, p3, p4):
+                return False, f"Il poligono si auto-interseca tra il lato {i+1} e il lato {j+1}."
+
+    return True, None
 
 
 def cut_image(points, image):
@@ -374,18 +578,11 @@ def GLRLM_short_run_emphasis(image, levels=None, direction=(0, 1)):
 if __name__ == "__main__":
 
     path_file = '../../img.jpg'
-
-    # Esempio d'uso
-    selector = RoiSelector(path_file)
-    print(f"Punti selezionati: {list(zip(selector.punti_x, selector.punti_y))}")
-    
     img = plt.imread(path_file)
 
-    cut_image(list(zip(selector.punti_x, selector.punti_y)), img)
+    selector = RoiSelector(path_file)
 
-    # Caricamento immagine con matplotlib
-    image_path = "cut_.png"
-    img = mpimg.imread(image_path)
+    img = mpimg.imread(selector.confirmed_path)
 
     print("La Standard Deviation è: ", standard_deviation(img))
 
