@@ -1,10 +1,10 @@
 # This is where ALL SQL queries live.
 
-# These are the base models that we'll use to instantiate new objects. 
-from db.models import Collection
-from db.models import Study
-from db.models import Patient
-from db.models import Series
+# These are the base models that we'll use to instantiate new objects.
+from app.db.models import Collection
+from app.db.models import Study
+from app.db.models import Patient
+from app.db.models import Series
 
 # this method receives the session object handling all the ORM transactions on our DB and the data related to the object we want to add.
 # If the object is already present we simply return it.

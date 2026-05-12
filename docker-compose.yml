@@ -29,7 +29,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d:ro,Z
+      - ./app/db/init:/docker-entrypoint-initdb.d:ro,Z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d bioimages"]
       interval: 5s

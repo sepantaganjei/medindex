@@ -26,3 +26,5 @@ htmlcov/
 
 # Environment files
 .env
+
+.github

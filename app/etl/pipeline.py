@@ -1,9 +1,9 @@
 # This package is used as orchestrator and manages data between db and views.
 
-import etl.dicom_transform as dcm_tsf
-import etl.nifti_transform as nii_tsf
-import etl.extract as extract
-import db.repository as repo
+import app.etl.dicom_transform as dcm_tsf
+import app.etl.nifti_transform as nii_tsf
+import app.etl.extract as extract
+import app.db.repository as repo
 
 # =============
 # ADDING A NEW COLLECTION TO THE PLATFORM

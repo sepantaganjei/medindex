@@ -5,7 +5,7 @@
 # 2. Columns and types
 # 3. Relationships (foreign keys)
 
-from db.database import Base
+from app.db.database import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, Time, Boolean, Date
 
 # Collection model
