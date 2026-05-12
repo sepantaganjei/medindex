@@ -1,0 +1,186 @@
+import matplotlib
+matplotlib.use("TkAgg")
+
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import matplotlib.path as mpath
+import numpy as np
+import os
+import tkinter as tk
+
+import SimpleITK as sitk
+
+from radiomics import featureextractor
+
+
+# ==========================================================
+# ROI SELECTION
+# ==========================================================
+
+class RoiSelector:
+
+    def __init__(self, image_path):
+
+        self.image_path = image_path
+        self.img = mpimg.imread(image_path)
+
+        self.fig, self.ax = plt.subplots()
+        self.ax.imshow(self.img)
+
+        self.punti_x = []
+        self.punti_y = []
+
+        self.linea_def, = self.ax.plot([], [], 'ro-', markersize=4)
+        self.linea_temp, = self.ax.plot([], [], 'r--', alpha=0.5)
+
+        self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
+
+        self.roi_done = False
+
+        plt.title("Click SX = punto | Click DX = chiudi ROI")
+        plt.show()
+
+    def on_click(self, event):
+
+        if self.roi_done:
+            return
+
+        if event.inaxes != self.ax:
+            return
+
+        if event.button == 1:
+
+            self.punti_x.append(event.xdata)
+            self.punti_y.append(event.ydata)
+
+            self.linea_def.set_data(self.punti_x, self.punti_y)
+
+            self.fig.canvas.draw()
+
+        elif event.button == 3 and len(self.punti_x) > 2:
+
+            self.punti_x.append(self.punti_x[0])
+            self.punti_y.append(self.punti_y[0])
+
+            self.linea_def.set_data(self.punti_x, self.punti_y)
+
+            self.fig.canvas.draw()
+
+            self.roi_done = True
+
+            print("ROI completata")
+
+    def on_move(self, event):
+
+        if self.roi_done:
+            return
+
+        if event.inaxes != self.ax:
+            return
+
+        if len(self.punti_x) == 0:
+            return
+
+        self.linea_temp.set_data(
+            [self.punti_x[-1], event.xdata],
+            [self.punti_y[-1], event.ydata]
+        )
+
+        self.fig.canvas.draw()
+
+
+# ==========================================================
+# CREATE MASK
+# ==========================================================
+
+def create_mask(points, image_shape):
+
+    h, w = image_shape[:2]
+
+    x, y = np.meshgrid(np.arange(w), np.arange(h))
+
+    coords = np.vstack((x.flatten(), y.flatten())).T
+
+    path = mpath.Path(points)
+
+    mask = path.contains_points(coords).reshape(h, w)
+
+    return mask.astype(np.uint8)
+
+
+# ==========================================================
+# SAVE IMAGE + MASK
+# ==========================================================
+
+def save_for_radiomics(image, mask):
+
+    if image.ndim == 3:
+
+        image = image[:, :, :3]
+
+        image = np.mean(image, axis=2)
+
+    image = (image * 255).astype(np.uint8)
+
+    sitk_img = sitk.GetImageFromArray(image)
+
+    sitk_mask = sitk.GetImageFromArray(mask)
+
+    image_path = "radiomics_image.nrrd"
+    mask_path = "radiomics_mask.nrrd"
+
+    sitk.WriteImage(sitk_img, image_path)
+
+    sitk.WriteImage(sitk_mask, mask_path)
+
+    return image_path, mask_path
+
+
+# ==========================================================
+# PYRADIOMICS EXTRACTION
+# ==========================================================
+
+def extract_radiomics_features(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    # Abilita tutte le feature
+    extractor.enableAllFeatures()
+
+    # opzionale:
+    extractor.settings['binWidth'] = 25
+
+    result = extractor.execute(image_path, mask_path)
+
+    return result
+
+
+# ==========================================================
+# MAIN
+# ==========================================================
+
+if __name__ == "__main__":
+
+    image_path = "../../img.jpg"
+
+    image = mpimg.imread(image_path)
+
+    selector = RoiSelector(image_path)
+
+    points = list(zip(selector.punti_x, selector.punti_y))
+
+    mask = create_mask(points, image.shape)
+
+    img_path, mask_path = save_for_radiomics(image, mask)
+
+    features = extract_radiomics_features(img_path, mask_path)
+
+    print("\n========== RADIOMICS FEATURES ==========\n")
+
+    for key, value in features.items():
+
+        if key.startswith("diagnostics"):
+            continue
+
+        print(f"{key}: {value}")
