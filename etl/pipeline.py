@@ -28,7 +28,8 @@ def add_new_dataset(session, collection_name, dataset_type):
     # Returns dictionary of ORM objects
     return dataset
 
-# Set of data transformers depending on data and dataset type
+# Set of data transformers
+# They depend on the data (collection/patient/study/series) and on the dataset type
 collection_data_transformers = { "DICOM": dcm_tsf.prepare_collection_data, "NIFTI": nii_tsf.prepare_collection_data}
 patients_data_transformers = {"DICOM": dcm_tsf.prepare_patients_data, "NIFTI": nii_tsf.prepare_patients_data}
 studies_data_transformers = {"DICOM": dcm_tsf.prepare_studies_data, "NIFTI": nii_tsf.prepare_studies_data}

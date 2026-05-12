@@ -20,24 +20,24 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # =========================
 # CONFIGURATION
 # =========================
-
 load_dotenv()
 
+# PostgreSQL DB credentials
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 DB_NAME = os.getenv("DB_NAME")
 
+# PostgreSQL DB endpoint
 DATABASE_URL = (
     f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}"
     f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
 # =========================
-# ENGINE
+# ENGINE: handles database connections and executes generated SQL queries
 # =========================
-
 engine = create_engine(
     DATABASE_URL,
     pool_size=10,
@@ -46,9 +46,8 @@ engine = create_engine(
 )
 
 # =========================
-# SESSION
+# SESSION: manages ORM objects, transactions, and high-level database interactions
 # =========================
-
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
@@ -56,7 +55,6 @@ SessionLocal = sessionmaker(
 )
 
 # =========================
-# BASE CLASS (for models)
+# BASE CLASS (for models): parent class used to define ORM database models
 # =========================
-
 Base = declarative_base()

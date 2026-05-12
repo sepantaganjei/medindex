@@ -9,7 +9,6 @@ from db.database import Base
 from sqlalchemy import Column, Integer, String, ForeignKey, Time, Boolean, Date
 
 # Collection model
-
 class Collection(Base):
     __tablename__ = "collections"
 
@@ -20,7 +19,6 @@ class Collection(Base):
     description_uri = Column(String)
 
 # Patient model
-
 class Patient(Base):
     __tablename__ = "patients"
 
@@ -30,7 +28,6 @@ class Patient(Base):
     ethnic_group = Column(String)
 
 # Study model
-
 class Study(Base):
     __tablename__ = "studies"
 
@@ -45,13 +42,13 @@ class Study(Base):
     LongitudinalTemporalOffsetFromEvent = Column(String)
 
 # Series model
-
 class Series(Base):
     __tablename__ = "series"
 
     instance_uid = Column(String, primary_key = True)
     study_instance_uid = Column(String, ForeignKey("studies.instance_uid"))
     modality = Column(String)
+    body_part = Column(String)
     protocol_name  = Column(String)
     series_date = Column(Date)
     series_description = Column(String)
