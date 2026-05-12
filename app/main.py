@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 import uvicorn
 
+from app.api.example import router as example_router
 from app.core.config import config
 
 app = FastAPI(title="2026-bioimages API")
-
-
-@app.get("/hello")
-def hello_world() -> dict[str, str]:
-    return {"message": "Hello, world!"}
+app.include_router(example_router)
 
 
 if __name__ == "__main__":
