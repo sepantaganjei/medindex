@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.path as mpath
@@ -13,7 +15,6 @@ from scipy.signal import convolve
 from skimage.color import rgb2gray
 from skimage import img_as_ubyte
 from skimage.feature import graycomatrix, graycoprops
-
 
 
 class RoiSelector:
@@ -165,61 +166,71 @@ class RoiSelector:
             self.fig.canvas.draw()
 
 
-def confirm_roi(image_path, selector_fig):  # <-- aggiungi selector_fig
+def confirm_roi(image_path, selector_fig):
+
     img = mpimg.imread(image_path)
 
+    # Mostra ROI
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.imshow(img)
     ax.set_title("ROI ritagliata")
     ax.axis("off")
+
     plt.tight_layout()
     plt.show(block=False)
+
+    # forza refresh finestra matplotlib
+    fig.canvas.draw()
     fig.canvas.flush_events()
 
-    manager = plt.get_current_fig_manager()
-    manager.window.lift()
-    manager.window.attributes('-topmost', True)
-    manager.window.attributes('-topmost', False)
-    fig.canvas.flush_events()
-
+    # finestra tkinter
     root = tk.Tk()
     root.withdraw()
 
+    result = {"confirmed": False}
+
     dialog = tk.Toplevel(root)
     dialog.title("Conferma ROI")
-    dialog.resizable(False, False)
-    dialog.attributes('-topmost', True)
-    dialog.lift()
+    dialog.geometry("350x140")
+    dialog.attributes("-topmost", True)
 
-    tk.Label(dialog, text="La ROI selezionata è corretta?\n\nPremi 'Sì' per procedere o 'No' per ridisegnare.",
-             padx=20, pady=15).pack()
-
-    result = tk.BooleanVar(value=False)
+    tk.Label(
+        dialog,
+        text="La ROI selezionata è corretta?",
+        pady=20
+    ).pack()
 
     def on_yes():
-        result.set(True)
-        dialog.grab_release()
+        result["confirmed"] = True
         dialog.destroy()
-        plt.close(selector_fig)  # <-- chiude il selettore
         root.quit()
 
     def on_no():
-        result.set(False)
-        dialog.grab_release()
+        result["confirmed"] = False
         dialog.destroy()
         root.quit()
 
-    btn_frame = tk.Frame(dialog)
-    btn_frame.pack(pady=10)
-    tk.Button(btn_frame, text="Sì", width=10, command=on_yes).pack(side=tk.LEFT, padx=5)
-    tk.Button(btn_frame, text="No", width=10, command=on_no).pack(side=tk.LEFT, padx=5)
+    frame = tk.Frame(dialog)
+    frame.pack(pady=10)
+
+    tk.Button(frame, text="Sì", width=10, command=on_yes).pack(
+        side=tk.LEFT, padx=10
+    )
+
+    tk.Button(frame, text="No", width=10, command=on_no).pack(
+        side=tk.LEFT, padx=10
+    )
 
     dialog.grab_set()
     root.mainloop()
     root.destroy()
 
-    confirmed = result.get()
+    confirmed = result["confirmed"]
+
     plt.close(fig)
+
+    if confirmed:
+        plt.close(selector_fig)
 
     return confirmed
 
