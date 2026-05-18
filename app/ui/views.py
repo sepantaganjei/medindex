@@ -4,7 +4,7 @@
 # Here we combine the orchestrated operations and the components made available by streamlit.
 
 import streamlit as st
-import etl.pipeline as pipe
+import app.etl.pipeline as pipe
 
 # Add a new dataset
 def add_dataset(collection_name, dataset_type):

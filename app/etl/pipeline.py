@@ -1,9 +1,9 @@
 # This package is used as orchestrator and manages data between db and views.
 
-import etl.dicom_transform as dcm_tsf
-import etl.nifti_transform as nii_tsf
-import etl.extract as extract
-import db.repository as repo
+import app.etl.dicom_transform as dcm_tsf
+import app.etl.nifti_transform as nii_tsf
+import app.etl.extract as extract
+import app.db.repository as repo
 
 # =============
 # ADDING A NEW COLLECTION TO THE PLATFORM
@@ -28,7 +28,8 @@ def add_new_dataset(session, collection_name, dataset_type):
     # Returns dictionary of ORM objects
     return dataset
 
-# Set of data transformers depending on data and dataset type
+# Set of data transformers
+# They depend on the data (collection/patient/study/series) and on the dataset type
 collection_data_transformers = { "DICOM": dcm_tsf.prepare_collection_data, "NIFTI": nii_tsf.prepare_collection_data}
 patients_data_transformers = {"DICOM": dcm_tsf.prepare_patients_data, "NIFTI": nii_tsf.prepare_patients_data}
 studies_data_transformers = {"DICOM": dcm_tsf.prepare_studies_data, "NIFTI": nii_tsf.prepare_studies_data}

@@ -5,7 +5,7 @@ import re
 
 # Safe helpers in case of missing data
 
-
+# Standardizes missing integers
 def safe_int(x):
     if pd.isna(x):
         return None
@@ -14,13 +14,14 @@ def safe_int(x):
     except (TypeError, ValueError):
         return None
 
-
+# Standardizes missing strings
 def safe_str(x, default="Missing"):
     if x is None or pd.isna(x):
         return default
     return str(x)
 
 
+# Standardizes missing and non missing dates
 def safe_date(x):
     if pd.isna(x):
         return None
@@ -30,6 +31,7 @@ def safe_date(x):
         return None
 
 
+# Standardizes missing and non missing timestamps
 def safe_time(x):
     if pd.isna(x):
         return None
@@ -39,6 +41,7 @@ def safe_time(x):
         return None
 
 
+# Standardizes missing and non missing boolean values
 def safe_bool(x):
     if pd.isna(x):
         return None
@@ -56,9 +59,15 @@ def safe_bool(x):
     return None
 
 
+# ==========================
 # Data preparation functions
+# ==========================
 
-
+# This function returns a dictionary of data of the collection we want to add
+# Input
+# - Raw data
+# Output
+# - data of the collection in dictionary format
 def prepare_collection_data(raw_data):
     raw_df = pd.read_excel(raw_data)
     row = raw_df.iloc[0]
@@ -74,6 +83,12 @@ def prepare_collection_data(raw_data):
     return clean_collection_data
 
 
+# This function returns a dictionary of data of the patients we want to add
+# We used a dictionary so as to avoid duplicated patients being added to the DB
+# Input
+# - Raw data
+# Output
+# - data of the patients in dictionary format. Each key is a different patient.
 def prepare_patients_data(raw_data):
     raw_df = pd.read_excel(raw_data)
     patients = {}
@@ -96,6 +111,12 @@ def prepare_patients_data(raw_data):
     return list(patients.values())
 
 
+# This function returns a dictionary of data of the studies we want to add
+# We used a dictionary so as to avoid duplicated studies being added to the DB
+# Input
+# - Raw data
+# Output
+# - data of the studies in dictionary format. Each key is a different study.
 def prepare_studies_data(raw_data):
     raw_df = pd.read_excel(raw_data)
     studies = {}
@@ -125,6 +146,12 @@ def prepare_studies_data(raw_data):
     return list(studies.values())
 
 
+# This function returns a dictionary of data of the series we want to add
+# We used a dictionary so as to avoid duplicated series being added to the DB
+# Input
+# - Raw data
+# Output
+# - data of the series in dictionary format. Each key is a different series.
 def prepare_series_data(raw_df):
     series_list = {}
 
@@ -138,7 +165,7 @@ def prepare_series_data(raw_df):
                     row.get("Study Instance UID", "Missing")
                 ),
                 "modality": safe_str(row.get("Modality", "Missing")),
-                "body_part": ...,
+                "body_part": safe_str(row.get("Body Part Examined", "Missing")),
                 "protocol_name": safe_str(row.get("Protocol Name", "Missing")),
                 "series_date": safe_date(row.get("Series Date")),
                 "series_description": safe_str(
