@@ -12,11 +12,18 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: bioimages
+      OBJECT_STORAGE_ENDPOINT: minio:9000
+      OBJECT_STORAGE_ACCESS_KEY: minioadmin
+      OBJECT_STORAGE_SECRET_KEY: minioadmin
+      OBJECT_STORAGE_BUCKET: bioimages
+      OBJECT_STORAGE_SECURE: "false"
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_started
 
   frontend:
     image: nginx:alpine
@@ -28,6 +35,19 @@ services:
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z
     depends_on:
       - app
+
+  minio:
+    image: minio/minio:latest
+    container_name: bioimages-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
 
   postgres:
     image: postgres:16
@@ -49,3 +69,4 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
