@@ -683,11 +683,74 @@ function createEllipseROI() {
 }
 
 /* =========================================
+   ROI POINTS EXPORT
+   Restituisce i punti della ROI confermata
+   nel sistema di coordinate dell'immagine.
+========================================= */
+
+function getEllipsePoints(cx, cy, rx, ry) {
+
+    // Approssimazione della circonferenza (Ramanujan)
+    const perimeter =
+        Math.PI * (
+            3 * (rx + ry) -
+            Math.sqrt((3 * rx + ry) * (rx + 3 * ry))
+        );
+
+    // ~1 punto ogni pixel
+    const steps = Math.max(60, Math.ceil(perimeter));
+
+    const pts = [];
+
+    for (let i = 0; i < steps; i++) {
+
+        const theta = (i / steps) * Math.PI * 2;
+
+        pts.push({
+            x: Math.round(cx + rx * Math.cos(theta)),
+            y: Math.round(cy + ry * Math.sin(theta))
+        });
+    }
+
+    return pts;
+}
+
+function getROIPoints() {
+    if (roiMode === "polygon") {
+        return points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+    }
+
+    if (roiMode === "freehand") {
+        return freehandPath.map(p => ({ x: Math.round(p.x), y: Math.round(p.y) }));
+    }
+
+    if (roiMode === "ellipse") {
+
+        const rx = Math.abs(ellipsePreview.x - ellipseCenter.x);
+        const ry = Math.abs(ellipsePreview.y - ellipseCenter.y);
+    
+        return getEllipsePoints(
+            ellipseCenter.x,
+            ellipseCenter.y,
+            rx,
+            ry
+        );
+    }
+
+    return null;
+}
+
+/* =========================================
    DIALOG
 ========================================= */
 
 yesBtn.onclick = () => {
     dialog.style.display = "none";
+
+    const roi = getROIPoints();
+    console.log("ROI mode:", roiMode);
+    console.log("ROI points:", roi);
+
     const features = [...selectedFeatures];
     if (features.length === 0) {
         alert("ROI confermata.\n(Nessuna feature selezionata)");
