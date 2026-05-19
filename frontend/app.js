@@ -22,9 +22,7 @@ const selectAllCollectionsButton = document.getElementById(
 );
 const clearCollectionsButton = document.getElementById("clear-collections");
 
-let selectedCollections = new Set(
-  collections.map((collection) => collection.id),
-);
+let selectedCollections = new Set();
 
 function renderCollections() {
   collectionsList.innerHTML = "";
@@ -184,5 +182,21 @@ clearCollectionsButton.addEventListener("click", () => {
   renderSeries();
 });
 
-renderCollections();
-renderSeries();
+const apiBaseUrl =
+  new URLSearchParams(window.location.search).get("apiBaseUrl") ??
+  window.location.origin;
+
+async function initializeData() {
+  const { collections: loadedCollections, seriesData: loadedSeries } =
+    await loadMockData(apiBaseUrl);
+  collections = loadedCollections;
+  seriesData = loadedSeries;
+  selectedCollections = new Set(collections.map((collection) => collection.id));
+  renderCollections();
+  renderSeries();
+}
+
+initializeData().catch((error) => {
+  console.error("Failed to load mock data", error);
+  resultCount.textContent = "Failed to load data";
+});

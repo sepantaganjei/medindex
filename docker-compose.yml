@@ -18,6 +18,17 @@ services:
       postgres:
         condition: service_healthy
 
+  frontend:
+    image: nginx:alpine
+    container_name: bioimages-frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro,Z
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z
+    depends_on:
+      - app
+
   postgres:
     image: postgres:16
     container_name: bioimages-postgres
