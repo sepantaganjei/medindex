@@ -374,6 +374,82 @@ def compute_histogram(points, image, bins=256, show=False):
 
 
 # ==========================================================
+# HISTOGRAM AS FRONTEND DATA
+# ==========================================================
+
+def histogram_as_frontend_data(points, image, bins=256):
+    """
+    Calcola l'istogramma della ROI e lo restituisce come dizionario
+    JSON-serializzabile, pronto per essere consumato da un frontend.
+
+    Parameters
+    ----------
+    points : list of (x, y)
+        Vertici del poligono ROI (coordinate pixel).
+    image : ndarray
+        Immagine originale (RGB, RGBA o grayscale).
+    bins : int
+        Numero di bin dell'istogramma (default 256).
+
+    Returns
+    -------
+    dict con le chiavi:
+        bins        : int   - numero di bin usati
+        labels      : list[float] - centro di ogni bin (asse X, intensità)
+        counts      : list[int]   - conteggio pixel per ogni bin (asse Y)
+        total_pixels: int   - pixel totali nella ROI
+        min_val     : float - intensità minima nella ROI
+        max_val     : float - intensità massima nella ROI
+        mean_val    : float - intensità media nella ROI
+        std_val     : float - deviazione standard nella ROI
+
+    Esempio di output
+    -----------------
+    {
+        "bins": 256,
+        "labels": [0.5, 1.5, ..., 254.5],
+        "counts": [0, 3, 17, ...],
+        "total_pixels": 4821,
+        "min_val": 12.0,
+        "max_val": 241.0,
+        "mean_val": 127.4,
+        "std_val": 38.2
+    }
+    """
+    roi_gray, mask_crop, _ = crop_roi_from_points(points, image)
+
+    pixel_values = roi_gray[mask_crop]
+
+    if pixel_values.size == 0:
+        return {
+            "bins": bins,
+            "labels": [],
+            "counts": [],
+            "total_pixels": 0,
+            "min_val": None,
+            "max_val": None,
+            "mean_val": None,
+            "std_val": None,
+        }
+
+    hist, edges = np.histogram(pixel_values, bins=bins, range=(0, 255))
+
+    # Centro di ogni bin come label sull'asse X
+    centers = ((edges[:-1] + edges[1:]) / 2).tolist()
+
+    return {
+        "bins":         bins,
+        "labels":       [round(c, 4) for c in centers],
+        "counts":       hist.tolist(),
+        "total_pixels": int(pixel_values.size),
+        "min_val":      round(float(pixel_values.min()), 4),
+        "max_val":      round(float(pixel_values.max()), 4),
+        "mean_val":     round(float(pixel_values.mean()), 4),
+        "std_val":      round(float(pixel_values.std()), 4),
+    }
+
+
+# ==========================================================
 # PYRADIOMICS EXTRACTION
 # ==========================================================
 
@@ -545,6 +621,13 @@ if __name__ == "__main__":
     # ======================================================
     # HISTOGRAM
     # ======================================================
+
+    import json
+
+    hist_data = histogram_as_frontend_data(points, image, bins=256)
+    json_payload = json.dumps(hist_data)   # pronto per HTTP response
+
+    print(json_payload)
 
     hist, edges = compute_histogram(points, image, bins=256, show=True)
     print(f"\nHistogram computed: {hist.sum():.0f} pixel nella ROI")
