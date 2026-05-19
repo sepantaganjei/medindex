@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MedVault Mockup</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">+</div>
+          <div>
+            <h1>MedVault</h1>
+            <p>BioImage browser</p>
+          </div>
+        </div>
+
+        <section class="sidebar-section">
+          <div class="collections-header">
+            <h2>Collections</h2>
+            <span id="collections-count">0/0</span>
+          </div>
+
+          <div class="collection-actions">
+            <button id="select-all-collections">All</button>
+            <button id="clear-collections">Clear</button>
+          </div>
+
+          <div id="collections-list"></div>
+        </section>
+
+        <section class="upload-card">
+          <p>Drop scan/image here</p>
+          <span>or click to browse</span>
+          <button>Upload</button>
+        </section>
+
+        <div class="sidebar-footer">
+          <p>Source: TCIA / Local</p>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content">
+        <!-- SEARCH PAGE -->
+        <section id="search-page" class="page active">
+          <header class="topbar">
+            <div>
+              <h1>Search medical image series</h1>
+              <p>
+                Browse collections, inspect metadata, and preview image series.
+              </p>
+            </div>
+
+            <div class="source-buttons">
+              <button class="active">TCIA</button>
+              <button>OpenSpecimen</button>
+              <button>Local</button>
+            </div>
+          </header>
+
+          <section class="filter-bar">
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Search series, patient, modality, body part..."
+            />
+
+            <select id="modality-filter">
+              <option value="all">All modalities</option>
+              <option value="CT">CT</option>
+              <option value="MRI">MRI</option>
+              <option value="PET">PET</option>
+            </select>
+          </section>
+
+          <section class="table-card">
+            <div class="table-header">
+              <h2>Series</h2>
+              <p id="result-count">0 results</p>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Series UID</th>
+                  <th>Patient</th>
+                  <th>Modality</th>
+                  <th>Body Part</th>
+                  <th>Description</th>
+                  <th>Slices</th>
+                  <th>Collection</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="series-table"></tbody>
+            </table>
+          </section>
+        </section>
+
+        <!-- VIEWER PAGE -->
+        <section id="viewer-page" class="page">
+          <header class="viewer-topbar">
+            <button id="back-button">← Back to search</button>
+            <div>
+              <h1 id="viewer-title">Series viewer</h1>
+              <p id="viewer-subtitle">Inspect image and metadata</p>
+            </div>
+          </header>
+
+          <section class="viewer-layout">
+            <div class="viewer-card">
+              <div class="viewer-toolbar">
+                <span id="viewer-modality">MODALITY</span>
+                <span id="viewer-slices">0 slices</span>
+              </div>
+
+              <div class="image-viewer">
+                <div class="crosshair horizontal"></div>
+                <div class="crosshair vertical"></div>
+                <p>No DICOM rendering yet</p>
+              </div>
+
+              <div class="viewer-controls">
+                <label>
+                  Slice
+                  <input
+                    id="slice-slider"
+                    type="range"
+                    min="1"
+                    max="128"
+                    value="64"
+                  />
+                </label>
+
+                <label>
+                  Window Level
+                  <input type="range" min="0" max="100" value="50" />
+                </label>
+
+                <label>
+                  Window Width
+                  <input type="range" min="0" max="100" value="75" />
+                </label>
+              </div>
+            </div>
+
+            <aside class="metadata-card">
+              <div class="metadata-tabs">
+                <button class="active">Series</button>
+                <button>Patient</button>
+                <button>Acquisition</button>
+                <button>Raw Tags</button>
+              </div>
+
+              <div id="metadata-content" class="metadata-content">
+                Select a series.
+              </div>
+            </aside>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="mock-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
