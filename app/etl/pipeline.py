@@ -15,31 +15,47 @@ import app.db.repository as repo
 # Each transformer extracts and processes its relevant subset.
 # =============
 
+
 def add_new_dataset(session, collection_name, dataset_type):
     dataset_type = dataset_type.upper()
     raw_data = extract.get_data_from_archive(collection_name, dataset_type)
     dataset = {
-        "collection" : process_and_store_collection(session, raw_data, dataset_type),
-        "patients" : process_and_store_patients(session, raw_data, dataset_type),
-        "studies" : process_and_store_studies(session, raw_data, dataset_type),
-        "series" : process_and_store_series(session, raw_data, dataset_type)
+        "collection": process_and_store_collection(session, raw_data, dataset_type),
+        "patients": process_and_store_patients(session, raw_data, dataset_type),
+        "studies": process_and_store_studies(session, raw_data, dataset_type),
+        "series": process_and_store_series(session, raw_data, dataset_type),
     }
 
     # Returns dictionary of ORM objects
     return dataset
 
+
 # Set of data transformers
 # They depend on the data (collection/patient/study/series) and on the dataset type
-collection_data_transformers = { "DICOM": dcm_tsf.prepare_collection_data, "NIFTI": nii_tsf.prepare_collection_data}
-patients_data_transformers = {"DICOM": dcm_tsf.prepare_patients_data, "NIFTI": nii_tsf.prepare_patients_data}
-studies_data_transformers = {"DICOM": dcm_tsf.prepare_studies_data, "NIFTI": nii_tsf.prepare_studies_data}
-series_data_transformers = {"DICOM": dcm_tsf.prepare_series_data, "NIFTI": nii_tsf.prepare_series_data}
+collection_data_transformers = {
+    "DICOM": dcm_tsf.prepare_collection_data,
+    "NIFTI": nii_tsf.prepare_collection_data,
+}
+patients_data_transformers = {
+    "DICOM": dcm_tsf.prepare_patients_data,
+    "NIFTI": nii_tsf.prepare_patients_data,
+}
+studies_data_transformers = {
+    "DICOM": dcm_tsf.prepare_studies_data,
+    "NIFTI": nii_tsf.prepare_studies_data,
+}
+series_data_transformers = {
+    "DICOM": dcm_tsf.prepare_series_data,
+    "NIFTI": nii_tsf.prepare_series_data,
+}
+
 
 # Insertion of new collection
 def process_and_store_collection(session, raw_data, dataset_type):
     transform = collection_data_transformers[dataset_type]
     clean_collection_data = transform(raw_data)
     return repo.get_or_create_collection(session, clean_collection_data)
+
 
 # Patients insertion from new collection
 def process_and_store_patients(session, raw_data, dataset_type):
@@ -53,6 +69,7 @@ def process_and_store_patients(session, raw_data, dataset_type):
 
     return patients
 
+
 # Studies insertion from new collection
 def process_and_store_studies(session, raw_data, dataset_type):
     transform = studies_data_transformers[dataset_type]
@@ -64,6 +81,7 @@ def process_and_store_studies(session, raw_data, dataset_type):
         studies.append(obj)
 
     return studies
+
 
 # Series insertion from new collection
 def process_and_store_series(session, raw_data, dataset_type):
@@ -83,27 +101,5 @@ def download_image_series(series_uid):
 
     with open(f"{series_uid}.zip", "wb") as f:
         f.write(zip_file.content)
-    
+
     print("Downloaded images.zip")
-
-
-
-
-
-
-
-
-
-
-
-def view_collection_dataset():
-    pass
-
-def view_study_dataset():
-    pass
-
-def view_patient_dataset():
-    pass
-
-def view_series_dataset():
-    pass
