@@ -4,10 +4,8 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.path as mpath
-import numpy as np
-import os
-import tkinter as tk
 
+import numpy as np
 import SimpleITK as sitk
 
 from radiomics import featureextractor
@@ -30,16 +28,43 @@ class RoiSelector:
         self.punti_x = []
         self.punti_y = []
 
-        self.linea_def, = self.ax.plot([], [], 'ro-', markersize=4)
-        self.linea_temp, = self.ax.plot([], [], 'r--', alpha=0.5)
+        self.linea_def, = self.ax.plot(
+            [],
+            [],
+            'ro-',
+            markersize=4,
+            linewidth=1.5
+        )
 
-        self.fig.canvas.mpl_connect('button_press_event', self.on_click)
-        self.fig.canvas.mpl_connect('motion_notify_event', self.on_move)
+        self.linea_temp, = self.ax.plot(
+            [],
+            [],
+            'r--',
+            alpha=0.5
+        )
 
         self.roi_done = False
 
-        plt.title("Click SX = punto | Click DX = chiudi ROI")
+        self.fig.canvas.mpl_connect(
+            'button_press_event',
+            self.on_click
+        )
+
+        self.fig.canvas.mpl_connect(
+            'motion_notify_event',
+            self.on_move
+        )
+
+        plt.title(
+            "Click SX = aggiungi punto | "
+            "Click DX = chiudi ROI"
+        )
+
         plt.show()
+
+    # ======================================================
+    # CLICK EVENTS
+    # ======================================================
 
     def on_click(self, event):
 
@@ -49,27 +74,41 @@ class RoiSelector:
         if event.inaxes != self.ax:
             return
 
+        # CLICK SINISTRO
         if event.button == 1:
 
             self.punti_x.append(event.xdata)
             self.punti_y.append(event.ydata)
 
-            self.linea_def.set_data(self.punti_x, self.punti_y)
+            self.linea_def.set_data(
+                self.punti_x,
+                self.punti_y
+            )
 
             self.fig.canvas.draw()
 
+        # CLICK DESTRO → chiudi ROI
         elif event.button == 3 and len(self.punti_x) > 2:
 
             self.punti_x.append(self.punti_x[0])
             self.punti_y.append(self.punti_y[0])
 
-            self.linea_def.set_data(self.punti_x, self.punti_y)
+            self.linea_def.set_data(
+                self.punti_x,
+                self.punti_y
+            )
+
+            self.linea_temp.set_data([], [])
 
             self.fig.canvas.draw()
 
             self.roi_done = True
 
             print("ROI completata")
+
+    # ======================================================
+    # MOUSE MOVE
+    # ======================================================
 
     def on_move(self, event):
 
@@ -98,13 +137,21 @@ def create_mask(points, image_shape):
 
     h, w = image_shape[:2]
 
-    x, y = np.meshgrid(np.arange(w), np.arange(h))
+    x, y = np.meshgrid(
+        np.arange(w),
+        np.arange(h)
+    )
 
-    coords = np.vstack((x.flatten(), y.flatten())).T
+    coords = np.vstack((
+        x.flatten(),
+        y.flatten()
+    )).T
 
     path = mpath.Path(points)
 
-    mask = path.contains_points(coords).reshape(h, w)
+    mask = path.contains_points(coords)
+
+    mask = mask.reshape(h, w)
 
     return mask.astype(np.uint8)
 
@@ -115,13 +162,21 @@ def create_mask(points, image_shape):
 
 def save_for_radiomics(image, mask):
 
+    # RGB → grayscale
     if image.ndim == 3:
 
         image = image[:, :, :3]
 
-        image = np.mean(image, axis=2)
+        image = np.mean(
+            image,
+            axis=2
+        )
 
-    image = (image * 255).astype(np.uint8)
+    # Normalizzazione uint8
+    if image.max() <= 1.0:
+        image = image * 255
+
+    image = image.astype(np.uint8)
 
     sitk_img = sitk.GetImageFromArray(image)
 
@@ -141,19 +196,229 @@ def save_for_radiomics(image, mask):
 # PYRADIOMICS EXTRACTION
 # ==========================================================
 
-def extract_radiomics_features(image_path, mask_path):
+def extract_ngtdm_busyness(image_path, mask_path):
 
     extractor = featureextractor.RadiomicsFeatureExtractor()
 
-    # Abilita tutte le feature
-    extractor.enableAllFeatures()
-
-    # opzionale:
     extractor.settings['binWidth'] = 25
 
-    result = extractor.execute(image_path, mask_path)
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+
+        ngtdm=[
+            'Busyness'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
 
     return result
+
+def extract_ngtdm_contrast(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+
+        ngtdm=[
+            'Contrast'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_ngtdm_coarseness(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+
+        ngtdm=[
+            'Coarseness'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_glszm_ZoneEntropy(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        glszm=[
+            'ZoneEntropy'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_glrlm_ShortRunEmphasis(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        glrlm=[
+            'ShortRunEmphasis'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_glcm_correlation(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        glcm=[
+            'Correlation'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_glcm_Idm(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        glcm=[
+            'Idm'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_standarDeviation(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        firstorder=[
+            'StandardDeviation'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+def extract_mean(image_path, mask_path):
+
+    extractor = featureextractor.RadiomicsFeatureExtractor()
+
+    extractor.settings['binWidth'] = 25
+
+    extractor.disableAllFeatures()
+
+    extractor.enableFeaturesByName(
+        firstorder=[
+            'Mean'
+        ]
+    )
+
+    result = extractor.execute(
+        image_path,
+        mask_path
+    )
+
+    return result
+
+
+# ==========================================================
+# PRINT SELECTED FEATURES
+# ==========================================================
+
+def print_selected_features(features):
+
+    wanted = [
+
+        "original_ngtdm_Busyness",
+        "original_ngtdm_Contrast",
+        "original_ngtdm_Coarseness",
+
+        "original_glszm_ZoneEntropy",
+
+        "original_glrlm_ShortRunEmphasis",
+
+        "original_glcm_Correlation",
+        "original_glcm_Idm",
+
+        "original_firstorder_Mean",
+        "original_firstorder_StandardDeviation"
+    ]
+
+    print("\n========== SELECTED FEATURES ==========\n")
+
+    for key in wanted:
+
+        if key in features:
+
+            print(f"{key}: {features[key]}")
 
 
 # ==========================================================
@@ -166,21 +431,46 @@ if __name__ == "__main__":
 
     image = mpimg.imread(image_path)
 
+    # ======================================================
+    # ROI SELECTION
+    # ======================================================
+
     selector = RoiSelector(image_path)
 
-    points = list(zip(selector.punti_x, selector.punti_y))
+    points = list(zip(
+        selector.punti_x,
+        selector.punti_y
+    ))
 
-    mask = create_mask(points, image.shape)
+    # ======================================================
+    # CREATE MASK
+    # ======================================================
 
-    img_path, mask_path = save_for_radiomics(image, mask)
+    mask = create_mask(
+        points,
+        image.shape
+    )
 
-    features = extract_radiomics_features(img_path, mask_path)
+    # ======================================================
+    # SAVE IMAGE + MASK
+    # ======================================================
 
-    print("\n========== RADIOMICS FEATURES ==========\n")
+    img_path, mask_path = save_for_radiomics(
+        image,
+        mask
+    )
 
-    for key, value in features.items():
+    # ======================================================
+    # FEATURE EXTRACTION
+    # ======================================================
 
-        if key.startswith("diagnostics"):
-            continue
+    features = extract_radiomics_features(
+        img_path,
+        mask_path
+    )
 
-        print(f"{key}: {value}")
+    # ======================================================
+    # PRINT FEATURES
+    # ======================================================
+
+    print_selected_features(features)
