@@ -2,8 +2,9 @@
 # provide the functions needed to extract the data from TCIA
 
 import requests
-from pathlib import Path
 import pandas as pd
+import zipfile
+import os
 
 
 # Main function. It returns the raw data from the archive.
@@ -67,8 +68,22 @@ def _safe_get(url, params):
 # - name of the collection
 # Output:
 # - data about collection, patients, studies, series in xlsx
-def _get_data_from_NIFTI_archive(collection_name):
-    return Path(f"{collection_name}.xlsx")
+def _get_data_from_NIFTI_archive(file_path):
+    extract_path = "temp_extract"
+
+    # extract archive
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        zip_ref.extractall(extract_path)
+
+    # list all files
+    tree = os.listdir(extract_path)
+
+    # collect all CSV and XLSX files
+    csv_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".csv")]
+
+    xlsx_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".xlsx")]
+
+    return {"csv": csv_files, "xlsx": xlsx_files}
 
 
 # Get the zip associated with a DICOM series
@@ -97,6 +112,4 @@ def getAllDICOMCollections():
 
         pages.append(pd.DataFrame(response.json()))
 
-    df = pd.concat(pages, ignore_index=True)
-
-    return df
+    return pages
