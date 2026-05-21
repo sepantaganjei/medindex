@@ -228,6 +228,18 @@ select {
   color: var(--text-muted);
 }
 
+.upload-card .roi-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.upload-card .roi-link:hover {
+  text-decoration: underline;
+}
+
 .sidebar-footer {
   margin-top: auto;
   font-size: 12px;

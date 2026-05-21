@@ -27,8 +27,10 @@ python -m app.main
 ### Docker start
 
 ```bash
-docker compose up --build
+docker build -t bioimages-app .
+docker compose up
 ```
 
-The API will be available at `http://localhost:8000` (`/hello` endpoint).
+The API will be available at `http://localhost:8000` (`/hello` endpoint, object storage under `/object-storage`).
 The frontend mock UI will be available at `http://localhost:8080`.
+MinIO will be available at `http://localhost:9000` (API) and `http://localhost:9001` (console).

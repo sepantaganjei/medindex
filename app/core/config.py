@@ -17,6 +17,11 @@ class Config:
     db_host: str = os.getenv("DB_HOST", "postgres")
     db_port: str = os.getenv("DB_PORT", "5432")
     db_name: str = os.getenv("DB_NAME", "bioimages")
+    object_storage_endpoint: str = os.getenv("OBJECT_STORAGE_ENDPOINT", "localhost:9000")
+    object_storage_access_key: str = os.getenv("OBJECT_STORAGE_ACCESS_KEY", "minioadmin")
+    object_storage_secret_key: str = os.getenv("OBJECT_STORAGE_SECRET_KEY", "minioadmin")
+    object_storage_bucket: str = os.getenv("OBJECT_STORAGE_BUCKET", "bioimages")
+    object_storage_secure: bool = os.getenv("OBJECT_STORAGE_SECURE", "false").lower() == "true"
 
     @property
     def database_url(self) -> str:

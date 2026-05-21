@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ROI Selector</title>
+    <link rel="stylesheet" href="roi.css" />
+  </head>
+  <body>
+    <header id="roiHeader">
+      <div class="header-controls">
+        <label for="objectKeyInput">Object key</label>
+        <input
+          id="objectKeyInput"
+          type="text"
+          placeholder="e.g. samples/brain.png"
+          autocomplete="off"
+        />
+        <button id="loadImageBtn">Load image</button>
+      </div>
+      <span id="loadStatus" class="status">Awaiting image</span>
+    </header>
+
+    <div id="container">
+      <div id="toolbars">
+        <!-- ROI DECISION -->
+        <div id="roiToolbar" class="toolbar-group">
+          <button id="roiBtn">ROI Decision ▾</button>
+          <div id="roiMenu" class="dropdown-menu hidden">
+            <div class="roi-option" data-type="polygon">ROI Polygon</div>
+            <div class="roi-option" data-type="ellipse">ROI Ellipse</div>
+            <div class="roi-option" data-type="freehand">ROI Free Hand</div>
+          </div>
+        </div>
+
+        <!-- FEATURE EXTRACTION -->
+        <div id="featureToolbar" class="toolbar-group">
+          <button id="featureBtn">Feature Extraction ▾</button>
+          <div id="featureMenu" class="dropdown-menu hidden">
+            <label class="feature-option"><input type="checkbox" value="mean" /> Mean</label>
+            <label class="feature-option"><input type="checkbox" value="std" /> Standard Deviation</label>
+            <label class="feature-option"><input type="checkbox" value="eccentricity" /> Eccentricity</label>
+            <label class="feature-option"><input type="checkbox" value="histogram" /> Histogram</label>
+            <label class="feature-option"><input type="checkbox" value="glcm_homogeneity" /> GLCM Homogeneity</label>
+            <label class="feature-option"><input type="checkbox" value="glcm_correlation" /> GLCM Correlation</label>
+            <label class="feature-option"><input type="checkbox" value="glrlm_sre" /> GLRLM Short Run Emphasis</label>
+            <label class="feature-option"><input type="checkbox" value="glszm_ze" /> GLSZM Zone Entropy</label>
+            <label class="feature-option"><input type="checkbox" value="ngtdm_coarseness" /> NGTDM Coarseness</label>
+            <label class="feature-option"><input type="checkbox" value="ngtdm_contrast" /> NGTDM Contrast</label>
+            <label class="feature-option"><input type="checkbox" value="ngtdm_busyness" /> NGTDM Busyness</label>
+            <div class="feature-actions">
+              <button id="selectAllBtn">All</button>
+              <button id="clearAllBtn">Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="left">
+        <h3>ROI Selection</h3>
+        <div id="canvasContainer">
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+
+      <div id="zoomControls">
+        <button id="zoomInBtn">+</button>
+        <button id="zoomOutBtn">-</button>
+      </div>
+
+      <div id="right">
+        <h3>ROI Preview</h3>
+        <div id="previewWrapper">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+
+        <div id="featuresPanel">
+          <h3>Extracted Features</h3>
+          <div id="featuresStatus">No features computed yet.</div>
+          <div id="featuresList" class="features-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="dialog">
+      <p>La ROI selezionata è corretta?</p>
+      <button id="yesBtn">Sì</button>
+      <button id="noBtn">No</button>
+    </div>
+
+    <script src="roi.js"></script>
+  </body>
+</html>
