@@ -1,0 +1,7 @@
+collection_id,collection_value,snomed_value,snomed_code
+1,F,Female,1086007
+1,M,Male,10052037
+1,Hispanic,Hispanic,414408004
+1,Non hispanic,
+1,
+

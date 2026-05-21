@@ -1,0 +1,14 @@
+def prepare_patients_data(raw_data):
+    convert patient data to pandas df 
+    convert series data to pandas df 
+    create a dictionary for all the patients
+    select id column from patient_df
+    convert to list the column of patient ids
+    for each patient:
+        select only those rows belonging to that patient
+        select sex column and get non missing value
+        select age column and get non missing value
+        select ethnic group column and get non missing value
+        add to patients dictionary with patient_id as key
+
+    return patients dictionary as list
