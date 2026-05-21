@@ -6,10 +6,13 @@
 # 3. Relationships (foreign keys)
 
 from app.db.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Time, Boolean, Date
+from sqlalchemy import Column, Integer, String, ForeignKey, Time, Boolean, Date, Float
+from sqlalchemy.orm import relationship
 
 
-# Collection model
+# =========================
+# COLLECTION
+# =========================
 class Collection(Base):
     __tablename__ = "collections"
 
@@ -19,8 +22,12 @@ class Collection(Base):
     license_uri = Column(String)
     description_uri = Column(String)
 
+    studies = relationship("Study", back_populates="collection_obj")
 
-# Patient model
+
+# =========================
+# PATIENT
+# =========================
 class Patient(Base):
     __tablename__ = "patients"
 
@@ -29,23 +36,33 @@ class Patient(Base):
     age = Column(Integer)
     ethnic_group = Column(String)
 
+    studies = relationship("Study", back_populates="patient")
 
-# Study model
+
+# =========================
+# STUDY
+# =========================
 class Study(Base):
     __tablename__ = "studies"
 
     instance_uid = Column(String, primary_key=True)
     collection = Column(String, ForeignKey("collections.name"))
+    patient_id = Column(String, ForeignKey("patients.id"))
     date = Column(Date)
     date_released = Column(Date)
     description = Column(String)
     series_count = Column(Integer)
-    patient_id = Column(String, ForeignKey("patients.id"))
-    LongitudinalTemporalEventType = Column(String)
-    LongitudinalTemporalOffsetFromEvent = Column(String)
+    longitudinal_temporal_event_type = Column(String)
+    longitudinal_temporal_offset_from_event = Column(String)
+
+    collection_obj = relationship("Collection", back_populates="studies")
+    patient = relationship("Patient", back_populates="studies")
+    series = relationship("Series", back_populates="study")
 
 
-# Series model
+# =========================
+# SERIES
+# =========================
 class Series(Base):
     __tablename__ = "series"
 
@@ -64,3 +81,23 @@ class Series(Base):
     max_submission_timestamp = Column(Time)
     file_size = Column(Integer)
     third_party_analysis = Column(Boolean)
+
+    study = relationship("Study", back_populates="series")
+    extractions = relationship("Extraction", back_populates="series")
+
+
+# =========================
+# EXTRACTIONs
+# =========================
+class Extraction(Base):
+    __tablename__ = "extractions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    image_number = Column(Integer)
+    series_uid = Column(String, ForeignKey("series.instance_uid"))
+    feature_name = Column(String)
+    standardized_feature_name = Column(String)
+    vocabulary = Column(String)
+    value = Column(Float)
+
+    series = relationship("Series", back_populates="extractions")
