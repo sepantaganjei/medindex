@@ -5,7 +5,10 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY app ./app
 
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir "numpy==1.26.4" && \
     pip install --no-cache-dir . --no-build-isolation
 

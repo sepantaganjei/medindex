@@ -1,9 +1,7 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: bioimages-app
+    image: bioimages-app
+    container_name: biopodimages-app
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8000

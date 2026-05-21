@@ -27,7 +27,8 @@ python -m app.main
 ### Docker start
 
 ```bash
-docker compose up --build
+docker build -t bioimages-app .
+docker compose up
 ```
 
 The API will be available at `http://localhost:8000` (`/hello` endpoint, object storage under `/object-storage`).
