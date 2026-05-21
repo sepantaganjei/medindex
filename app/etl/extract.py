@@ -2,10 +2,13 @@
 # provide the functions needed to extract the data from TCIA
 
 import requests
-from pathlib import Path
+import pandas as pd
+import zipfile
+import os
+
 
 # Main function. It returns the raw data from the archive.
-# Input: 
+# Input:
 # - name of the collection
 # - type of the dataset
 # Output:
@@ -19,6 +22,7 @@ def get_data_from_archive(collection_name, dataset_type):
 
     return handlers[dataset_type](collection_name)
 
+
 # Helper function getting data from a DICOM dataset
 # Input:
 # - name of the collection
@@ -29,20 +33,23 @@ def _get_data_from_DICOM_archive(collection_name):
         "collection": "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getCollectionDescriptions",
         "patients": "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getPatient",
         "studies": "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/NewStudiesInPatientCollection",
-        "series": "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+        "series": "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries",
     }
 
     PARAMS = {
         "collection": {"collectionName": collection_name},
         "patients": {"Collection": collection_name, "format": "json"},
-        "studies": {"Collection": collection_name, "fromDate": "01-01-1960", "format": "json"},
+        "studies": {
+            "Collection": collection_name,
+            "fromDate": "01-01-1960",
+            "format": "json",
+        },
         "series": {"Collection": collection_name, "format": "json"},
     }
 
-    data = {
-        key: _safe_get(URLS[key], PARAMS[key]).json() for key in URLS
-    }
+    data = {key: _safe_get(URLS[key], PARAMS[key]).json() for key in URLS}
     return data
+
 
 # Helper function to send a HTTP request in a safe way
 # Input:
@@ -55,21 +62,54 @@ def _safe_get(url, params):
     response.raise_for_status()
     return response
 
+
 # Helper function getting data from a NIFTI dataset
 # Input:
 # - name of the collection
 # Output:
 # - data about collection, patients, studies, series in xlsx
-def _get_data_from_NIFTI_archive(collection_name):
-    return Path(f"{collection_name}.xlsx")
+def _get_data_from_NIFTI_archive(file_path):
+    extract_path = "temp_extract"
+
+    # extract archive
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
+        zip_ref.extractall(extract_path)
+
+    # list all files
+    tree = os.listdir(extract_path)
+
+    # collect all CSV and XLSX files
+    csv_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".csv")]
+
+    xlsx_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".xlsx")]
+
+    return {"csv": csv_files, "xlsx": xlsx_files}
+
 
 # Get the zip associated with a DICOM series
 def getZip(series_uid):
     url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getImage"
-    params = {
-        "SeriesInstanceUID" : series_uid
-    }
-    response = requests.get(url, params = params, timeout=30)
+    params = {"SeriesInstanceUID": series_uid}
+    response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
     return response
 
+
+def getAllDICOMCollections():
+    base_url = "https://cancerimagingarchive.net/api/v2/collections/"
+    params = {
+        "fields": "id,collection_short_title,collection_title,collection_summary",
+        "per_page": 50,
+    }
+
+    pages = []
+
+    for page in range(1, 5):
+        params["page"] = page
+
+        response = requests.get(base_url, params=params, timeout=30)
+        response.raise_for_status()
+
+        pages.append(pd.DataFrame(response.json()))
+
+    return pages

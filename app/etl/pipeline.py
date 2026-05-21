@@ -4,6 +4,10 @@ import app.etl.dicom_transform as dcm_tsf
 import app.etl.nifti_transform as nii_tsf
 import app.etl.extract as extract
 import app.db.repository as repo
+from app.db.database import SessionLocal
+import zipfile
+import os
+import pandas as pd
 
 # =============
 # ADDING A NEW COLLECTION TO THE PLATFORM
@@ -15,34 +19,67 @@ import app.db.repository as repo
 # Each transformer extracts and processes its relevant subset.
 # =============
 
-def add_new_dataset(session, collection_name, dataset_type):
-    dataset_type = dataset_type.upper()
-    raw_data = extract.get_data_from_archive(collection_name, dataset_type)
-    dataset = {
-        "collection" : process_and_store_collection(session, raw_data, dataset_type),
-        "patients" : process_and_store_patients(session, raw_data, dataset_type),
-        "studies" : process_and_store_studies(session, raw_data, dataset_type),
-        "series" : process_and_store_series(session, raw_data, dataset_type)
-    }
 
-    # Returns dictionary of ORM objects
-    return dataset
+def extract_zip(upload_file, target_folder: str):
+    os.makedirs(target_folder, exist_ok=True)
+
+    with zipfile.ZipFile(upload_file.file) as zip_ref:
+        zip_ref.extractall(target_folder)
+
+
+def add_new_dataset(collection_name, dataset_type, description=None, zipFile=None):
+    dataset_type = dataset_type.upper()
+
+    if zipFile:
+        extract_zip(zipFile, collection_name)
+
+    raw_data = extract.get_data_from_archive(collection_name, dataset_type)
+
+    session = SessionLocal()
+
+    try:
+        _process_and_store_collection(session, raw_data, dataset_type)
+        _process_and_store_patients(session, raw_data, dataset_type)
+        _process_and_store_studies(session, raw_data, dataset_type)
+        _process_and_store_series(session, raw_data, dataset_type)
+
+        return {"status": "success", "error": None}
+    except Exception as e:
+        return {"status": "fail", "error": str(e)}
+
+    finally:
+        session.close()
+
 
 # Set of data transformers
 # They depend on the data (collection/patient/study/series) and on the dataset type
-collection_data_transformers = { "DICOM": dcm_tsf.prepare_collection_data, "NIFTI": nii_tsf.prepare_collection_data}
-patients_data_transformers = {"DICOM": dcm_tsf.prepare_patients_data, "NIFTI": nii_tsf.prepare_patients_data}
-studies_data_transformers = {"DICOM": dcm_tsf.prepare_studies_data, "NIFTI": nii_tsf.prepare_studies_data}
-series_data_transformers = {"DICOM": dcm_tsf.prepare_series_data, "NIFTI": nii_tsf.prepare_series_data}
+collection_data_transformers = {
+    "DICOM": dcm_tsf.prepare_collection_data,
+    "NIFTI": nii_tsf.prepare_collection_data,
+}
+patients_data_transformers = {
+    "DICOM": dcm_tsf.prepare_patients_data,
+    "NIFTI": nii_tsf.prepare_patients_data,
+}
+studies_data_transformers = {
+    "DICOM": dcm_tsf.prepare_studies_data,
+    "NIFTI": nii_tsf.prepare_studies_data,
+}
+series_data_transformers = {
+    "DICOM": dcm_tsf.prepare_series_data,
+    "NIFTI": nii_tsf.prepare_series_data,
+}
+
 
 # Insertion of new collection
-def process_and_store_collection(session, raw_data, dataset_type):
+def _process_and_store_collection(session, raw_data, dataset_type):
     transform = collection_data_transformers[dataset_type]
     clean_collection_data = transform(raw_data)
     return repo.get_or_create_collection(session, clean_collection_data)
 
+
 # Patients insertion from new collection
-def process_and_store_patients(session, raw_data, dataset_type):
+def _process_and_store_patients(session, raw_data, dataset_type):
     transform = patients_data_transformers[dataset_type]
     clean_patients_data = transform(raw_data)
 
@@ -53,8 +90,9 @@ def process_and_store_patients(session, raw_data, dataset_type):
 
     return patients
 
+
 # Studies insertion from new collection
-def process_and_store_studies(session, raw_data, dataset_type):
+def _process_and_store_studies(session, raw_data, dataset_type):
     transform = studies_data_transformers[dataset_type]
     clean_studies_data = transform(raw_data)
 
@@ -65,8 +103,9 @@ def process_and_store_studies(session, raw_data, dataset_type):
 
     return studies
 
+
 # Series insertion from new collection
-def process_and_store_series(session, raw_data, dataset_type):
+def _process_and_store_series(session, raw_data, dataset_type):
     transform = series_data_transformers[dataset_type]
     clean_series_data = transform(raw_data)
 
@@ -78,32 +117,29 @@ def process_and_store_series(session, raw_data, dataset_type):
     return series
 
 
+def get_Available_Collections():
+    pages = extract.getAllDICOMCollections()
+    df = pd.concat(pages, ignore_index=True)
+    return df
+
+
+def get_all_series(collection_name):
+    session = SessionLocal()
+
+    try:
+        if not collection_name:
+            return repo.get_all_series(session)
+
+        return repo.get_series_on_collection(session, collection_name)
+
+    finally:
+        session.close()
+
+
 def download_image_series(series_uid):
     zip_file = extract.getZip(series_uid)
 
     with open(f"{series_uid}.zip", "wb") as f:
         f.write(zip_file.content)
-    
+
     print("Downloaded images.zip")
-
-
-
-
-
-
-
-
-
-
-
-def view_collection_dataset():
-    pass
-
-def view_study_dataset():
-    pass
-
-def view_patient_dataset():
-    pass
-
-def view_series_dataset():
-    pass
