@@ -1,74 +1,70 @@
-const collections = [
-  {
-    id: "collection_alpha_01",
-    name: "collection_alpha_01",
-    source: "TCIA",
-    seriesCount: 128
-  },
-  {
-    id: "brain_mri_study",
-    name: "brain_mri_study",
-    source: "TCIA",
-    seriesCount: 64
-  },
-  {
-    id: "pet_test_study",
-    name: "pet_test_study",
-    source: "TCIA",
-    seriesCount: 72
-  },
-  {
-    id: "local_upload_02",
-    name: "local_upload_02",
-    source: "Local",
-    seriesCount: 18
-  }
-];
+let collections = [];
+let seriesData = [];
 
-const seriesData = [
-  {
-    seriesUid: "1.2.840.10008.001",
-    patientId: "PT-00941",
-    modality: "CT",
-    bodyPart: "BRAIN",
-    description: "Axial contrast-enhanced scan",
-    numSlices: 128,
-    collection: "collection_alpha_01"
-  },
-  {
-    seriesUid: "1.2.840.10017.002",
-    patientId: "PT-00942",
-    modality: "MRI",
-    bodyPart: "SPINE",
-    description: "T2 weighted scan",
-    numSlices: 64,
-    collection: "brain_mri_study"
-  },
-  {
-    seriesUid: "1.2.840.10024.003",
-    patientId: "PT-00943",
-    modality: "PET",
-    bodyPart: "ABDOMEN",
-    description: "Whole-body PET acquisition",
-    numSlices: 256,
-    collection: "pet_test_study"
-  },
-  {
-    seriesUid: "1.2.840.10031.004",
-    patientId: "PT-00944",
-    modality: "CT",
-    bodyPart: "CHEST",
-    description: "Low-dose chest CT",
-    numSlices: 180,
-    collection: "collection_alpha_01"
-  },
-  {
-    seriesUid: "1.2.840.10055.005",
-    patientId: "PT-00945",
-    modality: "MRI",
-    bodyPart: "BRAIN",
-    description: "Brain MRI FLAIR sequence",
-    numSlices: 92,
-    collection: "brain_mri_study"
+function normalizeBaseUrl(apiBaseUrl) {
+  if (!apiBaseUrl) {
+    return "";
   }
-];
+  return apiBaseUrl.endsWith("/") ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status}): ${url}`);
+  }
+  return response.json();
+}
+
+function mapSeries(seriesDetail) {
+  return {
+    seriesUid: seriesDetail.instance_uid,
+    patientId: seriesDetail.patient_id ?? "Unknown",
+    modality: seriesDetail.modality ?? "Unknown",
+    bodyPart: seriesDetail.body_part ?? "Unknown",
+    description: seriesDetail.series_description ?? "",
+    numSlices: seriesDetail.image_count ?? 0,
+    collection: seriesDetail.collection ?? "Unknown",
+  };
+}
+
+function buildCollections(collectionsResponse, seriesRows) {
+  const seriesCounts = seriesRows.reduce((counts, series) => {
+    const key = series.collection;
+    if (!counts[key]) {
+      counts[key] = 0;
+    }
+    counts[key] += 1;
+    return counts;
+  }, {});
+
+  return collectionsResponse.map((collection) => ({
+    id: collection.name,
+    name: collection.name,
+    source: collection.license_name ?? "Mock",
+    seriesCount: seriesCounts[collection.name] ?? 0,
+  }));
+}
+
+async function loadMockData(apiBaseUrl) {
+  const normalizedBaseUrl = normalizeBaseUrl(apiBaseUrl);
+  const buildUrl = (path) => `${normalizedBaseUrl}${path}`;
+
+  const [collectionsResponse, seriesResponse] = await Promise.all([
+    fetchJson(buildUrl("/api/collections")),
+    fetchJson(buildUrl("/api/series")),
+  ]);
+
+  const seriesDetails = await Promise.all(
+    seriesResponse.map((series) =>
+      fetchJson(buildUrl(`/api/series/${series.instance_uid}`)),
+    ),
+  );
+
+  const mappedSeries = seriesDetails.map(mapSeries);
+
+  return {
+    collections: buildCollections(collectionsResponse, mappedSeries),
+    seriesData: mappedSeries,
+  };
+}

@@ -1,0 +1,188 @@
+body {
+  margin: 0;
+  font-family: Arial;
+  overflow: hidden;
+}
+
+/* LAYOUT PRINCIPALE */
+#container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  padding: 10px;
+  gap: 10px;
+}
+
+/* BARRA TOOLBAR (contiene ROI + Feature) */
+#toolbars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* SINGOLO GRUPPO TOOLBAR */
+.toolbar-group {
+  position: relative;
+}
+
+.toolbar-group > button {
+  width: 100%;
+  white-space: nowrap;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  background: #fff;
+  border: 1px solid #999;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.toolbar-group > button:hover {
+  background: #f0f0f0;
+}
+
+/* MENU A TENDINA (comune a entrambi) */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 2000;
+  min-width: 220px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* OPZIONI ROI */
+.roi-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.roi-option:hover {
+  background: #eee;
+}
+
+/* OPZIONI FEATURE (checkbox) */
+.feature-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}
+
+.feature-option:hover {
+  background: #f0f0f0;
+}
+
+.feature-option input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #0066cc;
+  flex-shrink: 0;
+}
+
+/* PULSANTI ALL / CLEAR */
+.feature-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid #eee;
+  margin-top: 2px;
+}
+
+.feature-actions button {
+  flex: 1;
+  padding: 5px 0;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #f8f8f8;
+}
+
+.feature-actions button:hover {
+  background: #e8e8e8;
+}
+
+/* COLONNE */
+#left,
+#right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+h3 {
+  margin: 5px 0 10px 0;
+}
+
+/* AREA CANVAS */
+#canvasContainer {
+  flex: 1;
+  border: 1px solid #444;
+  overflow: hidden;
+  background: #222;
+  position: relative;
+}
+
+#canvas {
+  display: block;
+}
+
+/* PREVIEW */
+#previewWrapper {
+  flex: 1;
+  border: 1px solid #444;
+  overflow: hidden;
+  background: #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#previewCanvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* ZOOM BUTTONS */
+#zoomControls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+#zoomControls button {
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* DIALOG */
+#dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid black;
+  padding: 20px;
+  z-index: 5000;
+  display: none;
+}
