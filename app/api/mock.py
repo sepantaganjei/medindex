@@ -1,4 +1,4 @@
-import datetime as dt
+"""import datetime as dt
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -258,3 +258,4 @@ def get_series_metadata(series_uid: str) -> SeriesMetadataResponse:
         else None,
         patient=PatientMetadataResponse.model_validate(patient, from_attributes=True) if patient else None,
     )
+"""
