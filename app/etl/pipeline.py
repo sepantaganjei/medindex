@@ -7,17 +7,11 @@ import app.db.repository as repo
 from app.db.database import SessionLocal
 import zipfile
 import os
-import pandas as pd
-
-# =============
-# ADDING A NEW COLLECTION TO THE PLATFORM
-# raw_data is a structured dataset containing:
-# - collection info
-# - patients
-# - studies
-# - series
-# Each transformer extracts and processes its relevant subset.
-# =============
+import re
+import html
+# ==========
+# Insertions
+# ==========
 
 
 def extract_zip(upload_file, target_folder: str):
@@ -27,25 +21,36 @@ def extract_zip(upload_file, target_folder: str):
         zip_ref.extractall(target_folder)
 
 
-def add_new_dataset(collection_name, dataset_type, description=None, zipFile=None):
+def add_new_dataset(collection_name, dataset_type, description=None, zip_file=None):
     dataset_type = dataset_type.upper()
 
-    if zipFile:
-        extract_zip(zipFile, collection_name)
+    if zip_file:
+        extract_zip(zip_file, collection_name)
 
     raw_data = extract.get_data_from_archive(collection_name, dataset_type)
-
+    print("Data has been found!")
     session = SessionLocal()
 
     try:
+        print("Starting collection info imputation")
         _process_and_store_collection(session, raw_data, dataset_type)
-        _process_and_store_patients(session, raw_data, dataset_type)
-        _process_and_store_studies(session, raw_data, dataset_type)
-        _process_and_store_series(session, raw_data, dataset_type)
+        print("Finished collection info imputation")
 
-        return {"status": "success", "error": None}
+        print("Starting patients info imputation")
+        _process_and_store_patients(session, raw_data, dataset_type)
+        print("Finished patients info imputation")
+
+        print("Starting studies info imputation")
+        _process_and_store_studies(session, raw_data, dataset_type)
+        print("Finished studies info imputation")
+
+        print("Starting series info imputation")
+        _process_and_store_series(session, raw_data, dataset_type)
+        print("Finished series info imputation")
+
+        return {"status_operation": "success", "error": None}
     except Exception as e:
-        return {"status": "fail", "error": str(e)}
+        return {"status_operation": "fail", "error": str(e)}
 
     finally:
         session.close()
@@ -75,7 +80,7 @@ series_data_transformers = {
 def _process_and_store_collection(session, raw_data, dataset_type):
     transform = collection_data_transformers[dataset_type]
     clean_collection_data = transform(raw_data)
-    return repo.get_or_create_collection(session, clean_collection_data)
+    return repo.create_collection(session, clean_collection_data)
 
 
 # Patients insertion from new collection
@@ -85,7 +90,7 @@ def _process_and_store_patients(session, raw_data, dataset_type):
 
     patients = []
     for patient in clean_patients_data:
-        obj = repo.get_or_create_patient(session, patient)
+        obj = repo.create_patient(session, patient)
         patients.append(obj)
 
     return patients
@@ -98,7 +103,7 @@ def _process_and_store_studies(session, raw_data, dataset_type):
 
     studies = []
     for study in clean_studies_data:
-        obj = repo.get_or_create_study(session, study)
+        obj = repo.create_study(session, study)
         studies.append(obj)
 
     return studies
@@ -111,16 +116,49 @@ def _process_and_store_series(session, raw_data, dataset_type):
 
     series = []
     for s in clean_series_data:
-        obj = repo.get_or_create_series(session, s)
+        obj = repo.create_series(session, s)
         series.append(obj)
 
     return series
 
 
-def get_Available_Collections():
-    pages = extract.getAllDICOMCollections()
-    df = pd.concat(pages, ignore_index=True)
-    return df
+def _clean_description(text):
+    if not text:
+        return ""
+    text = html.unescape(text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def get_collections_available_for_download():
+    print("starting extractions")
+    collections = extract.getAllDICOMCollections()
+    print("got extractions")
+
+    list_of_collections = []
+
+    for item in collections:
+        name = item.get("collectionName", "")
+        description = item.get("description", "")
+        description = _clean_description(description)
+        list_of_collections.append({"name": name, "description": description})
+
+    return list_of_collections
+
+
+def download_image_series(series_uid):
+    zip_file = extract.getZip(series_uid)
+
+    with open(f"{series_uid}.zip", "wb") as f:
+        f.write(zip_file.content)
+
+    print("Downloaded images.zip")
+
+
+# ==========
+# Retrievals
+# ==========
 
 
 def get_all_series(collection_name):
@@ -134,12 +172,3 @@ def get_all_series(collection_name):
 
     finally:
         session.close()
-
-
-def download_image_series(series_uid):
-    zip_file = extract.getZip(series_uid)
-
-    with open(f"{series_uid}.zip", "wb") as f:
-        f.write(zip_file.content)
-
-    print("Downloaded images.zip")
