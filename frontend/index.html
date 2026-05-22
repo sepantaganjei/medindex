@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MedVault Mockup</title>
+    <title>MedVault</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -33,10 +33,19 @@
         </section>
 
         <section class="upload-card">
-          <p>Drop scan/image here</p>
-          <span>or click to browse</span>
-          <button>Upload</button>
-          <a class="roi-link" href="roi.html">Open ROI tool</a>
+          <p>Upload local dataset</p>
+          <span>NIfTI</span>
+
+          <input
+            id="dataset-upload-input"
+            type="file"
+            accept=".csv,.xlsx,.zip,.nii,.nii.gz"
+            hidden
+          />
+
+          <button id="dataset-upload-button" type="button">Choose file</button>
+          <p id="upload-status" class="upload-status"></p>
+	  <a class="roi-link" href="roi.html">Open ROI tool</a>
         </section>
 
         <div class="sidebar-footer">
@@ -58,47 +67,88 @@
 
             <div class="source-buttons">
               <button class="active">TCIA</button>
-              <button>OpenSpecimen</button>
-              <button>Local</button>
+              <!-- <button>OpenSpecimen</button>
+              <button>Local</button> -->
             </div>
           </header>
 
-          <section class="filter-bar">
-            <input
-              id="search-input"
-              type="text"
-              placeholder="Search series, patient, modality, body part..."
-            />
+          <div class="view-tabs">
+            <button id="series-view-button" class="active" type="button">
+              Series browser
+            </button>
+            <button id="available-view-button" type="button">
+              Available collections
+            </button>
+          </div>
 
-            <select id="modality-filter">
-              <option value="all">All modalities</option>
-              <option value="CT">CT</option>
-              <option value="MRI">MRI</option>
-              <option value="PET">PET</option>
-            </select>
+          <section id="series-browser-section">
+            <section class="filter-bar">
+              <input
+                id="search-input"
+                type="text"
+                placeholder="Search series, patient, modality, body part..."
+              />
+
+              <select id="modality-filter">
+                <option value="all">All modalities</option>
+                <option value="CT">CT</option>
+                <option value="MR">MR</option>
+                <option value="PET">PET</option>
+              </select>
+            </section>
+
+            <section class="table-card">
+              <div class="table-header">
+                <h2>Series</h2>
+                <p id="result-count">0 results</p>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Series UID</th>
+                    <th>Patient</th>
+                    <th>Modality</th>
+                    <th>Body Part</th>
+                    <th>Description</th>
+                    <th>Images</th>
+                    <th>Collection</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="series-table"></tbody>
+              </table>
+            </section>
           </section>
 
-          <section class="table-card">
-            <div class="table-header">
-              <h2>Series</h2>
-              <p id="result-count">0 results</p>
+          <section
+            id="available-collections-section"
+            class="available-section hidden"
+          >
+            <div class="available-header">
+              <div>
+                <h2>Available Collections</h2>
+                <p>
+                  Browse remote collections that can be downloaded into the
+                  local database.
+                </p>
+              </div>
+
+              <p id="available-result-count">0 collections</p>
             </div>
 
-            <table>
-              <thead>
-                <tr>
-                  <th>Series UID</th>
-                  <th>Patient</th>
-                  <th>Modality</th>
-                  <th>Body Part</th>
-                  <th>Description</th>
-                  <th>Slices</th>
-                  <th>Collection</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="series-table"></tbody>
-            </table>
+            <div class="available-search-row">
+              <input
+                id="available-search-input"
+                type="text"
+                placeholder="Search available collections..."
+              />
+            </div>
+
+            <div
+              id="available-collections-list"
+              class="available-collections-list"
+            ></div>
           </section>
         </section>
 
@@ -116,7 +166,7 @@
             <div class="viewer-card">
               <div class="viewer-toolbar">
                 <span id="viewer-modality">MODALITY</span>
-                <span id="viewer-slices">0 slices</span>
+                <span id="viewer-images">0 images</span>
               </div>
 
               <div class="image-viewer">
@@ -127,9 +177,9 @@
 
               <div class="viewer-controls">
                 <label>
-                  Slice
+                  Image
                   <input
-                    id="slice-slider"
+                    id="image-slider"
                     type="range"
                     min="1"
                     max="128"
@@ -166,7 +216,7 @@
       </main>
     </div>
 
-    <script src="mock-data.js"></script>
+    <script src="api.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
