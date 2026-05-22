@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 
 # Safe helpers in case of missing data
 
+
 # Standardizes missing integers
 def safe_int(x):
     if pd.isna(x):
@@ -13,6 +14,7 @@ def safe_int(x):
         return int(x)
     except (TypeError, ValueError):
         return None
+
 
 # Standardizes missing strings
 def safe_str(x, default="Missing"):
@@ -58,6 +60,7 @@ def safe_bool(x):
 
     return None
 
+
 # ==========================
 # Data preparation functions
 # ==========================
@@ -75,24 +78,25 @@ def _clean_text(text: str) -> str:
 
     return cleaned
 
+
 # This function returns a dictionary of data of the collection we want to add
 # Input
 # - Raw data
 # Output
 # - data of the collection in dictionary format
 def prepare_collection_data(raw_json_dict_data):
-    collection_json = raw_json_dict_data['collection']
-    series_json = raw_json_dict_data['series']
+    collection_json = raw_json_dict_data["collection"][0]
+    series_json = raw_json_dict_data["series"]
 
     clean_collection_data = {
-        "name": safe_str(collection_json["collectionName"]),
-        "description": _clean_text(safe_str(collection_json["description"])),
+        "name": safe_str(collection_json.get("collectionName")),
+        "description": _clean_text(safe_str(collection_json.get("description"))),
         "license_name": safe_str(series_json[0]["LicenseName"]),
-        "license_uri": safe_str(series_json[0]['LicenseURI']),
-        "description_uri": safe_str(series_json[0]['DataDescriptionURI'])
+        "license_uri": safe_str(series_json[0]["LicenseURI"]),
+        "description_uri": safe_str(series_json[0]["DataDescriptionURI"]),
     }
-
     return clean_collection_data
+
 
 # This function returns a dictionary of data of the patients we want to add
 # We used a dictionary so as to avoid duplicated patients being added to the DB
@@ -101,37 +105,54 @@ def prepare_collection_data(raw_json_dict_data):
 # Output
 # - data of the patients in dictionary format. Each key is a different patient.
 def prepare_patients_data(raw_json_dict_data):
-    patients_df = pd.DataFrame(raw_json_dict_data['patients'])
-    series_df = pd.DataFrame(raw_json_dict_data['series'])
+    print(raw_json_dict_data.keys())
+
+    list_of_patients = raw_json_dict_data["patients"]
+    list_of_series = raw_json_dict_data["series"]
 
     patients = {}
 
-    patients_ids = patients_df['PatientId'].dropna().unique().tolist()
+    for patient in list_of_patients:
+        patient_id = safe_str(patient.get("PatientId"))
 
-    for patient_id in patients_ids:
-        patient_series = series_df[series_df['PatientID'] == patient_id]
+        if patient_id not in patients:
+            # filter related series for this patient
+            patient_series = [
+                s for s in list_of_series if s.get("PatientID") == patient_id
+            ]
 
-        sex = patient_series['PatientSex'].dropna().iloc[0] if not patient_series['PatientSex'].dropna().empty else 'Missing'
+            # SEX
+            sex = (
+                safe_str(patient_series[0].get("PatientSex"))
+                if patient_series
+                else "Missing"
+            )
 
-        age_raw = patient_series['PatientAge'].dropna().iloc[0] if not patient_series['PatientAge'].dropna().empty else None
+            # AGE
+            age_raw = (
+                patient_series[0].get("PatientAge")
+                if patient_series and patient_series[0].get("PatientAge")
+                else None
+            )
 
-        if age_raw:
-            match = re.search(r'(\d+)', str(age_raw))
-            age = int(match.group(1)) if match else -1
-        else:
-            age = -1
-        
-        eth_series = patients_df.loc[patients_df['PatientId'] == patient_id, 'EthnicGroup']
-        ethnic_group = eth_series.dropna().iloc[0] if not eth_series.dropna().empty else 'Missing'
+            if age_raw:
+                match = re.search(r"(\d+)", str(age_raw))
+                age = int(match.group(1)) if match else -1
+            else:
+                age = -1
 
-        patients[patient_id] = {
-            'id' : patient_id,
-            'sex' : sex,
-            'age' : age,
-            'ethnic_group' : ethnic_group
-        }
+            # ETHNIC GROUP (from patient-level data)
+            ethnic_group = safe_str(patient.get("EthnicGroup", "Missing"))
+
+            patients[patient_id] = {
+                "id": patient_id,
+                "sex": sex,
+                "age": age,
+                "ethnic_group": ethnic_group,
+            }
 
     return list(patients.values())
+
 
 # This function returns a dictionary of data of the studies we want to add
 # We used a dictionary so as to avoid duplicated studies being added to the DB
@@ -140,40 +161,39 @@ def prepare_patients_data(raw_json_dict_data):
 # Output
 # - data of the studies in dictionary format. Each key is a different study.
 def prepare_studies_data(raw_json_dict_data):
-    studies_df = pd.DataFrame(raw_json_dict_data['studies'])
-    series_df = pd.DataFrame(raw_json_dict_data['series'])
+    studies_df = pd.DataFrame(raw_json_dict_data["studies"])
+    series_df = pd.DataFrame(raw_json_dict_data["series"])
 
     studies = {}
 
     for _, row in studies_df.iterrows():
-
-        study_uid = row.get('StudyInstanceUID')
+        study_uid = row.get("StudyInstanceUID")
 
         # safely get DateReleased from series_df
         match = series_df.loc[
-            series_df['StudyInstanceUID'] == study_uid,
-            'DateReleased'
+            series_df["StudyInstanceUID"] == study_uid, "DateReleased"
         ].dropna()
 
         date_released = match.iloc[0] if not match.empty else None
 
         studies[study_uid] = {
             "instance_uid": study_uid,
-            "collection": safe_str(row.get('Collection', 'Missing')),
-            "date": safe_date(row.get('StudyDate')),
+            "collection": safe_str(row.get("Collection", "Missing")),
+            "date": safe_date(row.get("StudyDate")),
             "date_released": safe_date(date_released),
-            "description": safe_str(row.get('StudyDesc', 'Missing')),
-            "series_count": safe_int(row.get('SeriesCount')),
+            "description": safe_str(row.get("StudyDescription", "Missing")),
+            "series_count": safe_int(row.get("SeriesCount")),
             "patient_id": safe_str(row.get("PatientID", "Missing")),
-            "LongitudinalTemporalEventType": safe_str(
+            "longitudinal_temporal_event_type": safe_str(
                 row.get("LongitudinalTemporalEventType", "Missing")
             ),
-            "LongitudinalTemporalOffsetFromEvent": safe_int(
+            "longitudinal_temporal_offset_from_event": safe_int(
                 row.get("LongitudinalTemporalOffsetFromEvent")
             ),
         }
 
     return list(studies.values())
+
 
 # This function returns a dictionary of data of the series we want to add
 # We used a dictionary so as to avoid duplicated series being added to the DB
@@ -182,37 +202,39 @@ def prepare_studies_data(raw_json_dict_data):
 # Output
 # - data of the series in dictionary format. Each key is a different series.
 def prepare_series_data(raw_json_dict_data):
-    series_df = pd.DataFrame(raw_json_dict_data)
+    print(raw_json_dict_data.keys())
+    list_of_series = raw_json_dict_data["series"]
     series_list = {}
-
-    for _, row in series_df.iterrows():
-        instance_uid = safe_str(row.get("SeriesInstanceUID"))
+    for series in list_of_series:
+        instance_uid = safe_str(series["SeriesInstanceUID"])
 
         if instance_uid not in series_list:
             series_list[instance_uid] = {
                 "instance_uid": instance_uid,
                 "study_instance_uid": safe_str(
-                    row.get("StudyInstanceUID", "Missing")
+                    series.get("StudyInstanceUID", "Missing")
                 ),
-                "modality": safe_str(row.get("Modality", "Missing")),
-                "body_part": safe_str(row.get("BodyPartExamined", "Missing")),
-                "protocol_name": safe_str(row.get("ProtocolName", "Missing")),
-                "series_date": safe_date(row.get("StudyDate")),
+                "modality": safe_str(series.get("Modality", "Missing")),
+                "body_part": safe_str(series.get("BodyPartExamined", "Missing")),
+                "protocol_name": safe_str(series.get("ProtocolName", "Missing")),
+                "series_date": safe_date(series.get("StudyDate")),
                 "series_description": safe_str(
-                    row.get("SeriesDescription", "Missing")
+                    series.get("SeriesDescription", "Missing")
                 ),
-                "site": safe_str(row.get("Site", "Missing")),
-                "manufacturer": safe_str(row.get("Manufacturer", "Missing")),
+                "site": safe_str(series.get("Site", "Missing")),
+                "manufacturer": safe_str(series.get("Manufacturer", "Missing")),
                 "manufacturer_model_name": safe_str(
-                    row.get("ManufacturerModelName", "Missing")
+                    series.get("ManufacturerModelName", "Missing")
                 ),
-                "software_versions": safe_str(row.get("Software Versions", "Missing")),
-                "image_count": safe_int(row.get("ImageCount")),
+                "software_versions": safe_str(
+                    series.get("SoftwareVersions", "Missing")
+                ),
+                "image_count": safe_int(series.get("ImageCount")),
                 "max_submission_timestamp": safe_time(
-                    row.get("MaxSubmissionTimestamp")
+                    series.get("MaxSubmissionTimestamp")
                 ),
-                "file_size": safe_int(row.get("FileSize")),
-                "third_party_analysis": safe_bool(row.get("ThirdPartyAnalysis")),
+                "file_size": safe_int(series.get("FileSize")),
+                "third_party_analysis": safe_bool(series.get("ThirdPartyAnalysis")),
             }
 
     return list(series_list.values())
