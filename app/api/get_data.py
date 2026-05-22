@@ -7,6 +7,13 @@ import datetime as dt
 router = APIRouter(tags=["GET DATA"])
 
 
+class StudyInfo(BaseModel):
+    collection: str | None = None
+    patient_id: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class SeriesResponse(BaseModel):
     instance_uid: str
     study_instance_uid: str
@@ -23,9 +30,14 @@ class SeriesResponse(BaseModel):
     max_submission_timestamp: dt.time | None = None
     file_size: int | None = None
     third_party_analysis: bool | None = None
-    collection: str | None = None
-    patient_id: str | None = None
+    study: StudyInfo
+
     model_config = {"from_attributes": True}
+
+
+class CollectionsResponse(BaseModel):
+    name: str
+    description: str
 
 
 # get series
@@ -34,6 +46,8 @@ def get_all_series(collectionName: Optional[str] = None):
     return pipe.get_all_series(collectionName)
 
 
-# collections
-
-#
+# get collections
+@router.get("/collectionsToDownload", response_model=list[CollectionsResponse])
+def get_collections_available_for_download():
+    print("got request")
+    return pipe.get_collections_available_for_download()

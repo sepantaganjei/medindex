@@ -12,14 +12,14 @@ class NewDatasetAdditionResponse(BaseModel):
 
 @router.post("/add_dataset", response_model=NewDatasetAdditionResponse)
 def add_new_dataset(
-    collectionName: str = Form(...),
-    datasetType: str = Form(...),
+    collection_name: str = Form(...),
+    dataset_type: str = Form(...),
     description: str | None = Form(None),
-    zipFile: UploadFile | None = File(None),
+    zip_file: UploadFile | None = File(None),
 ):
     return pipe.add_new_dataset(
-        collectionName=collectionName,
-        datasetType=datasetType,
+        collection_name=collection_name,
+        dataset_type=dataset_type,
         description=description,
-        zipFile=zipFile,
+        zip_file=zip_file,
     )
