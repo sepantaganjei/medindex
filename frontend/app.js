@@ -12,9 +12,25 @@ const backButton = document.getElementById("back-button");
 const viewerTitle = document.getElementById("viewer-title");
 const viewerSubtitle = document.getElementById("viewer-subtitle");
 const viewerModality = document.getElementById("viewer-modality");
-const viewerSlices = document.getElementById("viewer-slices");
-const sliceSlider = document.getElementById("slice-slider");
+const viewerImages = document.getElementById("viewer-images");
+const imageSlider = document.getElementById("image-slider");
 const metadataContent = document.getElementById("metadata-content");
+
+const seriesViewButton = document.getElementById("series-view-button");
+const availableViewButton = document.getElementById("available-view-button");
+const seriesBrowserSection = document.getElementById("series-browser-section");
+const availableCollectionsSection = document.getElementById(
+  "available-collections-section",
+);
+const availableSearchInput = document.getElementById("available-search-input");
+const availableCollectionsList = document.getElementById(
+  "available-collections-list",
+);
+const availableResultCount = document.getElementById("available-result-count");
+
+const uploadInput = document.getElementById("dataset-upload-input");
+const uploadButton = document.getElementById("dataset-upload-button");
+const uploadStatus = document.getElementById("upload-status");
 
 const collectionsCount = document.getElementById("collections-count");
 const selectAllCollectionsButton = document.getElementById(
@@ -23,6 +39,79 @@ const selectAllCollectionsButton = document.getElementById(
 const clearCollectionsButton = document.getElementById("clear-collections");
 
 let selectedCollections = new Set();
+
+let availableCollectionsData = [];
+
+const fallbackAvailableCollections = [
+  {
+    name: "TCGA-GBM",
+    description: "Glioblastoma multiforme collection with brain MRI series.",
+    source: "TCIA",
+    licenseName: "CC BY 4.0",
+    downloaded: false,
+  },
+  {
+    name: "CPTAC-GBM",
+    description: "Proteogenomic glioblastoma imaging collection.",
+    source: "TCIA",
+    licenseName: "CC BY 4.0",
+    downloaded: false,
+  },
+  {
+    name: "NSCLC-Radiomics",
+    description: "Non-small cell lung cancer CT radiomics collection.",
+    source: "TCIA",
+    licenseName: "Research use",
+    downloaded: false,
+  },
+];
+
+const MOCK_SERIES_BY_COLLECTION = {
+  "TCGA-GBM": [
+    {
+      seriesUid: "1.2.840.113619.2.55.3.604688121.1234.1111.1",
+      patientId: "TCGA-06-0125",
+      modality: "MR",
+      bodyPart: "BRAIN",
+      description: "T1 weighted axial pre-contrast",
+      numImages: 176,
+      collection: "TCGA-GBM",
+    },
+    {
+      seriesUid: "1.2.840.113619.2.55.3.604688121.1234.1111.2",
+      patientId: "TCGA-06-0125",
+      modality: "MR",
+      bodyPart: "BRAIN",
+      description: "T2 FLAIR axial",
+      numImages: 164,
+      collection: "TCGA-GBM",
+    },
+  ],
+
+  "CPTAC-GBM": [
+    {
+      seriesUid: "1.2.840.113619.2.55.3.604688121.5678.2222.1",
+      patientId: "C3N-02232",
+      modality: "MR",
+      bodyPart: "BRAIN",
+      description: "Diffusion weighted imaging",
+      numImages: 68,
+      collection: "CPTAC-GBM",
+    },
+  ],
+
+  "NSCLC-Radiomics": [
+    {
+      seriesUid: "1.2.840.113619.2.55.3.9999.1000.1",
+      patientId: "NSCLC-001",
+      modality: "CT",
+      bodyPart: "CHEST",
+      description: "Thoracic CT scan",
+      numImages: 210,
+      collection: "NSCLC-Radiomics",
+    },
+  ],
+};
 
 function renderCollections() {
   collectionsList.innerHTML = "";
@@ -89,6 +178,17 @@ function renderSeries() {
   seriesTable.innerHTML = "";
   resultCount.textContent = `${filteredSeries.length} results`;
 
+  if (filteredSeries.length === 0) {
+    seriesTable.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
+          No series to show. Download an available collection first.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
   filteredSeries.forEach((series) => {
     const row = document.createElement("tr");
 
@@ -98,7 +198,7 @@ function renderSeries() {
       <td><span class="modality-badge">${series.modality}</span></td>
       <td>${series.bodyPart}</td>
       <td>${series.description}</td>
-      <td>${series.numSlices}</td>
+      <td>${series.numImages}</td>
       <td>${series.collection}</td>
       <td>
         <button class="view-button">View</button>
@@ -113,6 +213,152 @@ function renderSeries() {
   });
 }
 
+function escapeHtml(value) {
+  return String(value ?? "—")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function setMainView(view) {
+  const showingSeries = view === "series";
+
+  seriesBrowserSection.classList.toggle("hidden", !showingSeries);
+  availableCollectionsSection.classList.toggle("hidden", showingSeries);
+
+  seriesViewButton.classList.toggle("active", showingSeries);
+  availableViewButton.classList.toggle("active", !showingSeries);
+}
+
+function syncAvailableCollectionStatus() {
+  const downloadedNames = new Set(
+    collections.map((collection) => collection.id),
+  );
+
+  availableCollectionsData = availableCollectionsData.map((collection) => ({
+    ...collection,
+    downloaded: downloadedNames.has(collection.name),
+  }));
+}
+
+function renderAvailableCollections() {
+  const searchTerm = availableSearchInput.value.trim().toLowerCase();
+
+  const filteredCollections = availableCollectionsData.filter((collection) => {
+    const searchableText = [
+      collection.name,
+      collection.description,
+      collection.licenseName,
+      collection.source,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchTerm === "" || searchableText.includes(searchTerm);
+  });
+
+  availableResultCount.textContent = `${filteredCollections.length} collections`;
+  availableCollectionsList.innerHTML = "";
+
+  if (filteredCollections.length === 0) {
+    availableCollectionsList.innerHTML = `
+      <p class="empty-state">No available collections match the search.</p>
+    `;
+    return;
+  }
+
+  filteredCollections.forEach((collection) => {
+    const card = document.createElement("article");
+    card.className = "available-card";
+
+    const actionButton = collection.downloaded
+      ? `<button class="download-button downloaded" disabled>Downloaded</button>`
+      : `<button class="download-button" data-collection-name="${escapeHtml(
+          collection.name,
+        )}">Download</button>`;
+
+    card.innerHTML = `
+      <div class="available-card-main">
+        <div>
+          <h3>${escapeHtml(collection.name)}</h3>
+          <p>${escapeHtml(collection.description)}</p>
+        </div>
+
+        <div class="available-meta">
+          <span>${escapeHtml(collection.source)}</span>
+          <span>${escapeHtml(collection.licenseName)}</span>
+        </div>
+      </div>
+
+      <div class="available-card-action">
+        ${actionButton}
+      </div>
+    `;
+
+    availableCollectionsList.appendChild(card);
+  });
+
+  document
+    .querySelectorAll(".download-button[data-collection-name]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        handleCollectionDownload(button.dataset.collectionName, button);
+      });
+    });
+}
+
+async function handleCollectionDownload(collectionName, button) {
+  try {
+    button.disabled = true;
+    button.textContent = "Downloading...";
+
+    // Simulate short download delay
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    const alreadyDownloaded = collections.some(
+      (collection) => collection.id === collectionName,
+    );
+
+    if (!alreadyDownloaded) {
+      const availableCollection = availableCollectionsData.find(
+        (collection) => collection.name === collectionName,
+      );
+
+      const mockSeries = MOCK_SERIES_BY_COLLECTION[collectionName] ?? [];
+
+      collections.push({
+        id: collectionName,
+        name: collectionName,
+        source: availableCollection?.licenseName ?? "Mock",
+        seriesCount: mockSeries.length,
+      });
+
+      seriesData.push(...mockSeries);
+    }
+
+    selectedCollections = new Set(
+      collections.map((collection) => collection.id),
+    );
+
+    syncAvailableCollectionStatus();
+    renderCollections();
+    renderSeries();
+    renderAvailableCollections();
+
+    button.textContent = "Downloaded";
+    button.classList.add("downloaded");
+  } catch (error) {
+    console.error("Collection download failed", error);
+
+    button.disabled = false;
+    button.textContent = "Failed — Retry";
+  }
+}
+
+
 function openViewer(series) {
   appShell.classList.add("viewer-mode");
 
@@ -122,10 +368,10 @@ function openViewer(series) {
   viewerTitle.textContent = `${series.modality} series`;
   viewerSubtitle.textContent = `${series.patientId} · ${series.bodyPart}`;
   viewerModality.textContent = series.modality;
-  viewerSlices.textContent = `${series.numSlices} slices`;
+  viewerImages.textContent = `${series.numImages} images`;
 
-  sliceSlider.max = series.numSlices;
-  sliceSlider.value = Math.ceil(series.numSlices / 2);
+  imageSlider.max = series.numImages;
+  imageSlider.value = Math.ceil(series.numImages / 2);
 
   metadataContent.innerHTML = `
     <div class="metadata-row">
@@ -149,8 +395,8 @@ function openViewer(series) {
       <span>${series.description}</span>
     </div>
     <div class="metadata-row">
-      <span>Number of Slices</span>
-      <span>${series.numSlices}</span>
+      <span>Number of Images</span>
+      <span>${series.numImages}</span>
     </div>
     <div class="metadata-row">
       <span>Collection</span>
@@ -187,13 +433,91 @@ const apiBaseUrl =
   window.location.origin;
 
 async function initializeData() {
-  const { collections: loadedCollections, seriesData: loadedSeries } =
-    await loadMockData(apiBaseUrl);
-  collections = loadedCollections;
-  seriesData = loadedSeries;
+  collections = [];
+  seriesData = [];
+
+  try {
+    const { collections: loadedCollections, seriesData: loadedSeries } =
+      await loadMockData(apiBaseUrl);
+
+    collections = loadedCollections;
+    seriesData = loadedSeries;
+  } catch (error) {
+    console.warn(
+      "Could not load downloaded collections/series from backend. Starting empty.",
+      error,
+    );
+  }
+
+  availableCollectionsData = [...fallbackAvailableCollections];
+
+  syncAvailableCollectionStatus();
+
   selectedCollections = new Set(collections.map((collection) => collection.id));
+
   renderCollections();
   renderSeries();
+  renderAvailableCollections();
+}
+
+seriesViewButton.addEventListener("click", () => {
+  setMainView("series");
+});
+
+availableViewButton.addEventListener("click", () => {
+  setMainView("available");
+  renderAvailableCollections();
+});
+
+availableSearchInput.addEventListener("input", renderAvailableCollections);
+
+if (uploadButton && uploadInput) {
+  uploadButton.addEventListener("click", () => {
+    uploadInput.click();
+  });
+
+  uploadInput.addEventListener("change", async () => {
+    const file = uploadInput.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    uploadStatus.textContent = `Selected: ${file.name}`;
+
+    try {
+      if (typeof uploadDataset === "function") {
+        uploadStatus.textContent = `Uploading ${file.name}...`;
+
+        await uploadDataset(apiBaseUrl, file);
+
+        uploadStatus.textContent = "Upload complete. Refreshing data...";
+
+        const { collections: loadedCollections, seriesData: loadedSeries } =
+          await loadMockData(apiBaseUrl);
+
+        collections = loadedCollections;
+        seriesData = loadedSeries;
+
+        selectedCollections = new Set(
+          collections.map((collection) => collection.id),
+        );
+
+        syncAvailableCollectionStatus();
+        renderCollections();
+        renderSeries();
+        renderAvailableCollections();
+
+        uploadStatus.textContent = "Dataset loaded.";
+      } else {
+        uploadStatus.textContent =
+          "File selected. Upload endpoint not connected yet.";
+      }
+    } catch (error) {
+      console.error("Upload failed", error);
+      uploadStatus.textContent = "Upload failed.";
+    }
+  });
 }
 
 initializeData().catch((error) => {
