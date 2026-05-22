@@ -2,7 +2,6 @@
 # provide the functions needed to extract the data from TCIA
 
 import requests
-import pandas as pd
 import zipfile
 import os
 
@@ -96,20 +95,7 @@ def getZip(series_uid):
 
 
 def getAllDICOMCollections():
-    base_url = "https://cancerimagingarchive.net/api/v2/collections/"
-    params = {
-        "fields": "id,collection_short_title,collection_title,collection_summary",
-        "per_page": 50,
-    }
-
-    pages = []
-
-    for page in range(1, 5):
-        params["page"] = page
-
-        response = requests.get(base_url, params=params, timeout=30)
-        response.raise_for_status()
-
-        pages.append(pd.DataFrame(response.json()))
-
-    return pages
+    base_url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getCollectionDescriptions"
+    response = requests.get(base_url, timeout=30)
+    response.raise_for_status()
+    return response.json()
