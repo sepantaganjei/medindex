@@ -6,7 +6,7 @@ from app.db.models import Study
 from app.db.models import Patient
 from app.db.models import Series
 from sqlalchemy.orm import joinedload
-# SET OPRATIONS
+# SET OPERATIONS
 
 
 # this method receives the session object handling all the ORM transactions on our DB and the data related to the object we want to add.
@@ -86,9 +86,7 @@ def create_series(session, data: dict):
 
 
 # GET OPRATIONS
-
-
-def get_studies(session):
+def get_all_studies(session):
     return session.query(Study).all()
 
 
@@ -96,11 +94,11 @@ def get_all_series(session):
     return session.query(Series).options(joinedload(Series.study)).all()
 
 
-def get_patients(session):
+def get_all_patients(session):
     return session.query(Patient).all()
 
 
-def get_collections(session):
+def get_all_collections(session):
     return session.query(Collection).all()
 
 
@@ -115,5 +113,5 @@ def get_series_on_collection(session, collection_name):
     )
 
 
-def get_series_on_study(session, study_uid):
-    return session.query(Series).filter_by(study_instance_uid=study_uid).all()
+def get_patient_on_id(session, id):
+    return session.query(Patient).filter(Patient.id == id).first()
