@@ -109,7 +109,8 @@ def get_series_on_collection(session, collection_name):
         session
         .query(Series)
         .join(Series.study)
-        .filter_by(Study.collection == collection_name)
+        .options(joinedload(Series.study))
+        .filter(Study.collection == collection_name)
         .all()
     )
 
