@@ -5,7 +5,7 @@ from app.db.models import Collection
 from app.db.models import Study
 from app.db.models import Patient
 from app.db.models import Series
-
+from sqlalchemy.orm import joinedload
 # SET OPRATIONS
 
 
@@ -93,7 +93,7 @@ def get_studies(session):
 
 
 def get_all_series(session):
-    return session.query(Series).all()
+    return session.query(Series).options(joinedload(Series.study)).all()
 
 
 def get_patients(session):
