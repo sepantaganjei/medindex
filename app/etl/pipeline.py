@@ -147,15 +147,6 @@ def get_collections_available_for_download():
     return list_of_collections
 
 
-def download_image_series(series_uid):
-    zip_file = extract.getZip(series_uid)
-
-    with open(f"{series_uid}.zip", "wb") as f:
-        f.write(zip_file.content)
-
-    print("Downloaded images.zip")
-
-
 # ==========
 # Retrievals
 # ==========
@@ -169,6 +160,16 @@ def get_all_series(collection_name):
             return repo.get_all_series(session)
 
         return repo.get_series_on_collection(session, collection_name)
+
+    finally:
+        session.close()
+
+
+def get_patient_on_id(id):
+    session = SessionLocal()
+
+    try:
+        return repo.get_patient_on_id(session, id)
 
     finally:
         session.close()
