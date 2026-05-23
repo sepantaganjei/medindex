@@ -10,16 +10,20 @@ class NewDatasetAdditionResponse(BaseModel):
     error: str | None = None
 
 
-@router.post("/add_dataset", response_model=NewDatasetAdditionResponse)
-def add_new_dataset(
+@router.post("/add_DICOM_dataset", response_model=NewDatasetAdditionResponse)
+def add_new_DICOM_dataset(collection_name: str):
+    return pipe.add_new_dataset(collection_name=collection_name, dataset_type="dicom")
+
+
+@router.post("/add_NIFTI_dataset", response_model=NewDatasetAdditionResponse)
+def add_new_NIFTI_dataset(
     collection_name: str = Form(...),
-    dataset_type: str = Form(...),
-    description: str | None = Form(None),
-    zip_file: UploadFile | None = File(None),
+    description: str = Form(...),
+    zip_file: UploadFile = File(...),
 ):
     return pipe.add_new_dataset(
         collection_name=collection_name,
-        dataset_type=dataset_type,
+        dataset_type="nifti",
         description=description,
         zip_file=zip_file,
     )

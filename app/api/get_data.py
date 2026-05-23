@@ -35,19 +35,37 @@ class SeriesResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class CollectionsResponse(BaseModel):
-    name: str
-    description: str
-
-
 # get series
 @router.get("/series", response_model=list[SeriesResponse])
 def get_all_series(collectionName: Optional[str] = None):
     return pipe.get_all_series(collectionName)
 
 
-# get collections
+class CollectionsResponse(BaseModel):
+    name: str
+    description: str
+
+
+# get collection available for download
 @router.get("/collectionsToDownload", response_model=list[CollectionsResponse])
 def get_collections_available_for_download():
-    print("got request")
     return pipe.get_collections_available_for_download()
+
+
+# get all collections already downloaded
+@router.get("/savedCollections", response_model=list[CollectionsResponse])
+def get_all_collections():
+    return pipe.get_all_collections()
+
+
+class PatientResponse(BaseModel):
+    id: str
+    sex: str
+    age: int
+    ethnic_group: str
+
+
+# get patient on id
+@router.get("/patient", response_model=list[CollectionsResponse])
+def get_patient_on_id(id: str):
+    return pipe.get_patient_on_id(id)

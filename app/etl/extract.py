@@ -2,7 +2,6 @@
 # provide the functions needed to extract the data from TCIA
 
 import requests
-import zipfile
 import os
 
 
@@ -67,22 +66,17 @@ def _safe_get(url, params):
 # - name of the collection
 # Output:
 # - data about collection, patients, studies, series in xlsx
-def _get_data_from_NIFTI_archive(file_path):
-    extract_path = "temp_extract"
-
-    # extract archive
-    with zipfile.ZipFile(file_path, "r") as zip_ref:
-        zip_ref.extractall(extract_path)
-
-    # list all files
-    tree = os.listdir(extract_path)
-
-    # collect all CSV and XLSX files
-    csv_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".csv")]
-
-    xlsx_files = [os.path.join(extract_path, f) for f in tree if f.endswith(".xlsx")]
-
-    return {"csv": csv_files, "xlsx": xlsx_files}
+def _get_data_from_NIFTI_archive(collection_name):
+    root_path = collection_name
+    target_name = collection_name.lower()
+    for root, dirs, files in os.walk(root_path):
+        for f in files:
+            filename_no_ext, ext = os.path.splitext(f)
+            # normalize
+            filename_no_ext = filename_no_ext.strip().lower()
+            if filename_no_ext == target_name and ext.lower() in [".csv", ".xlsx"]:
+                return os.path.join(root, f)
+    return None
 
 
 # Get the zip associated with a DICOM series
