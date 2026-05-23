@@ -9,6 +9,7 @@ import zipfile
 import os
 import re
 import html
+import json
 
 
 # ==========
@@ -127,6 +128,38 @@ def _process_and_store_series(session, raw_data, dataset_type):
     return series
 
 
+# add new feature extraction
+def add_extraction(image_number, series_uid, feature_name, value):
+    with open("assets/mapping_values.json", "r") as f:
+        mapping = json.load(f)
+    session = SessionLocal()
+    try:
+        feature_mapping = mapping.get(feature_name, {})
+
+        data = {
+            "image_number": image_number,
+            "series_uid": series_uid,
+            "feature_name": feature_name,
+            "standardized_feature_name": feature_mapping.get(
+                "standardized_feature_name", "Unknown"
+            ),
+            "vocabulary": feature_mapping.get("vocabulary", "Unknown"),
+            "value": value,
+        }
+        obj = repo.create_extraction(session, data)
+
+        return {"status_operation": "success", "id": obj.id, "error": None}
+    except Exception as e:
+        return {"status_operation": "fail", "id": None, "error": str(e)}
+    finally:
+        session.close()
+
+
+# ==========
+# Retrievals
+# ==========
+
+
 def _clean_description(text):
     if not text:
         return ""
@@ -150,11 +183,6 @@ def get_collections_available_for_download():
         list_of_collections.append({"name": name, "description": description})
 
     return list_of_collections
-
-
-# ==========
-# Retrievals
-# ==========
 
 
 def get_all_series(collection_name):
@@ -185,6 +213,16 @@ def get_all_collections():
 
     try:
         return repo.get_all_collections(session)
+
+    finally:
+        session.close()
+
+
+def get_all_extractions():
+    session = SessionLocal()
+
+    try:
+        return repo.get_all_extractions(session)
 
     finally:
         session.close()

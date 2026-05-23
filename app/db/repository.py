@@ -5,6 +5,7 @@ from app.db.models import Collection
 from app.db.models import Study
 from app.db.models import Patient
 from app.db.models import Series
+from app.db.models import Extraction
 from sqlalchemy.orm import joinedload
 # SET OPERATIONS
 
@@ -85,6 +86,13 @@ def create_series(session, data: dict):
     return obj
 
 
+def create_extraction(session, data: dict):
+    obj = Extraction(**data)
+    session.add(obj)
+    session.commit()
+    return obj
+
+
 # GET OPRATIONS
 def get_all_studies(session):
     return session.query(Study).all()
@@ -115,3 +123,7 @@ def get_series_on_collection(session, collection_name):
 
 def get_patient_on_id(session, id):
     return session.query(Patient).filter(Patient.id == id).first()
+
+
+def get_all_extractions(session):
+    return session.query(Extraction).all()

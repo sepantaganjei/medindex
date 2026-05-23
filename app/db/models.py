@@ -93,7 +93,7 @@ class Extraction(Base):
     __tablename__ = "extractions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    image_number = Column(Integer)
+    image_number = Column(String)
     series_uid = Column(String, ForeignKey("series.instance_uid"))
     feature_name = Column(String)
     standardized_feature_name = Column(String)
