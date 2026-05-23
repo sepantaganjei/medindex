@@ -5,6 +5,7 @@ import re
 
 # Safe helpers in case of missing data
 
+
 # Standardizes missing integers
 def safe_int(x):
     if pd.isna(x):
@@ -13,6 +14,7 @@ def safe_int(x):
         return int(x)
     except (TypeError, ValueError):
         return None
+
 
 # Standardizes missing strings
 def safe_str(x, default="Missing"):
@@ -63,126 +65,383 @@ def safe_bool(x):
 # Data preparation functions
 # ==========================
 
-# This function returns a dictionary of data of the collection we want to add
-# Input
-# - Raw data
-# Output
-# - data of the collection in dictionary format
-def prepare_collection_data(raw_data):
-    raw_df = pd.read_excel(raw_data)
-    row = raw_df.iloc[0]
+
+def _find_correspoding_columns_in(table, mapping):
+    new_fields = {}
+    for field, candidate_columns in mapping.items():
+        for candidate_column in candidate_columns:
+            if candidate_column in table.columns:
+                new_fields[field] = candidate_column
+                break
+
+    return new_fields
+
+
+# Data preparation for collection storage
+
+collection_mappings = {
+    "name": ["project", "collection name", "collection"],
+    "license_name": ["license name", "license_name"],
+    "license_uri": ["license uri", "license_uri"],
+    "description_uri": [
+        "description uri",
+        "description_uri",
+        "collection_uri",
+        "collection uri",
+    ],
+}
+
+
+def prepare_collection_data(tabular_file, description):
 
     clean_collection_data = {
-        "name": safe_str(row.get("Project")),
-        "description": safe_str(row.get("Description", "Missing")),
-        "license_name": safe_str(row.get("License Name", "Missing")),
-        "license_uri": safe_str(row.get("License URI", "Missing")),
-        "description_uri": safe_str(row.get("Collection URI", "Missing")),
+        "name": None,
+        "description": description,
+        "license_name": None,
+        "license_uri": None,
+        "description_uri": None,
     }
+
+    try:
+        # load file
+        if tabular_file.endswith(".csv"):
+            df = pd.read_csv(tabular_file)
+        elif tabular_file.endswith(".xlsx"):
+            df = pd.read_excel(tabular_file, engine="openpyxl")
+        else:
+            return clean_collection_data
+
+        # skip empty files
+        if df.empty:
+            return clean_collection_data
+
+        # normalize column names
+        df.columns = df.columns.str.strip().str.lower()
+
+        row = df.iloc[0]
+
+        # find matching columns once
+        matched_columns = _find_correspoding_columns_in(df, collection_mappings)
+
+        # fill fields
+        for field in clean_collection_data:
+            if not clean_collection_data[field] and field in matched_columns:
+                column_name = matched_columns[field]
+                clean_collection_data[field] = safe_str(row.get(column_name))
+
+    except Exception as e:
+        print(f"Skipping {tabular_file}: {e}")
+
+    # fallback values
+    for field in clean_collection_data:
+        if not clean_collection_data[field]:
+            clean_collection_data[field] = "Missing"
 
     return clean_collection_data
 
 
-# This function returns a dictionary of data of the patients we want to add
-# We used a dictionary so as to avoid duplicated patients being added to the DB
-# Input
-# - Raw data
-# Output
-# - data of the patients in dictionary format. Each key is a different patient.
-def prepare_patients_data(raw_data):
-    raw_df = pd.read_excel(raw_data)
+# Data preparation for patients storage
+
+
+def extract_age(value):
+    if value is None:
+        return -1
+    match = re.search(r"\d+", str(value))
+    return int(match.group(0)) if match else -1
+
+
+patient_mappings = {
+    "id": ["patient id", "patient", "patientid", "patient_id"],
+    "sex": [
+        "patient sex",
+        "patient_sex",
+        "sex",
+        "gender",
+        "patient gender",
+        "patientsex",
+    ],
+    "age": ["patient age", "age", "patient_age"],
+    "ethnic_group": ["ethnic group", "ethnicity", "race"],
+}
+
+
+def prepare_patients_data(tabular_files):
+    if tabular_files.endswith(".csv"):
+        df = pd.read_csv(tabular_files)
+    else:
+        df = pd.read_excel(tabular_files, engine="openpyxl")
+
+    df.columns = df.columns.str.strip().str.lower()
+
     patients = {}
 
-    for _, row in raw_df.iterrows():
-        patient_id = safe_str(row.get("Patient ID"))
+    matched_columns = _find_correspoding_columns_in(df, patient_mappings)
 
-        # age extraction
-        match = re.search(r"0(\d+)", str(row.get("Patient Age", "")))
-        age = int(match.group(1)) if match else -1
+    for _, row in df.iterrows():
+        patient = {
+            "id": None,
+            "sex": None,
+            "age": None,
+            "ethnic_group": None,
+        }
 
+        for field in patient:
+            if field in matched_columns:
+                patient[field] = safe_str(row.get(matched_columns[field]))
+
+        patient_id = patient["id"]
+
+        # initialize patient if needed
         if patient_id not in patients:
             patients[patient_id] = {
                 "id": patient_id,
-                "sex": safe_str(row.get("Patient Sex", "Missing")),
-                "age": age,
-                "ethnic_group": safe_str(row.get("Ethnic Group", "Missing")),
+                "sex": "Missing",
+                "age": -1,
+                "ethnic_group": "Missing",
             }
+
+        # merge logic
+        if patient["sex"] and patients[patient_id]["sex"] == "Missing":
+            patients[patient_id]["sex"] = patient["sex"]
+
+        if (
+            patient["ethnic_group"]
+            and patients[patient_id]["ethnic_group"] == "Missing"
+        ):
+            patients[patient_id]["ethnic_group"] = patient["ethnic_group"]
+
+        age = extract_age(patient["age"])
+        if patients[patient_id]["age"] == -1 and age != -1:
+            patients[patient_id]["age"] = age
 
     return list(patients.values())
 
 
-# This function returns a dictionary of data of the studies we want to add
-# We used a dictionary so as to avoid duplicated studies being added to the DB
-# Input
-# - Raw data
-# Output
-# - data of the studies in dictionary format. Each key is a different study.
-def prepare_studies_data(raw_data):
-    raw_df = pd.read_excel(raw_data)
+# Data preparation for study storage
+
+study_mappings = {
+    "instance_uid": ["study instance uid", "study uid", "studyinstanceuid"],
+    "collection": ["project", "collection", "study project"],
+    "date": ["study date", "date"],
+    "date_released": ["date released", "release date"],
+    "description": ["study description", "description"],
+    "series_count": ["series number", "series count"],
+    "patient_id": ["patient id", "patient"],
+    "longitudinal_temporal_event_type": ["longitudinal temporal event type"],
+    "longitudinal_temporal_offset_from_event": [
+        "longitudinal temporal offset from event"
+    ],
+}
+
+
+def prepare_studies_data(tabular_files):
+
+    if tabular_files.endswith(".csv"):
+        df = pd.read_csv(tabular_files)
+    else:
+        df = pd.read_excel(tabular_files, engine="openpyxl")
+
+    df.columns = df.columns.str.strip().str.lower()
+
     studies = {}
 
-    for _, row in raw_df.iterrows():
-        study_id = safe_str(row.get("Study Instance UID"))
+    matched_columns = _find_correspoding_columns_in(df, study_mappings)
 
+    for _, row in df.iterrows():
+        study = {
+            "instance_uid": None,
+            "collection": None,
+            "date": None,
+            "date_released": None,
+            "description": None,
+            "series_count": None,
+            "patient_id": None,
+            "longitudinal_temporal_event_type": None,
+            "longitudinal_temporal_offset_from_event": None,
+        }
+
+        for field in study:
+            if field in matched_columns:
+                study[field] = safe_str(row.get(matched_columns[field]))
+
+        study_id = study["instance_uid"]
+
+        if not study_id:
+            continue
+
+        # initialize study
         if study_id not in studies:
             studies[study_id] = {
                 "instance_uid": study_id,
-                "collection": safe_str(row.get("Project", "Missing")),
-                "date": safe_date(
-                    row.get("Study Date")
-                ),  # keep safe_str unless you truly parse dates
-                "date_released": safe_date(row.get("Date Released")),
-                "description": safe_str(row.get("Study Description", "Missing")),
-                "series_count": safe_int(row.get("Series Number")),
-                "patient_id": safe_str(row.get("Patient ID", "Missing")),
-                "LongitudinalTemporalEventType": safe_str(
-                    row.get("Longitudinal Temporal Event Type", "Missing")
-                ),
-                "LongitudinalTemporalOffsetFromEvent": safe_int(
-                    row.get("Longitudinal Temporal Offset From Event")
-                ),
+                "collection": "Missing",
+                "date": None,
+                "date_released": None,
+                "description": "Missing",
+                "series_count": -1,
+                "patient_id": "Missing",
+                "longitudinal_temporal_event_type": "Missing",
+                "longitudinal_temporal_offset_from_event": -99999,
             }
+
+        # merge logic (same philosophy as patients)
+
+        if study["collection"] and studies[study_id]["collection"] == "Missing":
+            studies[study_id]["collection"] = study["collection"]
+
+        if study["description"] and studies[study_id]["description"] == "Missing":
+            studies[study_id]["description"] = study["description"]
+
+        if study["patient_id"] and studies[study_id]["patient_id"] == "Missing":
+            studies[study_id]["patient_id"] = study["patient_id"]
+
+        # dates (only fill if missing)
+        if not studies[study_id]["date"]:
+            studies[study_id]["date"] = safe_date(study["date"])
+
+        if not studies[study_id]["date_released"]:
+            studies[study_id]["date_released"] = safe_date(study["date_released"])
+
+        # numeric fields
+        series_count = safe_int(study["series_count"])
+        if studies[study_id]["series_count"] == -1 and series_count is not None:
+            studies[study_id]["series_count"] = series_count
+
+        event_offset = safe_int(study["longitudinal_temporal_offset_from_event"])
+        if (
+            studies[study_id]["longitudinal_temporal_offset_from_event"] == -99999
+            and event_offset is not None
+        ):
+            studies[study_id]["longitudinal_temporal_offset_from_event"] = event_offset
+
+        # categorical
+        if (
+            study["longitudinal_temporal_event_type"]
+            and studies[study_id]["longitudinal_temporal_event_type"] == "Missing"
+        ):
+            studies[study_id]["longitudinal_temporal_event_type"] = study[
+                "longitudinal_temporal_event_type"
+            ]
 
     return list(studies.values())
 
 
-# This function returns a dictionary of data of the series we want to add
-# We used a dictionary so as to avoid duplicated series being added to the DB
-# Input
-# - Raw data
-# Output
-# - data of the series in dictionary format. Each key is a different series.
-def prepare_series_data(raw_df):
+# Data preparation for series storage
+
+series_mappings = {
+    "instance_uid": ["series instance uid", "seriesinstanceuid", "series uid"],
+    "study_instance_uid": ["study instance uid", "studyinstanceuid"],
+    "modality": ["modality"],
+    "body_part": ["body part examined", "bodypartexamined"],
+    "protocol_name": ["protocol name", "protocolname"],
+    "series_date": ["series date"],
+    "series_description": ["series description", "description"],
+    "site": ["site"],
+    "manufacturer": ["manufacturer"],
+    "manufacturer_model_name": ["manufacturer model name"],
+    "software_versions": ["software versions"],
+    "image_count": ["image count", "images"],
+    "max_submission_timestamp": ["max submission timestamp"],
+    "file_size": ["file size"],
+    "third_party_analysis": ["third party analysis"],
+}
+
+
+def prepare_series_data(tabular_file):
+    if tabular_file.endswith(".csv"):
+        df = pd.read_csv(tabular_file)
+    else:
+        df = pd.read_excel(tabular_file, engine="openpyxl")
+
     series_list = {}
 
-    for _, row in raw_df.iterrows():
-        instance_uid = safe_str(row.get("Series Instance UID"))
+    df.columns = df.columns.str.strip().str.lower()
+
+    matched_columns = _find_correspoding_columns_in(df, series_mappings)
+
+    for _, row in df.iterrows():
+        series = {}
+
+        for field in series_mappings:
+            if field in matched_columns:
+                series[field] = safe_str(row.get(matched_columns[field]))
+            else:
+                series[field] = None
+
+        instance_uid = series["instance_uid"]
+
+        if not instance_uid or instance_uid == "Missing":
+            continue
 
         if instance_uid not in series_list:
             series_list[instance_uid] = {
                 "instance_uid": instance_uid,
-                "study_instance_uid": safe_str(
-                    row.get("Study Instance UID", "Missing")
-                ),
-                "modality": safe_str(row.get("Modality", "Missing")),
-                "body_part": safe_str(row.get("Body Part Examined", "Missing")),
-                "protocol_name": safe_str(row.get("Protocol Name", "Missing")),
-                "series_date": safe_date(row.get("Series Date")),
-                "series_description": safe_str(
-                    row.get("Series Description", "Missing")
-                ),
-                "site": safe_str(row.get("Site", "Missing")),
-                "manufacturer": safe_str(row.get("Manufacturer", "Missing")),
-                "manufacturer_model_name": safe_str(
-                    row.get("Manufacturer Model Name", "Missing")
-                ),
-                "software_versions": safe_str(row.get("Software Versions", "Missing")),
-                "image_count": safe_int(row.get("Image Count")),
-                "max_submission_timestamp": safe_time(
-                    row.get("Max Submission Timestamp")
-                ),
-                "file_size": safe_int(row.get("File Size")),
-                "third_party_analysis": safe_bool(row.get("Third Party Analysis")),
+                "study_instance_uid": "Missing",
+                "modality": "Missing",
+                "body_part": "Missing",
+                "protocol_name": "Missing",
+                "series_date": None,
+                "series_description": "Missing",
+                "site": "Missing",
+                "manufacturer": "Missing",
+                "manufacturer_model_name": "Missing",
+                "software_versions": "Missing",
+                "image_count": -1,
+                "max_submission_timestamp": None,
+                "file_size": -1,
+                "third_party_analysis": None,
             }
+
+        s = series_list[instance_uid]
+
+        # merge logic (same pattern as patients)
+
+        if series.get("study_instance_uid") and s["study_instance_uid"] == "Missing":
+            s["study_instance_uid"] = series["study_instance_uid"]
+
+        if series.get("modality") and s["modality"] == "Missing":
+            s["modality"] = series["modality"]
+
+        if series.get("body_part") and s["body_part"] == "Missing":
+            s["body_part"] = series["body_part"]
+
+        if series.get("protocol_name") and s["protocol_name"] == "Missing":
+            s["protocol_name"] = series["protocol_name"]
+
+        if not s["series_date"]:
+            s["series_date"] = safe_date(series.get("series_date"))
+
+        if series.get("series_description") and s["series_description"] == "Missing":
+            s["series_description"] = series["series_description"]
+
+        if series.get("site") and s["site"] == "Missing":
+            s["site"] = series["site"]
+
+        if series.get("manufacturer") and s["manufacturer"] == "Missing":
+            s["manufacturer"] = series["manufacturer"]
+
+        if (
+            series.get("manufacturer_model_name")
+            and s["manufacturer_model_name"] == "Missing"
+        ):
+            s["manufacturer_model_name"] = series["manufacturer_model_name"]
+
+        if series.get("software_versions") and s["software_versions"] == "Missing":
+            s["software_versions"] = series["software_versions"]
+
+        img_count = safe_int(series.get("image_count"))
+        if s["image_count"] == -1 and img_count is not None:
+            s["image_count"] = img_count
+
+        if not s["max_submission_timestamp"]:
+            s["max_submission_timestamp"] = safe_time(
+                series.get("max_submission_timestamp")
+            )
+
+        file_size = safe_int(series.get("file_size"))
+        if s["file_size"] == -1 and file_size is not None:
+            s["file_size"] = file_size
+
+        if s["third_party_analysis"] is None:
+            s["third_party_analysis"] = safe_bool(series.get("third_party_analysis"))
 
     return list(series_list.values())

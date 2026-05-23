@@ -9,6 +9,8 @@ import zipfile
 import os
 import re
 import html
+
+
 # ==========
 # Insertions
 # ==========
@@ -28,12 +30,15 @@ def add_new_dataset(collection_name, dataset_type, description=None, zip_file=No
         extract_zip(zip_file, collection_name)
 
     raw_data = extract.get_data_from_archive(collection_name, dataset_type)
-    print("Data has been found!")
+    if not raw_data:
+        print("Data is missing or name not corresponding")
+    else:
+        print("Data has been found")
     session = SessionLocal()
 
     try:
         print("Starting collection info imputation")
-        _process_and_store_collection(session, raw_data, dataset_type)
+        _process_and_store_collection(session, raw_data, dataset_type, description)
         print("Finished collection info imputation")
 
         print("Starting patients info imputation")
@@ -77,9 +82,9 @@ series_data_transformers = {
 
 
 # Insertion of new collection
-def _process_and_store_collection(session, raw_data, dataset_type):
+def _process_and_store_collection(session, raw_data, dataset_type, description=None):
     transform = collection_data_transformers[dataset_type]
-    clean_collection_data = transform(raw_data)
+    clean_collection_data = transform(raw_data, description)
     return repo.create_collection(session, clean_collection_data)
 
 
@@ -170,6 +175,16 @@ def get_patient_on_id(id):
 
     try:
         return repo.get_patient_on_id(session, id)
+
+    finally:
+        session.close()
+
+
+def get_all_collections():
+    session = SessionLocal()
+
+    try:
+        return repo.get_all_collections(session)
 
     finally:
         session.close()

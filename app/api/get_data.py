@@ -46,10 +46,16 @@ class CollectionsResponse(BaseModel):
     description: str
 
 
-# get collections
+# get collection available for download
 @router.get("/collectionsToDownload", response_model=list[CollectionsResponse])
 def get_collections_available_for_download():
     return pipe.get_collections_available_for_download()
+
+
+# get all collections already downloaded
+@router.get("/savedCollections", response_model=list[CollectionsResponse])
+def get_all_collections():
+    return pipe.get_all_collections()
 
 
 class PatientResponse(BaseModel):
