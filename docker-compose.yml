@@ -8,7 +8,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_HOST: postgres
-      DB_PORT: 5433
+      DB_PORT: 5432
       DB_NAME: bioimages
       OBJECT_STORAGE_ENDPOINT: minio:9000
       OBJECT_STORAGE_ACCESS_KEY: minioadmin
@@ -17,6 +17,8 @@ services:
       OBJECT_STORAGE_SECURE: "false"
     ports:
       - "8000:8000"
+    volumes:
+      - ./app:/app/app:ro,Z
     depends_on:
       postgres:
         condition: service_healthy
