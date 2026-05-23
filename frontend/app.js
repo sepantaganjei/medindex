@@ -42,77 +42,6 @@ let selectedCollections = new Set();
 
 let availableCollectionsData = [];
 
-const fallbackAvailableCollections = [
-  {
-    name: "TCGA-GBM",
-    description: "Glioblastoma multiforme collection with brain MRI series.",
-    source: "TCIA",
-    licenseName: "CC BY 4.0",
-    downloaded: false,
-  },
-  {
-    name: "CPTAC-GBM",
-    description: "Proteogenomic glioblastoma imaging collection.",
-    source: "TCIA",
-    licenseName: "CC BY 4.0",
-    downloaded: false,
-  },
-  {
-    name: "NSCLC-Radiomics",
-    description: "Non-small cell lung cancer CT radiomics collection.",
-    source: "TCIA",
-    licenseName: "Research use",
-    downloaded: false,
-  },
-];
-
-const MOCK_SERIES_BY_COLLECTION = {
-  "TCGA-GBM": [
-    {
-      seriesUid: "1.2.840.113619.2.55.3.604688121.1234.1111.1",
-      patientId: "TCGA-06-0125",
-      modality: "MR",
-      bodyPart: "BRAIN",
-      description: "T1 weighted axial pre-contrast",
-      numImages: 176,
-      collection: "TCGA-GBM",
-    },
-    {
-      seriesUid: "1.2.840.113619.2.55.3.604688121.1234.1111.2",
-      patientId: "TCGA-06-0125",
-      modality: "MR",
-      bodyPart: "BRAIN",
-      description: "T2 FLAIR axial",
-      numImages: 164,
-      collection: "TCGA-GBM",
-    },
-  ],
-
-  "CPTAC-GBM": [
-    {
-      seriesUid: "1.2.840.113619.2.55.3.604688121.5678.2222.1",
-      patientId: "C3N-02232",
-      modality: "MR",
-      bodyPart: "BRAIN",
-      description: "Diffusion weighted imaging",
-      numImages: 68,
-      collection: "CPTAC-GBM",
-    },
-  ],
-
-  "NSCLC-Radiomics": [
-    {
-      seriesUid: "1.2.840.113619.2.55.3.9999.1000.1",
-      patientId: "NSCLC-001",
-      modality: "CT",
-      bodyPart: "CHEST",
-      description: "Thoracic CT scan",
-      numImages: 210,
-      collection: "NSCLC-Radiomics",
-    },
-  ],
-};
-
 function renderCollections() {
   collectionsList.innerHTML = "";
 
@@ -315,29 +244,15 @@ async function handleCollectionDownload(collectionName, button) {
     button.disabled = true;
     button.textContent = "Downloading...";
 
-    // Simulate short download delay
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await downloadAvailableCollection(apiBaseUrl, collectionName);
 
-    const alreadyDownloaded = collections.some(
-      (collection) => collection.id === collectionName,
-    );
+    button.textContent = "Refreshing...";
 
-    if (!alreadyDownloaded) {
-      const availableCollection = availableCollectionsData.find(
-        (collection) => collection.name === collectionName,
-      );
+    const { collections: loadedCollections, seriesData: loadedSeries } =
+      await loadMockData(apiBaseUrl);
 
-      const mockSeries = MOCK_SERIES_BY_COLLECTION[collectionName] ?? [];
-
-      collections.push({
-        id: collectionName,
-        name: collectionName,
-        source: availableCollection?.licenseName ?? "Mock",
-        seriesCount: mockSeries.length,
-      });
-
-      seriesData.push(...mockSeries);
-    }
+    collections = loadedCollections;
+    seriesData = loadedSeries;
 
     selectedCollections = new Set(
       collections.map((collection) => collection.id),
@@ -357,7 +272,6 @@ async function handleCollectionDownload(collectionName, button) {
     button.textContent = "Failed — Retry";
   }
 }
-
 
 function openViewer(series) {
   appShell.classList.add("viewer-mode");
@@ -449,7 +363,16 @@ async function initializeData() {
     );
   }
 
-  availableCollectionsData = [...fallbackAvailableCollections];
+  try {
+    availableCollectionsData = await loadAvailableCollections(apiBaseUrl);
+  } catch (error) {
+    console.warn(
+      "Could not load available collections from backend. Using fallback data.",
+      error,
+    );
+
+    availableCollectionsData = [...fallbackAvailableCollections];
+  }
 
   syncAvailableCollectionStatus();
 
