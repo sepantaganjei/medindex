@@ -1,0 +1,18 @@
+{
+    "id": {
+        "value": "Identifier",
+        "vocabulary": "SNOMED"
+    },
+    "sex": {
+        "value": "Gender",
+        "vocabulary": "SNOMED"
+    },
+    "age": {
+        "value": "Age",
+        "vocabulary": "SNOMED"
+    },
+    "ethnic_group": {
+        "value": "Ethnic group",
+        "vocabulary": "SNOMED"
+    }
+}

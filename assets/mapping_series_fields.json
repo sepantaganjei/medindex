@@ -1,0 +1,62 @@
+{
+    "instance_uid": {
+        "value": "Identifier",
+        "vocabulary": "SNOMED"
+    },
+    "study_isntance_uid": {
+        "value": "Identifier of study",
+        "vocabulary": "SNOMED"
+    },
+    "modality": {
+        "value": "Imaging modality",
+        "vocabulary": "SNOMED"
+    },
+    "body_part": {
+        "value": "Body part",
+        "vocabulary": "SNOMED"
+    },
+    "protocol_name": {
+        "value": "Protocol",
+        "vocabulary": "SNOMED"
+    },
+    "series_date": {
+        "value": "Date",
+        "vocabulary": "SNOMED"
+    },
+    "series_description": {
+        "value": "Description in dialect",
+        "vocabulary": "SNOMED"
+    },
+    "site": {
+        "value": "Healthcare facility",
+        "vocabulary": "SNOMED"
+    },
+    "manufacturer": {
+        "value": "Manufacturer",
+        "vocabulary": ""
+    },
+    "manufacturer_model_name": {
+        "value": "Device",
+        "vocabulary": ""
+    },
+    "software_versions": {
+        "value": "Software",
+        "vocabulary": "SNOMED"
+    },
+    "image_count": {
+        "value": "Image count",
+        "vocabulary": ""
+    },
+    "max_submission_timestamp": {
+        "value": "Identifier",
+        "vocabulary": "SNOMED"
+    },
+    "file_size": {
+        "value": "Identifier",
+        "vocabulary": ""
+    },
+    "third_party_analysis": {
+        "value": "Third_party_analysis",
+        "vocabulary": ""
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "instance_uid": {
+        "value": "Identifier",
+        "vocabulary": "SNOMED"
+    },
+    "collection": {
+        "value": "Collection",
+        "vocabulary": ""
+    },
+    "date": {
+        "value": "Date",
+        "vocabulary": "SNOMED"
+    },
+    "date_released": {
+        "value": "Date of release",
+        "vocabulary": "SNOMED"
+    },
+    "description": {
+        "value": "Description in dialect",
+        "vocabulary": "SNOMED"
+    },
+    "series_count": {
+        "value": "Count of series",
+        "vocabulary": "SNOMED"
+    },
+    "patient_id": {
+        "value": "Patient",
+        "vocabulary": "SNOMED"
+    },
+    "longitudinal_temporal_event_type": {
+        "value": "Event",
+        "vocabulary": "SNOMED"
+    },
+    "longitudinal_temporal_offset_from_event": {
+        "value": "Relative time",
+        "vocabulary": "SNOMED"
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "extraction_id": {
+        "value": "identifier",
+        "vocabulary": "SNOMED"
+    },
+    "image_number": {
+        "value": "Image",
+        "vocabulary": "SNOMED"
+    },
+    "series_uid": {
+        "value": "Series",
+        "vocabulary": "SNOMED"
+    },
+    "feature_name": {
+        "value": "Name",
+        "vocabulary": "SNOMED"
+    },
+    "standardized_feature_name": {
+        "value": "Fully specified name",
+        "vocabulary": "SNOMED"
+    },
+    "value": {
+        "value": "Quantitative value",
+        "vocabulary": "SNOMED"
+    },
+    "vocabulary": {
+        "value": "Vocabulary",
+        "vocabulary": "SNOMED"
+    }
+}

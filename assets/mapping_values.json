@@ -2,5 +2,57 @@
     "Eccentricity": {
         "standardized_feature_name": "Shape",
         "vocabulary": "SNOMED"
+    },
+    "GLCM Homogeneity": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "GLCM Correlation": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "GLRLM Short Run Emphasis": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "GLSZM Zone Entropy": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "NGTDM Coarseness": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "NGTDM Contrast": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "NGTDM Busyness": {
+        "standardized_feature_name": "Texture",
+        "vocabulary": "SNOMED"
+    },
+    "ROI Standard Deviation": {
+        "standardized_feature_name": "Standard deviation",
+        "vocabulary": "SNOMED"
+    },
+    "ROI Mean": {
+        "standardized_feature_name": "Mean",
+        "vocabulary": "SNOMED"
+    },
+    "M": {
+        "standardized_feature_name": "Male",
+        "vocabulary": "SNOMED"
+    },
+    "F": {
+        "standardized_feature_name": "Female",
+        "vocabulary": "SNOMED"
+    },
+    "MR": {
+        "standardized_feature_name": "Magnetic resonance imaging",
+        "vocabulary": "SNOMED"
+    },
+    "BRAIN": {
+        "standardized_feature_name": "Brain part",
+        "vocabulary": "SNOMED"
     }
 }
