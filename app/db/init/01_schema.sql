@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS series (
 );
 
 -- extractions
-CREATE TABLE IF NOT EXISTS extraction (
+CREATE TABLE IF NOT EXISTS extractions (
     id SERIAL PRIMARY KEY,
-    image_number INTEGER,
+    image_number VARCHAR,
     series_uid VARCHAR REFERENCES series(instance_uid),
     feature_name VARCHAR,
     standardized_feature_name VARCHAR,

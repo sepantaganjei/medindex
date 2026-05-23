@@ -66,6 +66,25 @@ class PatientResponse(BaseModel):
 
 
 # get patient on id
-@router.get("/patient", response_model=list[CollectionsResponse])
+@router.get("/patientOnId", response_model=list[CollectionsResponse])
 def get_patient_on_id(id: str):
     return pipe.get_patient_on_id(id)
+
+
+class ExtractionResponse(BaseModel):
+    id: int
+    image_number: str
+    series_uid: str
+    feature_name: str
+    standardized_feature_name: str
+    vocabulary: str
+    value: float
+
+    class Config:
+        from_attributes = True
+
+
+# get all feature extractions
+@router.get("/getExtractions", response_model=list[ExtractionResponse])
+def get_all_extractions():
+    return pipe.get_all_extractions()
