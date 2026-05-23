@@ -44,8 +44,22 @@ function mapSeries(seriesDetail) {
   };
 }
 
-function buildCollectionsFromSeries(seriesRows) {
+function getCollectionSource(collectionName, savedCollectionMap) {
+  const savedCollection = savedCollectionMap.get(collectionName);
+  const description = savedCollection?.description ?? "";
+
+  if (description.toLowerCase().includes("nifti")) {
+    return "NIfTI";
+  }
+
+  return "DICOM";
+}
+
+function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
   const collectionMap = new Map();
+  const savedCollectionMap = new Map(
+    savedCollections.map((collection) => [collection.name, collection]),
+  );
 
   seriesRows.forEach((series) => {
     if (!series.collection || series.collection === "Unknown") {
@@ -56,7 +70,7 @@ function buildCollectionsFromSeries(seriesRows) {
       collectionMap.set(series.collection, {
         id: series.collection,
         name: series.collection,
-        source: "DICOM",
+        source: getCollectionSource(series.collection, savedCollectionMap),
         seriesCount: 0,
       });
     }
@@ -80,11 +94,18 @@ function mapAvailableCollection(collection) {
 async function loadMockData(apiBaseUrl) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
 
-  const seriesResponse = await fetchJson(`${baseUrl}/api/series`);
+  const [seriesResponse, savedCollectionsResponse] = await Promise.all([
+    fetchJson(`${baseUrl}/api/series`),
+    fetchJson(`${baseUrl}/api/savedCollections`).catch(() => []),
+  ]);
+
   const mappedSeries = seriesResponse.map(mapSeries);
 
   return {
-    collections: buildCollectionsFromSeries(mappedSeries),
+    collections: buildCollectionsFromSeries(
+      mappedSeries,
+      savedCollectionsResponse,
+    ),
     seriesData: mappedSeries,
   };
 }
@@ -101,14 +122,10 @@ async function loadAvailableCollections(apiBaseUrl) {
 
 async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  const params = new URLSearchParams({ collection_name: collectionName });
 
-  const formData = new FormData();
-  formData.append("collection_name", collectionName);
-  formData.append("dataset_type", "DICOM");
-
-  const result = await fetchJson(`${baseUrl}/api/add_dataset`, {
+  const result = await fetchJson(`${baseUrl}/api/add_DICOM_dataset?${params}`, {
     method: "POST",
-    body: formData,
   });
 
   if (result.status_operation !== "success") {
@@ -121,14 +138,18 @@ async function downloadAvailableCollection(apiBaseUrl, collectionName) {
 async function uploadDataset(apiBaseUrl, file) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
 
-  const collectionName = file.name.replace(/\.(zip|nii|gz|csv|xlsx)$/i, "");
+  if (!file.name.toLowerCase().endsWith(".zip")) {
+    throw new Error("Upload a .zip file for NIfTI datasets.");
+  }
+
+  const collectionName = file.name.replace(/\.zip$/i, "");
 
   const formData = new FormData();
   formData.append("collection_name", collectionName);
-  formData.append("dataset_type", "NIFTI");
+  formData.append("description", `Uploaded NIfTI dataset: ${collectionName}`);
   formData.append("zip_file", file);
 
-  const result = await fetchJson(`${baseUrl}/api/add_dataset`, {
+  const result = await fetchJson(`${baseUrl}/api/add_NIFTI_dataset`, {
     method: "POST",
     body: formData,
   });

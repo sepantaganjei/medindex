@@ -438,7 +438,7 @@ if (uploadButton && uploadInput) {
       }
     } catch (error) {
       console.error("Upload failed", error);
-      uploadStatus.textContent = "Upload failed.";
+      uploadStatus.textContent = `Upload failed: ${error.message}`;
     }
   });
 }
