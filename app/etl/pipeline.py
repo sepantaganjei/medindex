@@ -319,3 +319,198 @@ def get_series_on_demand(collectionName):
         series_to_return[i] = temp
 
     return series_to_return
+
+
+def get_series_on_demand_on_uid(uid):
+    mapping = get_mappings()
+    to_select = [
+        "SeriesInstanceUID",
+        "StudyInstanceUID",
+        "Modality",
+        "BodyPartExamined",
+        "ProtocolName",
+        "StudyDate",
+        "SeriesDescription",
+        "Site",
+        "Manufacturer",
+        "ManufacturerModelName",
+        "SoftwareVersions",
+        "ImageCount",
+        "MaxSubmissionTimestamp",
+        "FileSize",
+        "ThirdPartyAnalysis",
+        "Collection",
+        "PatientID",
+    ]
+
+    map = {
+        "SeriesInstanceUID": "instance_uid",
+        "StudyInstanceUID": "study_instance_uid",
+        "Modality": "modality",
+        "BodyPartExamined": "body_part",
+        "ProtocolName": "protocol_name",
+        "StudyDate": "series_date",
+        "SeriesDescription": "series_description",
+        "Site": "site",
+        "Manufacturer": "manufacturer",
+        "ManufacturerModelName": "manufacturer_model_name",
+        "SoftwareVersions": "software_versions",
+        "ImageCount": "image_count",
+        "MaxSubmissionTimestamp": "max_submission_timestamp",
+        "FileSize": "file_size",
+        "ThirdPartyAnalysis": "third_party_analysis",
+        "Collection": "collection",
+        "PatientID": "patient_id",
+    }
+
+    series = repo.get_series_on_demand_on_uid(uid)
+    temp = {}
+    for key in series.keys():
+        if key in to_select:
+            temp[map[key]] = series[key] if series[key] else "Missing"
+            temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+    series = temp
+
+    return series
+
+
+def get_series_on_demand_on_study_uid(study_uid):
+    mapping = get_mappings()
+    to_select = [
+        "SeriesInstanceUID",
+        "StudyInstanceUID",
+        "Modality",
+        "BodyPartExamined",
+        "ProtocolName",
+        "StudyDate",
+        "SeriesDescription",
+        "Site",
+        "Manufacturer",
+        "ManufacturerModelName",
+        "SoftwareVersions",
+        "ImageCount",
+        "MaxSubmissionTimestamp",
+        "FileSize",
+        "ThirdPartyAnalysis",
+        "Collection",
+        "PatientID",
+    ]
+
+    map = {
+        "SeriesInstanceUID": "instance_uid",
+        "StudyInstanceUID": "study_instance_uid",
+        "Modality": "modality",
+        "BodyPartExamined": "body_part",
+        "ProtocolName": "protocol_name",
+        "StudyDate": "series_date",
+        "SeriesDescription": "series_description",
+        "Site": "site",
+        "Manufacturer": "manufacturer",
+        "ManufacturerModelName": "manufacturer_model_name",
+        "SoftwareVersions": "software_versions",
+        "ImageCount": "image_count",
+        "MaxSubmissionTimestamp": "max_submission_timestamp",
+        "FileSize": "file_size",
+        "ThirdPartyAnalysis": "third_party_analysis",
+        "Collection": "collection",
+        "PatientID": "patient_id",
+    }
+
+    series_to_return = repo.get_series_on_demand_on_study_uid(study_uid)
+    for i, series in enumerate(series_to_return):
+        temp = {}
+        for key in series.keys():
+            if key in to_select:
+                temp[map[key]] = series[key] if series[key] else "Missing"
+                temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+        series_to_return[i] = temp
+
+    return series_to_return
+
+
+def get_studies_on_demand(collectionName):
+    mapping = get_mappings()
+    to_select = [
+        "StudyInstanceUID",
+        "Collection",
+        "StudyDate",
+        "DateReleased",
+        "StudyDescription",
+        "SeriesCount",
+        "PatientID",
+        "LongitudinalTemporalEventType",
+        "LongitudinalTemporalOffsetFromEvent",
+    ]
+
+    map = {
+        "StudyInstanceUID": "instance_uid",
+        "Collection": "collection",
+        "StudyDate": "date",
+        "DateReleased": "date_released",
+        "StudyDescription": "description",
+        "SeriesCount": "series_count",
+        "PatientID": "patient_id",
+        "LongitudinalTemporalEventType": "longitudinal_temporal_event_type",
+        "LongitudinalTemporalOffsetFromEvent": "longitudinal_temporal_offset_from_event",
+    }
+
+    studies_to_return = repo.get_studies_on_demand(collectionName)
+    for i, study in enumerate(studies_to_return):
+        temp = {}
+        for key in study.keys():
+            if key in to_select:
+                temp[map[key]] = study[key] if study[key] else None
+                temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+        studies_to_return[i] = temp
+
+    return studies_to_return
+
+
+def get_patients_on_demand(collectionName):
+    mapping = get_mappings()
+    to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
+
+    map = {
+        "PatientId": "id",
+        "PatientSex": "sex",
+        "PatientAge": "age",
+        "EthnicGroup": "ethnic_group",
+    }
+
+    patients_to_return = repo.get_patients_on_demand(collectionName)
+    for i, study in enumerate(patients_to_return):
+        temp = {}
+        for key in study.keys():
+            if key in to_select:
+                temp[map[key]] = study[key] if study[key] else None
+                temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+        patients_to_return[i] = temp
+
+    return patients_to_return
+
+
+def get_patients_on_demand_on_id(collectionName, patient_id):
+    mapping = get_mappings()
+    to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
+
+    map = {
+        "PatientId": "id",
+        "PatientSex": "sex",
+        "PatientAge": "age",
+        "EthnicGroup": "ethnic_group",
+    }
+
+    patient = repo.get_patients_on_demand_on_id(collectionName, patient_id)
+    temp = {}
+    for key in patient.keys():
+        if key in to_select:
+            temp[map[key]] = patient[key] if patient[key] else None
+            temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+    patient = temp
+
+    return patient

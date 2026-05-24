@@ -8,6 +8,7 @@ from app.db.models import Series
 from app.db.models import Extraction
 from sqlalchemy.orm import joinedload
 import requests
+import re
 # SET OPERATIONS
 
 
@@ -138,3 +139,174 @@ def get_series_on_demand(collectionName):
     response = requests.get(url, params=params, timeout=30)
     data = response.json()
     return data
+
+
+def get_series_on_demand_on_uid(uid):
+    url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+
+    params = {"SeriesInstanceUID": uid, "format": "json"}
+
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()[0]
+    return data
+
+
+def get_series_on_demand_on_study_uid(study_uid):
+    url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+
+    params = {"StudyInstanceUID": study_uid, "format": "json"}
+
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()
+    return data
+
+
+def get_studies_on_demand(collectionName):
+    url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/NewStudiesInPatientCollection"
+
+    params = {"format": "json", "Collection": collectionName, "fromDate": "01-01-1960"}
+
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()
+
+    # Find date_realease
+    url_for_series = (
+        "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+    )
+
+    params_for_series = {
+        "StudyInstanceUID": data[0]["StudyInstanceUID"],
+        "format": "json",
+    }
+
+    response_for_series = requests.get(
+        url_for_series, params=params_for_series, timeout=30
+    )
+    DateReleased = response_for_series.json()[0]["DateReleased"]
+
+    for study in data:
+        study["DateReleased"] = DateReleased
+
+    return data
+
+
+def get_patients_on_demand(collectionName):
+
+    print("Sending request")
+
+    url_for_patients = (
+        "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getPatient"
+    )
+
+    patient_params = {"Collection": collectionName, "format": "json"}
+
+    response = requests.get(url_for_patients, params=patient_params, timeout=30)
+    response.raise_for_status()
+
+    patients = response.json()
+
+    print("Patients fetched")
+
+    # Fetch ALL series once
+    url_for_series = (
+        "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+    )
+
+    series_params = {"Collection": collectionName, "format": "json"}
+
+    series_response = requests.get(url_for_series, params=series_params, timeout=30)
+
+    series_response.raise_for_status()
+
+    series_data = series_response.json()
+
+    print("Series fetched")
+
+    # Build PatientID -> Age map
+    age_map = {}
+
+    for series in series_data:
+        patient_id = series.get("PatientID")
+        age = series.get("PatientAge")
+
+        if patient_id and patient_id not in age_map:
+            if age is not None:
+                match = re.search(r"(\d+)", str(age))
+                age = int(match.group(1)) if match else None
+            else:
+                age = None
+
+            age_map[patient_id] = age
+
+    # Attach age to patients
+    for patient in patients:
+        patient_id = patient.get("PatientId")
+
+        patient["PatientAge"] = age_map.get(patient_id)
+
+    print("Done")
+
+    return patients
+
+
+def get_patients_on_demand_on_id(collectionName, patient_id):
+
+    print("Sending request")
+
+    url_for_patients = (
+        "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getPatient"
+    )
+
+    patient_params = {
+        "format": "json",
+        "Collection": collectionName,
+        "PatientId": patient_id,
+    }
+
+    response = requests.get(url_for_patients, params=patient_params, timeout=30)
+    response.raise_for_status()
+
+    patients = response.json()
+
+    print("Patients fetched")
+
+    # Fetch ALL series once
+    url_for_series = (
+        "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+    )
+
+    series_params = {"Collection": collectionName, "format": "json"}
+
+    series_response = requests.get(url_for_series, params=series_params, timeout=30)
+
+    series_response.raise_for_status()
+
+    series_data = series_response.json()
+
+    print("Series fetched")
+
+    # Build PatientID -> Age map
+    age_map = {}
+
+    for series in series_data:
+        patient_id = series.get("PatientID")
+        age = series.get("PatientAge")
+
+        if patient_id and patient_id not in age_map:
+            if age is not None:
+                match = re.search(r"(\d+)", str(age))
+                age = int(match.group(1)) if match else None
+            else:
+                age = None
+
+            age_map[patient_id] = age
+
+    # Attach age to patients
+    for patient in patients:
+        patient_id = patient.get("PatientId")
+
+        patient["PatientAge"] = age_map.get(patient_id)
+
+    print("Done")
+
+    return patients[0]

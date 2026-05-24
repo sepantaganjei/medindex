@@ -60,9 +60,9 @@ def get_all_collections():
 
 class PatientResponse(BaseModel):
     id: str
-    sex: str
-    age: int
-    ethnic_group: str
+    sex: str | None = None
+    age: int | None = None
+    ethnic_group: str | None = None
 
 
 # get patient on id
@@ -92,7 +92,7 @@ def get_all_extractions():
 
 # ==================
 # get data on demand
-# # ==================
+# ==================
 
 
 class SeriesOnDemandResponse(BaseModel):
@@ -119,3 +119,45 @@ class SeriesOnDemandResponse(BaseModel):
 @router.get("/seriesOnDemand", response_model=list[SeriesOnDemandResponse])
 def get_series_on_demand(collectionName):
     return pipe.get_series_on_demand(collectionName)
+
+
+# get series on demand on uid
+@router.get("/seriesOnDemandOnUid", response_model=SeriesOnDemandResponse)
+def get_series_on_demand_on_uid(uid):
+    return pipe.get_series_on_demand_on_uid(uid)
+
+
+# get series on demand on study_uid
+@router.get("/seriesOnDemandOnStudyUid", response_model=list[SeriesOnDemandResponse])
+def get_series_on_demand_on_study_uid(study_uid):
+    return pipe.get_series_on_demand_on_study_uid(study_uid)
+
+
+class StudyResponse(BaseModel):
+    instance_uid: str
+    collection: str
+    date: str | None = None
+    date_released: str | None = None
+    description: str | None = None
+    series_count: int | None = None
+    patient_id: str | None = None
+    longitudinal_temporal_event_type: str | None = None
+    longitudinal_temporal_offset_from_event: int | None = None
+
+
+# get studies on demand
+@router.get("/studiesOnDemand", response_model=list[StudyResponse])
+def get_studies_on_demand(collectionName):
+    return pipe.get_studies_on_demand(collectionName)
+
+
+# get patients on demand
+@router.get("/patientsOnDemand", response_model=list[PatientResponse])
+def get_patients_on_demand(collectionName):
+    return pipe.get_patients_on_demand(collectionName)
+
+
+# get patients on demand on uid
+@router.get("/patientsOnDemandOnUid", response_model=PatientResponse)
+def get_patients_on_demand_on_id(collectionName, patient_id):
+    return pipe.get_patients_on_demand_on_id(collectionName, patient_id)

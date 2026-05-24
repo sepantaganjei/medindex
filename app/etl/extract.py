@@ -38,9 +38,9 @@ def _get_data_from_DICOM_archive(collection_name):
         "collection": {"collectionName": collection_name},
         "patients": {"Collection": collection_name, "format": "json"},
         "studies": {
+            "format": "json",
             "Collection": collection_name,
             "fromDate": "01-01-1960",
-            "format": "json",
         },
         "series": {"Collection": collection_name, "format": "json"},
     }
