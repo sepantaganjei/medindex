@@ -54,5 +54,45 @@
     "BRAIN": {
         "standardized_feature_name": "Brain part",
         "vocabulary": "SNOMED"
+    },
+    "DIAGNOSIS": {
+        "standardized_feature_name": "Diagnosis",
+        "vocabulary": "SNOMED"
+    },
+    "CT":{
+        "standardized_feature_name": "Computed tomography",
+        "vocabulary": "SNOMED"
+    },
+    "PT":{
+        "standardized_feature_name": "Positron emission tomography",
+        "vocabulary": "SNOMED"
+    },
+    "CHEST":{
+        "standardized_feature_name": "Thoracic structure",
+        "vocabulary": "SNOMED"
+    },
+    "WHOLEBODY":{
+        "standardized_feature_name": "Entire body as a whole",
+        "vocabulary": "SNOMED"
+    },
+    "NECKCHESTABDPELV":{
+        "standardized_feature_name": "Neck, chest, abdomen, and pelvis",
+        "vocabulary": "SNOMED"
+    },
+    "NECK":{
+        "standardized_feature_name": "Neck structure",
+        "vocabulary": "SNOMED"
+    },
+    "LSSPINE":{
+        "standardized_feature_name": "Lumbar spine structure",
+        "vocabulary": "SNOMED"
+    },
+    "CHESTABDOMEN":{
+        "standardized_feature_name": "Chest and abdomen",
+        "vocabulary": "SNOMED"
+    },
+    "ABDOMEN":{
+        "standardized_feature_name": "Entire abdomen",
+        "vocabulary": "SNOMED"
     }
 }
