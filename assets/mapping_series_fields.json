@@ -3,7 +3,7 @@
         "value": "Identifier",
         "vocabulary": "SNOMED"
     },
-    "study_isntance_uid": {
+    "study_instance_uid": {
         "value": "Identifier of study",
         "vocabulary": "SNOMED"
     },
