@@ -60,6 +60,8 @@ select {
   display: grid;
   grid-template-columns: 270px 1fr;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .app-shell.viewer-mode {
@@ -71,6 +73,7 @@ select {
 }
 
 .main-content {
+  min-width: 0;
   padding: 24px;
 }
 
@@ -80,6 +83,7 @@ select {
 
 .page.active {
   display: block;
+  min-width: 0;
 }
 
 /* Sidebar */
@@ -351,6 +355,8 @@ select {
 }
 
 .table-card {
+  max-width: 100%;
+  overflow-x: auto;
   padding: 16px;
 }
 
@@ -377,6 +383,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 }
 
 th {
@@ -388,11 +395,16 @@ th {
   border-bottom: 1px solid var(--border);
   padding: 10px;
   background: var(--surface-soft);
+  overflow-wrap: anywhere;
+  vertical-align: top;
 }
 
 td {
   border-bottom: 1px solid #edf2f7;
   padding: 12px 10px;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  word-break: normal;
 }
 
 tr:hover {
@@ -567,11 +579,15 @@ tr:hover {
   color: #ffffff;
 }
 
-.available-section {
+.available-section,
+.dicom-section {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-soft);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 18px;
 }
 
@@ -602,6 +618,90 @@ tr:hover {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+}
+
+.dicom-mode-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.dicom-mode-buttons button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dicom-mode-buttons button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.dicom-mode-buttons button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.dicom-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.dicom-search-row input {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dicom-search-row input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.dicom-search-row button {
+  border: 1px solid var(--accent);
+  color: var(--accent-hover);
+  background: var(--accent-soft);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.dicom-search-row button:hover:not(:disabled) {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.dicom-search-row button:disabled {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: wait;
+}
+
+.dicom-status {
+  min-height: 20px;
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.dicom-status.loading {
+  color: var(--primary);
+}
+
+.dicom-status.error {
+  color: var(--danger);
 }
 
 .available-collections-list {
@@ -684,4 +784,46 @@ tr:hover {
   color: var(--text-muted);
   padding: 24px 12px;
   font-style: italic;
+}
+
+.back-to-top-button {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 20;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-soft);
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+
+.back-to-top-button.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.back-to-top-button:hover {
+  background: var(--primary-hover);
+}
+
+@media (max-width: 760px) {
+  .dicom-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .back-to-top-button {
+    right: 14px;
+    bottom: 14px;
+  }
 }

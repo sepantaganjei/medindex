@@ -64,9 +64,11 @@ class PatientResponse(BaseModel):
     age: int | None = None
     ethnic_group: str | None = None
 
+    model_config = {"from_attributes": True}
+
 
 # get patient on id
-@router.get("/patientOnId", response_model=list[CollectionsResponse])
+@router.get("/patientOnId", response_model=PatientResponse | None)
 def get_patient_on_id(id: str):
     return pipe.get_patient_on_id(id)
 
