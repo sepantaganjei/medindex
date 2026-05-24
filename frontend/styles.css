@@ -377,6 +377,40 @@ select {
   font-size: 14px;
 }
 
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-actions button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+  padding: 7px 10px;
+}
+
+.pagination-actions button:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: #eff6ff;
+}
+
+.pagination-actions button:disabled {
+  color: var(--text-soft);
+  cursor: not-allowed;
+}
+
 /* Table */
 
 table {
@@ -779,6 +813,12 @@ tr:hover {
   word-break: break-word;
 }
 
+.sidebar-loading {
+  margin: 8px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .empty-state {
   text-align: center;
   color: var(--text-muted);
@@ -788,7 +828,7 @@ tr:hover {
 
 .back-to-top-button {
   position: fixed;
-  right: 22px;
+  left: 22px;
   bottom: 22px;
   z-index: 20;
   border: 1px solid var(--primary);
@@ -818,6 +858,11 @@ tr:hover {
 }
 
 @media (max-width: 760px) {
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .dicom-search-row {
     grid-template-columns: 1fr;
   }

@@ -1,6 +1,7 @@
 const appShell = document.getElementById("app-shell");
 const collectionsList = document.getElementById("collections-list");
 const seriesTable = document.getElementById("series-table");
+const seriesPagination = document.getElementById("series-pagination");
 const searchInput = document.getElementById("search-input");
 const modalityFilter = document.getElementById("modality-filter");
 const resultCount = document.getElementById("result-count");
@@ -68,6 +69,11 @@ let dicomError = "";
 let activeViewerSeries = null;
 let activeMetadataTab = "series";
 let lastSearchScrollY = 0;
+let isSeriesLoading = true;
+let isAvailableCollectionsLoading = true;
+let seriesPage = 1;
+
+const seriesPageSize = 100;
 
 const modalityAliases = {
   "computed tomography": "CT",
@@ -126,6 +132,13 @@ function renderCollections() {
 
   collectionsCount.textContent = `${selectedCollections.size}/${collections.length}`;
 
+  if (isSeriesLoading) {
+    collectionsList.innerHTML = `
+      <p class="sidebar-loading">Loading collections...</p>
+    `;
+    return;
+  }
+
   collections.forEach((collection) => {
     const isSelected = selectedCollections.has(collection.id);
 
@@ -154,6 +167,7 @@ function renderCollections() {
         selectedCollections.add(collection.id);
       }
 
+      resetSeriesPage();
       renderCollections();
       renderModalityFilter();
       renderSeries();
@@ -182,11 +196,75 @@ function getFilteredSeries() {
   });
 }
 
+function resetSeriesPage() {
+  seriesPage = 1;
+}
+
+function renderSeriesPagination(totalResults) {
+  const totalPages = Math.max(1, Math.ceil(totalResults / seriesPageSize));
+
+  if (isSeriesLoading || totalResults === 0 || totalPages === 1) {
+    seriesPagination.innerHTML = "";
+    return;
+  }
+
+  seriesPage = Math.min(seriesPage, totalPages);
+
+  const startResult = (seriesPage - 1) * seriesPageSize + 1;
+  const endResult = Math.min(seriesPage * seriesPageSize, totalResults);
+
+  seriesPagination.innerHTML = `
+    <div class="pagination-summary">
+      Showing ${startResult}-${endResult} of ${totalResults}
+    </div>
+    <div class="pagination-actions">
+      <button id="series-prev-page" type="button" ${
+        seriesPage === 1 ? "disabled" : ""
+      }>Previous</button>
+      <span>Page ${seriesPage} of ${totalPages}</span>
+      <button id="series-next-page" type="button" ${
+        seriesPage === totalPages ? "disabled" : ""
+      }>Next</button>
+    </div>
+  `;
+
+  document.getElementById("series-prev-page").addEventListener("click", () => {
+    seriesPage = Math.max(1, seriesPage - 1);
+    renderSeries();
+  });
+
+  document.getElementById("series-next-page").addEventListener("click", () => {
+    seriesPage = Math.min(totalPages, seriesPage + 1);
+    renderSeries();
+  });
+}
+
 function renderSeries() {
   const filteredSeries = getFilteredSeries();
+  const totalPages = Math.max(1, Math.ceil(filteredSeries.length / seriesPageSize));
+
+  seriesPage = Math.min(seriesPage, totalPages);
+
+  const startIndex = (seriesPage - 1) * seriesPageSize;
+  const visibleSeries = filteredSeries.slice(
+    startIndex,
+    startIndex + seriesPageSize,
+  );
 
   seriesTable.innerHTML = "";
   resultCount.textContent = `${filteredSeries.length} results`;
+  renderSeriesPagination(filteredSeries.length);
+
+  if (isSeriesLoading) {
+    seriesTable.innerHTML = `
+      <tr>
+        <td colspan="8" class="empty-state">
+          Loading downloaded series...
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
   if (filteredSeries.length === 0) {
     seriesTable.innerHTML = `
@@ -199,7 +277,7 @@ function renderSeries() {
     return;
   }
 
-  filteredSeries.forEach((series) => {
+  visibleSeries.forEach((series) => {
     const row = document.createElement("tr");
 
     row.innerHTML = `
@@ -534,6 +612,14 @@ function syncAvailableCollectionStatus() {
 function renderAvailableCollections() {
   const searchTerm = availableSearchInput.value.trim().toLowerCase();
 
+  if (isAvailableCollectionsLoading) {
+    availableResultCount.textContent = "Loading collections";
+    availableCollectionsList.innerHTML = `
+      <p class="empty-state">Loading available collections...</p>
+    `;
+    return;
+  }
+
   const filteredCollections = availableCollectionsData.filter((collection) => {
     const searchableText = [
       collection.name,
@@ -760,8 +846,15 @@ function scrollToTop() {
   });
 }
 
-searchInput.addEventListener("input", renderSeries);
-modalityFilter.addEventListener("change", renderSeries);
+searchInput.addEventListener("input", () => {
+  resetSeriesPage();
+  renderSeries();
+});
+
+modalityFilter.addEventListener("change", () => {
+  resetSeriesPage();
+  renderSeries();
+});
 backButton.addEventListener("click", closeViewer);
 window.addEventListener("scroll", updateBackToTopButton);
 backToTopButton.addEventListener("click", scrollToTop);
@@ -776,6 +869,7 @@ metadataPatientTab.addEventListener("click", showPatientMetadata);
 
 selectAllCollectionsButton.addEventListener("click", () => {
   selectedCollections = new Set(collections.map((collection) => collection.id));
+  resetSeriesPage();
   renderCollections();
   renderModalityFilter();
   renderSeries();
@@ -783,6 +877,7 @@ selectAllCollectionsButton.addEventListener("click", () => {
 
 clearCollectionsButton.addEventListener("click", () => {
   selectedCollections.clear();
+  resetSeriesPage();
   renderCollections();
   renderModalityFilter();
   renderSeries();
@@ -795,32 +890,9 @@ const apiBaseUrl =
 async function initializeData() {
   collections = [];
   seriesData = [];
-
-  try {
-    const { collections: loadedCollections, seriesData: loadedSeries } =
-      await loadMockData(apiBaseUrl);
-
-    collections = loadedCollections;
-    seriesData = loadedSeries;
-  } catch (error) {
-    console.warn(
-      "Could not load downloaded collections/series from backend. Starting empty.",
-      error,
-    );
-  }
-
-  try {
-    availableCollectionsData = await loadAvailableCollections(apiBaseUrl);
-  } catch (error) {
-    console.warn(
-      "Could not load available collections from backend. Using fallback data.",
-      error,
-    );
-
-    availableCollectionsData = [...fallbackAvailableCollections];
-  }
-
-  syncAvailableCollectionStatus();
+  availableCollectionsData = [];
+  isSeriesLoading = true;
+  isAvailableCollectionsLoading = true;
 
   selectedCollections = new Set(collections.map((collection) => collection.id));
 
@@ -828,6 +900,49 @@ async function initializeData() {
   renderModalityFilter();
   renderSeries();
   renderAvailableCollections();
+
+  const seriesLoad = loadMockData(apiBaseUrl)
+    .then(({ collections: loadedCollections, seriesData: loadedSeries }) => {
+      collections = loadedCollections;
+      seriesData = loadedSeries;
+      selectedCollections = new Set(
+        collections.map((collection) => collection.id),
+      );
+    })
+    .catch((error) => {
+      console.warn(
+        "Could not load downloaded collections/series from backend. Starting empty.",
+        error,
+      );
+    })
+    .finally(() => {
+      isSeriesLoading = false;
+      syncAvailableCollectionStatus();
+      renderCollections();
+      renderModalityFilter();
+      renderSeries();
+      renderAvailableCollections();
+    });
+
+  const availableLoad = loadAvailableCollections(apiBaseUrl)
+    .then((loadedAvailableCollections) => {
+      availableCollectionsData = loadedAvailableCollections;
+    })
+    .catch((error) => {
+      console.warn(
+        "Could not load available collections from backend. Using fallback data.",
+        error,
+      );
+
+      availableCollectionsData = [...fallbackAvailableCollections];
+    })
+    .finally(() => {
+      isAvailableCollectionsLoading = false;
+      syncAvailableCollectionStatus();
+      renderAvailableCollections();
+    });
+
+  await Promise.allSettled([seriesLoad, availableLoad]);
 }
 
 seriesViewButton.addEventListener("click", () => {
