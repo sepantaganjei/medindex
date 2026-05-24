@@ -88,3 +88,34 @@ class ExtractionResponse(BaseModel):
 @router.get("/getExtractions", response_model=list[ExtractionResponse])
 def get_all_extractions():
     return pipe.get_all_extractions()
+
+
+# ==================
+# get data on demand
+# # ==================
+
+
+class SeriesOnDemandResponse(BaseModel):
+    instance_uid: str
+    study_instance_uid: str
+    modality: str | None = None
+    body_part: str | None = None
+    protocol_name: str | None = None
+    series_date: str | None = None
+    series_description: str | None = None
+    site: str | None = None
+    manufacturer: str | None = None
+    manufacturer_model_name: str | None = None
+    software_versions: str | None = None
+    image_count: int | None = None
+    max_submission_timestamp: str | None = None
+    file_size: int | None = None
+    third_party_analysis: str | None = None
+    collection: str | None = None
+    patient_id: str | None = None
+
+
+# get series on demand
+@router.get("/seriesOnDemand", response_model=list[SeriesOnDemandResponse])
+def get_series_on_demand(collectionName):
+    return pipe.get_series_on_demand(collectionName)

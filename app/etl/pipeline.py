@@ -261,3 +261,61 @@ def get_all_extractions():
 
     finally:
         session.close()
+
+
+# On demand
+
+
+def get_series_on_demand(collectionName):
+    mapping = get_mappings()
+    to_select = [
+        "SeriesInstanceUID",
+        "StudyInstanceUID",
+        "Modality",
+        "BodyPartExamined",
+        "ProtocolName",
+        "StudyDate",
+        "SeriesDescription",
+        "Site",
+        "Manufacturer",
+        "ManufacturerModelName",
+        "SoftwareVersions",
+        "ImageCount",
+        "MaxSubmissionTimestamp",
+        "FileSize",
+        "ThirdPartyAnalysis",
+        "Collection",
+        "PatientID",
+    ]
+
+    map = {
+        "SeriesInstanceUID": "instance_uid",
+        "StudyInstanceUID": "study_instance_uid",
+        "Modality": "modality",
+        "BodyPartExamined": "body_part",
+        "ProtocolName": "protocol_name",
+        "StudyDate": "series_date",
+        "SeriesDescription": "series_description",
+        "Site": "site",
+        "Manufacturer": "manufacturer",
+        "ManufacturerModelName": "manufacturer_model_name",
+        "SoftwareVersions": "software_versions",
+        "ImageCount": "image_count",
+        "MaxSubmissionTimestamp": "max_submission_timestamp",
+        "FileSize": "file_size",
+        "ThirdPartyAnalysis": "third_party_analysis",
+        "Collection": "collection",
+        "PatientID": "patient_id",
+    }
+
+    series_to_return = repo.get_series_on_demand(collectionName)
+    for i, series in enumerate(series_to_return):
+        temp = {}
+        for key in series.keys():
+            if key in to_select:
+                temp[map[key]] = series[key] if series[key] else "Missing"
+                temp[map[key]] = standardize_value(temp[map[key]], mapping)
+
+        series_to_return[i] = temp
+
+    return series_to_return

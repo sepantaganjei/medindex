@@ -7,6 +7,7 @@ from app.db.models import Patient
 from app.db.models import Series
 from app.db.models import Extraction
 from sqlalchemy.orm import joinedload
+import requests
 # SET OPERATIONS
 
 
@@ -127,3 +128,13 @@ def get_patient_on_id(session, id):
 
 def get_all_extractions(session):
     return session.query(Extraction).all()
+
+
+def get_series_on_demand(collectionName):
+    url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
+
+    params = {"Collection": collectionName, "format": "json"}
+
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()
+    return data
