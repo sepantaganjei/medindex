@@ -84,7 +84,7 @@ def _clean_text(text: str) -> str:
 # - Raw data
 # Output
 # - data of the collection in dictionary format
-def prepare_collection_data(raw_json_dict_data):
+def prepare_collection_data(raw_json_dict_data, _):
     collection_json = raw_json_dict_data["collection"][0]
     series_json = raw_json_dict_data["series"]
 
