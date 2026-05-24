@@ -34,18 +34,12 @@
 
         <section class="upload-card">
           <p>Upload local dataset</p>
-          <span>NIfTI</span>
 
-          <input
-            id="dataset-upload-input"
-            type="file"
-            accept=".zip"
-            hidden
-          />
+          <input id="dataset-upload-input" type="file" accept=".zip" hidden />
 
           <button id="dataset-upload-button" type="button">Choose file</button>
           <p id="upload-status" class="upload-status"></p>
-	  <a class="roi-link" href="roi.html">Open ROI tool</a>
+          <a class="roi-link" href="roi.html">Open ROI tool</a>
         </section>
 
         <div class="sidebar-footer">
@@ -66,7 +60,7 @@
             </div>
 
             <div class="source-buttons">
-              <button class="active">TCIA</button>
+              <!-- <button class="active">TCIA</button> -->
               <!-- <button>OpenSpecimen</button>
               <button>Local</button> -->
             </div>
@@ -78,6 +72,9 @@
             </button>
             <button id="available-view-button" type="button">
               Available collections
+            </button>
+            <button id="dicom-view-button" type="button">
+              Explore DICOM dataset
             </button>
           </div>
 
@@ -91,9 +88,6 @@
 
               <select id="modality-filter">
                 <option value="all">All modalities</option>
-                <option value="CT">CT</option>
-                <option value="MR">MR</option>
-                <option value="PET">PET</option>
               </select>
             </section>
 
@@ -118,6 +112,8 @@
                 </thead>
                 <tbody id="series-table"></tbody>
               </table>
+
+              <div id="series-pagination" class="pagination"></div>
             </section>
           </section>
 
@@ -149,6 +145,49 @@
               id="available-collections-list"
               class="available-collections-list"
             ></div>
+          </section>
+
+          <section id="dicom-explorer-section" class="dicom-section hidden">
+            <div class="available-header">
+              <div>
+                <h2>Explore DICOM Dataset</h2>
+                <p>
+                  Search remote TCIA DICOM metadata on demand without importing
+                  it into the local database.
+                </p>
+              </div>
+
+              <p id="dicom-result-count">0 results</p>
+            </div>
+
+            <div class="dicom-mode-buttons">
+              <button
+                id="dicom-series-mode-button"
+                class="active"
+                type="button"
+              >
+                Search for series
+              </button>
+              <button id="dicom-studies-mode-button" type="button">
+                Search for studies
+              </button>
+              <button id="dicom-patients-mode-button" type="button">
+                Search for patients
+              </button>
+            </div>
+
+            <div class="dicom-search-row">
+              <input
+                id="dicom-collection-input"
+                type="text"
+                placeholder="Insert name of the collection"
+              />
+              <button id="dicom-search-button" type="button">Search</button>
+            </div>
+
+            <p id="dicom-status" class="dicom-status"></p>
+
+            <div id="dicom-results"></div>
           </section>
         </section>
 
@@ -201,10 +240,12 @@
 
             <aside class="metadata-card">
               <div class="metadata-tabs">
-                <button class="active">Series</button>
-                <button>Patient</button>
-                <button>Acquisition</button>
-                <button>Raw Tags</button>
+                <button id="metadata-series-tab" class="active" type="button">
+                  Series
+                </button>
+                <button id="metadata-patient-tab" type="button">Patient</button>
+                <!-- <button>Acquisition</button>
+                <button>Raw Tags</button> -->
               </div>
 
               <div id="metadata-content" class="metadata-content">
@@ -215,6 +256,10 @@
         </section>
       </main>
     </div>
+
+    <button id="back-to-top-button" class="back-to-top-button" type="button">
+      Back to top
+    </button>
 
     <script src="api.js"></script>
     <script src="app.js"></script>
