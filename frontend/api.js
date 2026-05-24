@@ -435,7 +435,7 @@ async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collection_name: collectionName });
 
-  const result = await fetchJson(`${baseUrl}/api/add_DICOM_dataset?${params}`, {
+  const result = await fetchJson(`${baseUrl}/api/addDICOMdataset?${params}`, {
     method: "POST",
   });
 
@@ -460,7 +460,7 @@ async function uploadDataset(apiBaseUrl, file) {
   formData.append("description", `Uploaded NIfTI dataset: ${collectionName}`);
   formData.append("zip_file", file);
 
-  const result = await fetchJson(`${baseUrl}/api/add_NIFTI_dataset`, {
+  const result = await fetchJson(`${baseUrl}/api/addNIFTIdataset`, {
     method: "POST",
     body: formData,
   });
