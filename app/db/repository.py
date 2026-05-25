@@ -9,6 +9,17 @@ from app.db.models import Extraction
 from sqlalchemy.orm import joinedload
 import requests
 import re
+
+
+def get_json_or_empty(response):
+    response.raise_for_status()
+
+    if not response.text.strip():
+        return []
+
+    return response.json()
+
+
 # SET OPERATIONS
 
 
@@ -137,8 +148,7 @@ def get_series_on_demand(collectionName):
     params = {"Collection": collectionName, "format": "json"}
 
     response = requests.get(url, params=params, timeout=30)
-    data = response.json()
-    return data
+    return get_json_or_empty(response)
 
 
 def get_series_on_demand_on_uid(uid):
@@ -147,7 +157,7 @@ def get_series_on_demand_on_uid(uid):
     params = {"SeriesInstanceUID": uid, "format": "json"}
 
     response = requests.get(url, params=params, timeout=30)
-    data = response.json()[0]
+    data = get_json_or_empty(response)[0]
     return data
 
 
@@ -157,8 +167,7 @@ def get_series_on_demand_on_study_uid(study_uid):
     params = {"StudyInstanceUID": study_uid, "format": "json"}
 
     response = requests.get(url, params=params, timeout=30)
-    data = response.json()
-    return data
+    return get_json_or_empty(response)
 
 
 def get_studies_on_demand(collectionName):
@@ -167,7 +176,10 @@ def get_studies_on_demand(collectionName):
     params = {"format": "json", "Collection": collectionName, "fromDate": "01-01-1960"}
 
     response = requests.get(url, params=params, timeout=30)
-    data = response.json()
+    data = get_json_or_empty(response)
+
+    if not data:
+        return []
 
     # Find date_realease
     url_for_series = (
@@ -182,7 +194,8 @@ def get_studies_on_demand(collectionName):
     response_for_series = requests.get(
         url_for_series, params=params_for_series, timeout=30
     )
-    DateReleased = response_for_series.json()[0]["DateReleased"]
+    series_for_study = get_json_or_empty(response_for_series)
+    DateReleased = series_for_study[0].get("DateReleased") if series_for_study else None
 
     for study in data:
         study["DateReleased"] = DateReleased
@@ -201,9 +214,7 @@ def get_patients_on_demand(collectionName):
     patient_params = {"Collection": collectionName, "format": "json"}
 
     response = requests.get(url_for_patients, params=patient_params, timeout=30)
-    response.raise_for_status()
-
-    patients = response.json()
+    patients = get_json_or_empty(response)
 
     print("Patients fetched")
 
@@ -216,9 +227,7 @@ def get_patients_on_demand(collectionName):
 
     series_response = requests.get(url_for_series, params=series_params, timeout=30)
 
-    series_response.raise_for_status()
-
-    series_data = series_response.json()
+    series_data = get_json_or_empty(series_response)
 
     print("Series fetched")
 
@@ -264,9 +273,10 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     }
 
     response = requests.get(url_for_patients, params=patient_params, timeout=30)
-    response.raise_for_status()
+    patients = get_json_or_empty(response)
 
-    patients = response.json()
+    if not patients:
+        return {}
 
     print("Patients fetched")
 
@@ -279,9 +289,7 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
 
     series_response = requests.get(url_for_series, params=series_params, timeout=30)
 
-    series_response.raise_for_status()
-
-    series_data = series_response.json()
+    series_data = get_json_or_empty(series_response)
 
     print("Series fetched")
 

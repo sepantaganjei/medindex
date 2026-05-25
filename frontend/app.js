@@ -32,6 +32,7 @@ const availableCollectionsList = document.getElementById(
   "available-collections-list",
 );
 const availableResultCount = document.getElementById("available-result-count");
+const availablePagination = document.getElementById("available-pagination");
 const dicomSeriesModeButton = document.getElementById(
   "dicom-series-mode-button",
 );
@@ -46,6 +47,7 @@ const dicomSearchButton = document.getElementById("dicom-search-button");
 const dicomStatus = document.getElementById("dicom-status");
 const dicomResultCount = document.getElementById("dicom-result-count");
 const dicomResultsContainer = document.getElementById("dicom-results");
+const dicomPagination = document.getElementById("dicom-pagination");
 
 const uploadInput = document.getElementById("dataset-upload-input");
 const uploadButton = document.getElementById("dataset-upload-button");
@@ -72,43 +74,37 @@ let lastSearchScrollY = 0;
 let isSeriesLoading = true;
 let isAvailableCollectionsLoading = true;
 let seriesPage = 1;
+let availableCollectionsPage = 1;
+let dicomPage = 1;
 
 const seriesPageSize = 100;
+const availableCollectionsPageSize = 25;
+const dicomPageSize = 100;
 
-const modalityAliases = {
-  "computed tomography": "CT",
-  ct: "CT",
-  "magnetic resonance": "MR",
-  "magnetic resonance imaging": "MR",
-  mr: "MR",
-  mri: "MR",
-  "positron emission tomography": "PET",
-  pet: "PET",
-  "digital radiography": "DX",
-  radiography: "DX",
-  dx: "DX",
-  "computed radiography": "CR",
-  cr: "CR",
-  ultrasound: "US",
-  us: "US",
-  "single photon emission computed tomography": "SPECT",
-  spect: "SPECT",
-  segmentation: "SEG",
-  seg: "SEG",
-  "radiotherapy structure set": "RTSTRUCT",
-  rtstruct: "RTSTRUCT",
-  "secondary capture": "SC",
-  sc: "SC",
-};
+const modalityFilterGroups = [
+  ["CT", "Computed tomography"],
+  ["MR", "Magnetic resonance imaging"],
+  ["PT", "PET", "Positron emission tomography"],
+];
 
 function normalizeModality(value) {
   const rawValue = String(value ?? "").trim();
 
   if (!rawValue) {
-    return "Unknown";
+    return "Missing";
   }
 
-  return modalityAliases[rawValue.toLowerCase()] ?? rawValue.toUpperCase();
+  return rawValue;
+}
+
+function getModalityFilterKey(value) {
+  const modality = normalizeModality(value);
+  const normalizedModality = modality.toLowerCase();
+  const group = modalityFilterGroups.find((aliases) =>
+    aliases.some((alias) => alias.toLowerCase() === normalizedModality),
+  );
+
+  return group ? group.join(" / ") : modality;
 }
 
 function getDisplayValue(value) {
@@ -186,7 +182,7 @@ function getFilteredSeries() {
 
     const matchesModality =
       selectedModality === "all" ||
-      normalizeModality(series.modality) === selectedModality;
+      getModalityFilterKey(series.modality) === selectedModality;
 
     const matchesSearch = Object.values(series).some((value) =>
       String(value).toLowerCase().includes(searchTerm),
@@ -200,42 +196,77 @@ function resetSeriesPage() {
   seriesPage = 1;
 }
 
-function renderSeriesPagination(totalResults) {
-  const totalPages = Math.max(1, Math.ceil(totalResults / seriesPageSize));
+function resetAvailableCollectionsPage() {
+  availableCollectionsPage = 1;
+}
 
-  if (isSeriesLoading || totalResults === 0 || totalPages === 1) {
-    seriesPagination.innerHTML = "";
-    return;
+function resetDicomPage() {
+  dicomPage = 1;
+}
+
+function renderPagination({
+  container,
+  currentPage,
+  pageSize,
+  totalResults,
+  onPageChange,
+  scrollTarget,
+}) {
+  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+
+  if (totalResults === 0 || totalPages === 1) {
+    container.innerHTML = "";
+    return currentPage;
   }
 
-  seriesPage = Math.min(seriesPage, totalPages);
+  const safePage = Math.min(currentPage, totalPages);
+  const startResult = (safePage - 1) * pageSize + 1;
+  const endResult = Math.min(safePage * pageSize, totalResults);
 
-  const startResult = (seriesPage - 1) * seriesPageSize + 1;
-  const endResult = Math.min(seriesPage * seriesPageSize, totalResults);
-
-  seriesPagination.innerHTML = `
+  container.innerHTML = `
     <div class="pagination-summary">
       Showing ${startResult}-${endResult} of ${totalResults}
     </div>
     <div class="pagination-actions">
-      <button id="series-prev-page" type="button" ${
-        seriesPage === 1 ? "disabled" : ""
+      <button class="pagination-prev" type="button" ${
+        safePage === 1 ? "disabled" : ""
       }>Previous</button>
-      <span>Page ${seriesPage} of ${totalPages}</span>
-      <button id="series-next-page" type="button" ${
-        seriesPage === totalPages ? "disabled" : ""
+      <span>Page ${safePage} of ${totalPages}</span>
+      <button class="pagination-next" type="button" ${
+        safePage === totalPages ? "disabled" : ""
       }>Next</button>
     </div>
   `;
 
-  document.getElementById("series-prev-page").addEventListener("click", () => {
-    seriesPage = Math.max(1, seriesPage - 1);
-    renderSeries();
+  container.querySelector(".pagination-prev").addEventListener("click", () => {
+    onPageChange(Math.max(1, safePage - 1));
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  document.getElementById("series-next-page").addEventListener("click", () => {
-    seriesPage = Math.min(totalPages, seriesPage + 1);
-    renderSeries();
+  container.querySelector(".pagination-next").addEventListener("click", () => {
+    onPageChange(Math.min(totalPages, safePage + 1));
+    scrollTarget?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  return safePage;
+}
+
+function renderSeriesPagination(totalResults) {
+  if (isSeriesLoading) {
+    seriesPagination.innerHTML = "";
+    return;
+  }
+
+  seriesPage = renderPagination({
+    container: seriesPagination,
+    currentPage: seriesPage,
+    pageSize: seriesPageSize,
+    totalResults,
+    scrollTarget: seriesBrowserSection,
+    onPageChange: (nextPage) => {
+      seriesPage = nextPage;
+      renderSeries();
+    },
   });
 }
 
@@ -332,7 +363,7 @@ function renderModalityFilter() {
     selectedCollections.has(series.collection),
   );
   const modalities = Array.from(
-    new Set(visibleSeries.map((series) => normalizeModality(series.modality))),
+    new Set(visibleSeries.map((series) => getModalityFilterKey(series.modality))),
   )
     .filter((modality) => modality && modality !== "Unknown")
     .sort();
@@ -357,6 +388,7 @@ function setDicomSearchType(searchType) {
   dicomResults = [];
   lastDicomCollectionName = "";
   dicomError = "";
+  resetDicomPage();
 
   renderDicomExplorer();
 }
@@ -399,6 +431,7 @@ function renderDicomResults() {
   dicomResultCount.textContent = `${dicomResults.length} results`;
 
   if (dicomIsLoading) {
+    dicomPagination.innerHTML = "";
     dicomResultsContainer.innerHTML = `
       <section class="table-card">
         <p class="empty-state">Searching remote DICOM metadata...</p>
@@ -408,6 +441,7 @@ function renderDicomResults() {
   }
 
   if (dicomError) {
+    dicomPagination.innerHTML = "";
     dicomResultsContainer.innerHTML = `
       <section class="table-card">
         <p class="empty-state">No results to show until the search succeeds.</p>
@@ -417,6 +451,7 @@ function renderDicomResults() {
   }
 
   if (dicomResults.length === 0) {
+    dicomPagination.innerHTML = "";
     const message = lastDicomCollectionName
       ? "No remote DICOM results found for this collection."
       : "Enter a collection name to search remote DICOM metadata.";
@@ -429,17 +464,40 @@ function renderDicomResults() {
     return;
   }
 
+  const totalPages = Math.max(1, Math.ceil(dicomResults.length / dicomPageSize));
+  dicomPage = Math.min(dicomPage, totalPages);
+
+  const startIndex = (dicomPage - 1) * dicomPageSize;
+  const visibleResults = dicomResults.slice(startIndex, startIndex + dicomPageSize);
+
   if (activeDicomSearchType === "studies") {
-    renderDicomStudiesTable(dicomResults);
+    renderDicomStudiesTable(visibleResults);
+    renderDicomPagination(dicomResults.length);
     return;
   }
 
   if (activeDicomSearchType === "patients") {
-    renderDicomPatientsTable(dicomResults);
+    renderDicomPatientsTable(visibleResults);
+    renderDicomPagination(dicomResults.length);
     return;
   }
 
-  renderDicomSeriesTable(dicomResults);
+  renderDicomSeriesTable(visibleResults);
+  renderDicomPagination(dicomResults.length);
+}
+
+function renderDicomPagination(totalResults) {
+  dicomPage = renderPagination({
+    container: dicomPagination,
+    currentPage: dicomPage,
+    pageSize: dicomPageSize,
+    totalResults,
+    scrollTarget: dicomExplorerSection,
+    onPageChange: (nextPage) => {
+      dicomPage = nextPage;
+      renderDicomResults();
+    },
+  });
 }
 
 function renderDicomSeriesTable(results) {
@@ -578,6 +636,7 @@ async function handleDicomSearch() {
   dicomIsLoading = true;
   dicomError = "";
   lastDicomCollectionName = collectionName;
+  resetDicomPage();
   renderDicomExplorer();
 
   try {
@@ -614,6 +673,7 @@ function renderAvailableCollections() {
 
   if (isAvailableCollectionsLoading) {
     availableResultCount.textContent = "Loading collections";
+    availablePagination.innerHTML = "";
     availableCollectionsList.innerHTML = `
       <p class="empty-state">Loading available collections...</p>
     `;
@@ -638,13 +698,26 @@ function renderAvailableCollections() {
   availableCollectionsList.innerHTML = "";
 
   if (filteredCollections.length === 0) {
+    availablePagination.innerHTML = "";
     availableCollectionsList.innerHTML = `
       <p class="empty-state">No available collections match the search.</p>
     `;
     return;
   }
 
-  filteredCollections.forEach((collection) => {
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredCollections.length / availableCollectionsPageSize),
+  );
+  availableCollectionsPage = Math.min(availableCollectionsPage, totalPages);
+
+  const startIndex = (availableCollectionsPage - 1) * availableCollectionsPageSize;
+  const visibleCollections = filteredCollections.slice(
+    startIndex,
+    startIndex + availableCollectionsPageSize,
+  );
+
+  visibleCollections.forEach((collection) => {
     const card = document.createElement("article");
     card.className = "available-card";
 
@@ -675,6 +748,8 @@ function renderAvailableCollections() {
     availableCollectionsList.appendChild(card);
   });
 
+  renderAvailableCollectionsPagination(filteredCollections.length);
+
   document
     .querySelectorAll(".download-button[data-collection-name]")
     .forEach((button) => {
@@ -682,6 +757,20 @@ function renderAvailableCollections() {
         handleCollectionDownload(button.dataset.collectionName, button);
       });
     });
+}
+
+function renderAvailableCollectionsPagination(totalResults) {
+  availableCollectionsPage = renderPagination({
+    container: availablePagination,
+    currentPage: availableCollectionsPage,
+    pageSize: availableCollectionsPageSize,
+    totalResults,
+    scrollTarget: availableCollectionsSection,
+    onPageChange: (nextPage) => {
+      availableCollectionsPage = nextPage;
+      renderAvailableCollections();
+    },
+  });
 }
 
 function renderMetadataRows(rows) {
@@ -780,6 +869,7 @@ async function handleCollectionDownload(collectionName, button) {
     );
 
     syncAvailableCollectionStatus();
+    resetAvailableCollectionsPage();
     renderCollections();
     renderModalityFilter();
     renderSeries();
@@ -918,6 +1008,7 @@ async function initializeData() {
     .finally(() => {
       isSeriesLoading = false;
       syncAvailableCollectionStatus();
+      resetAvailableCollectionsPage();
       renderCollections();
       renderModalityFilter();
       renderSeries();
@@ -939,6 +1030,7 @@ async function initializeData() {
     .finally(() => {
       isAvailableCollectionsLoading = false;
       syncAvailableCollectionStatus();
+      resetAvailableCollectionsPage();
       renderAvailableCollections();
     });
 
@@ -979,7 +1071,10 @@ dicomCollectionInput.addEventListener("keydown", (event) => {
   }
 });
 
-availableSearchInput.addEventListener("input", renderAvailableCollections);
+availableSearchInput.addEventListener("input", () => {
+  resetAvailableCollectionsPage();
+  renderAvailableCollections();
+});
 
 if (uploadButton && uploadInput) {
   uploadButton.addEventListener("click", () => {
@@ -1014,6 +1109,7 @@ if (uploadButton && uploadInput) {
         );
 
         syncAvailableCollectionStatus();
+        resetAvailableCollectionsPage();
         renderCollections();
         renderModalityFilter();
         renderSeries();
