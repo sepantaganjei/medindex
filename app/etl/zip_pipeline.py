@@ -18,10 +18,8 @@ from app.services.object_storage_service import ObjectStorageService
 
 
 ALLOWED_DATASET_TYPES = {"dicom", "nifti"}
-ALLOWED_ID_RESOLUTION_MODES = {"auto", "xlsx", "folder"}
 NIFTI_SUFFIXES = (".nii", ".nii.gz")
 METADATA_SUFFIXES = (".xlsx", ".csv")
-MISSING = "Missing"
 
 
 class ZipIngestionError(Exception):
@@ -47,18 +45,10 @@ def ingest_zip_dataset(
     collection_name: str | None = None,
     description: str | None = None,
     column_mapping: str | dict[str, str] | None = None,
-    use_folder_structure: bool = True,
-    id_resolution_mode: str = "auto",
 ) -> dict[str, Any]:
     dataset_type = dataset_type.lower().strip()
     if dataset_type not in ALLOWED_DATASET_TYPES:
         raise ZipIngestionError("dataset_type must be 'dicom' or 'nifti'", 400)
-
-    id_resolution_mode = id_resolution_mode.lower().strip()
-    if id_resolution_mode not in ALLOWED_ID_RESOLUTION_MODES:
-        raise ZipIngestionError(
-            "id_resolution_mode must be 'auto', 'xlsx', or 'folder'", 400
-        )
 
     parsed_column_mapping = _parse_column_mapping(column_mapping)
 
@@ -81,8 +71,6 @@ def ingest_zip_dataset(
                 resolved_collection,
                 description,
                 parsed_column_mapping,
-                use_folder_structure,
-                id_resolution_mode,
             )
 
     return result
@@ -181,8 +169,8 @@ def build_dicom_records_from_files(
                 "date_released": None,
                 "description": _dicom_str(dataset, "StudyDescription"),
                 "series_count": 0,
-                "longitudinal_temporal_event_type": MISSING,
-                "longitudinal_temporal_offset_from_event": MISSING,
+                "longitudinal_temporal_event_type": None,
+                "longitudinal_temporal_offset_from_event": None,
             },
         )
 
@@ -196,7 +184,7 @@ def build_dicom_records_from_files(
                 "protocol_name": _dicom_str(dataset, "ProtocolName"),
                 "series_date": _parse_date(_dicom_str(dataset, "StudyDate", "")),
                 "series_description": _dicom_str(dataset, "SeriesDescription"),
-                "site": MISSING,
+                "site": None,
                 "manufacturer": _dicom_str(dataset, "Manufacturer"),
                 "manufacturer_model_name": _dicom_str(dataset, "ManufacturerModelName"),
                 "software_versions": _dicom_str(dataset, "SoftwareVersions"),
@@ -229,10 +217,10 @@ def build_dicom_records_from_files(
 
     collection = {
         "name": collection_name,
-        "description": description or MISSING,
-        "license_name": MISSING,
-        "license_uri": MISSING,
-        "description_uri": MISSING,
+        "description": description,
+        "license_name": None,
+        "license_uri": None,
+        "description_uri": None,
     }
     return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
 
@@ -386,7 +374,6 @@ def _ingest_dicom_zip(root: Path, collection_name: str, description: str | None)
         patients_inserted=inserted_counts["patients"],
         studies_inserted=inserted_counts["studies"],
         series_inserted=inserted_counts["series"],
-        id_resolution_used="dicom_headers",
         warnings=warnings,
     )
 
@@ -396,19 +383,19 @@ def _ingest_nifti_zip(
     collection_name: str,
     description: str | None,
     column_mapping: dict[str, str],
-    use_folder_structure: bool,
-    id_resolution_mode: str,
 ) -> dict[str, Any]:
     files = discover_nifti_files(root)
     if not files:
         raise ZipIngestionError("No NIfTI files found in ZIP.", 422)
 
     metadata_rows, warnings = load_optional_tabular_metadata(root)
-    if id_resolution_mode == "folder":
-        row_matches: dict[Path, dict[str, Any]] = {}
-        unresolved = files
-    elif len(metadata_rows) == 1 and len(files) == 1:
-        row_matches = {files[0]: _apply_column_mapping(metadata_rows[0], column_mapping)}
+    if len(metadata_rows) == 1 and len(files) == 1:
+        row_matches = {
+            files[0]: _row_with_match_scope(
+                _apply_column_mapping(metadata_rows[0], column_mapping),
+                "file",
+            )
+        }
         unresolved = []
     else:
         row_matches, unresolved, match_warnings = match_nifti_rows_to_files(
@@ -416,22 +403,12 @@ def _ingest_nifti_zip(
         )
         warnings.extend(match_warnings)
 
-    if id_resolution_mode == "xlsx" and len(row_matches) != len(files):
-        raise ZipIngestionError(
-            "NIfTI metadata rows could not be joined exactly to files in xlsx mode.",
-            422,
-        )
-    if not use_folder_structure and unresolved:
-        raise ZipIngestionError(
-            "NIfTI files require linked metadata when use_folder_structure is false.",
-            422,
-        )
-    if metadata_rows and unresolved and not _has_linkage_column(metadata_rows, column_mapping):
+    if unresolved:
         warnings.append(
-            "Spreadsheet Study/Series IDs were ignored for unresolved files because no file linkage column was present."
+            "Some NIfTI files could not be linked unambiguously to spreadsheet rows; folder-derived IDs were used."
         )
 
-    collection, patients, studies, series, identities, used_xlsx = _build_nifti_records(
+    collection, patients, studies, series, identities = _build_nifti_records(
         root,
         files,
         row_matches,
@@ -449,7 +426,6 @@ def _ingest_nifti_zip(
         patients_inserted=inserted_counts["patients"],
         studies_inserted=inserted_counts["studies"],
         series_inserted=inserted_counts["series"],
-        id_resolution_used="xlsx" if used_xlsx and not unresolved else "mixed" if used_xlsx else "folder",
         warnings=warnings,
     )
 
@@ -460,21 +436,18 @@ def _build_nifti_records(
     row_matches: dict[Path, dict[str, Any]],
     collection_name: str,
     description: str | None,
-) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[FileIdentity], bool]:
+) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[FileIdentity]]:
     patients: dict[str, dict[str, Any]] = {}
     studies: dict[str, dict[str, Any]] = {}
     series: dict[str, dict[str, Any]] = {}
     study_series: dict[str, set[str]] = {}
     identities: list[FileIdentity] = []
-    used_xlsx = False
-
     for file_path in files:
         row = row_matches.get(file_path)
         fallback_patient, fallback_study, fallback_series = derive_nifti_identity_from_path(
             file_path, collection_name, root
         )
         if row:
-            used_xlsx = True
             use_series_metadata = row.get("__match_scope") in {"file", "series"}
             patient_id = sanitize_path_segment(_present_or_fallback(_row_value(row, ["patient id", "patient", "patientid", "patient_id"]), fallback_patient))
             study_uid = sanitize_path_segment(_present_or_fallback(_row_value(row, ["study instance uid", "study uid", "studyinstanceuid"]), fallback_study))
@@ -495,9 +468,9 @@ def _build_nifti_records(
             patient_id,
             {
                 "id": patient_id,
-                "sex": _row_value(row, ["patient sex", "patient_sex", "sex", "gender"]) if row else MISSING,
+                "sex": _row_value(row, ["patient sex", "patient_sex", "sex", "gender"]) if row else None,
                 "age": _extract_age(_row_value(row, ["patient age", "age", "patient_age"]) if row else None),
-                "ethnic_group": _row_value(row, ["ethnic group", "ethnicity", "race"]) if row else MISSING,
+                "ethnic_group": _row_value(row, ["ethnic group", "ethnicity", "race"]) if row else None,
             },
         )
         studies.setdefault(
@@ -508,10 +481,10 @@ def _build_nifti_records(
                 "patient_id": patient_id,
                 "date": _parse_date(_row_value(row, ["study date", "date"]) if row else None),
                 "date_released": _parse_date(_row_value(row, ["date released", "release date"]) if row else None),
-                "description": _row_value(row, ["study description", "description"]) if row else MISSING,
+                "description": _row_value(row, ["study description", "description"]) if row else None,
                 "series_count": 0,
-                "longitudinal_temporal_event_type": _row_value(row, ["longitudinal temporal event type"]) if row else MISSING,
-                "longitudinal_temporal_offset_from_event": _row_value(row, ["longitudinal temporal offset from event"]) if row else MISSING,
+                "longitudinal_temporal_event_type": _row_value(row, ["longitudinal temporal event type"]) if row else None,
+                "longitudinal_temporal_offset_from_event": _row_value(row, ["longitudinal temporal offset from event"]) if row else None,
             },
         )
         series.setdefault(
@@ -520,14 +493,14 @@ def _build_nifti_records(
                 "instance_uid": series_uid,
                 "study_instance_uid": study_uid,
                 "modality": _row_value(row, ["modality"]) if row else "NIFTI",
-                "body_part": _row_value(row, ["body part examined", "bodypartexamined", "body part"]) if row else MISSING,
-                "protocol_name": _row_value(row, ["protocol name", "protocolname"]) if use_series_metadata else MISSING,
+                "body_part": _row_value(row, ["body part examined", "bodypartexamined", "body part"]) if row else None,
+                "protocol_name": _row_value(row, ["protocol name", "protocolname"]) if use_series_metadata else None,
                 "series_date": _parse_date(_row_value(row, ["series date"]) if use_series_metadata else None),
                 "series_description": _row_value(row, ["series description", "description"]) if use_series_metadata else fallback_series,
-                "site": _row_value(row, ["site"]) if row else MISSING,
-                "manufacturer": _row_value(row, ["manufacturer"]) if use_series_metadata else MISSING,
-                "manufacturer_model_name": _row_value(row, ["manufacturer model name"]) if use_series_metadata else MISSING,
-                "software_versions": _row_value(row, ["software versions"]) if use_series_metadata else MISSING,
+                "site": _row_value(row, ["site"]) if row else None,
+                "manufacturer": _row_value(row, ["manufacturer"]) if use_series_metadata else None,
+                "manufacturer_model_name": _row_value(row, ["manufacturer model name"]) if use_series_metadata else None,
+                "software_versions": _row_value(row, ["software versions"]) if use_series_metadata else None,
                 "image_count": image_count,
                 "max_submission_timestamp": None,
                 "file_size": file_path.stat().st_size,
@@ -550,12 +523,12 @@ def _build_nifti_records(
 
     collection = {
         "name": collection_name,
-        "description": description or _first_row_value(row_matches, ["description", "study description"]) or MISSING,
-        "license_name": _first_row_value(row_matches, ["license name", "license_name"]) or MISSING,
-        "license_uri": _first_row_value(row_matches, ["license uri", "license_uri"]) or MISSING,
-        "description_uri": _first_row_value(row_matches, ["description uri", "collection uri", "collection_uri"]) or MISSING,
+        "description": description or _first_row_value(row_matches, ["description", "study description"]),
+        "license_name": _first_row_value(row_matches, ["license name", "license_name"]),
+        "license_uri": _first_row_value(row_matches, ["license uri", "license_uri"]),
+        "description_uri": _first_row_value(row_matches, ["description uri", "collection uri", "collection_uri"]),
     }
-    return collection, list(patients.values()), list(studies.values()), list(series.values()), identities, used_xlsx
+    return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
 
 
 def _insert_records(
@@ -631,7 +604,7 @@ def _looks_like_dicom(dataset: Any) -> bool:
     )
 
 
-def _dicom_str(dataset: Any, field: str, default: str = MISSING) -> str:
+def _dicom_str(dataset: Any, field: str, default: str | None = None) -> str | None:
     value = getattr(dataset, field, None)
     if value is None or str(value).strip() == "":
         return default
@@ -649,7 +622,7 @@ def  _extract_age(value: Any) -> int:
 
 
 def _parse_date(value: Any):
-    if value is None or str(value).strip() in {"", MISSING}:
+    if value is None or str(value).strip() == "":
         return None
     try:
         return pd.to_datetime(value).date()
@@ -692,30 +665,40 @@ def _normalize_column_name(value: Any) -> str:
 
 
 def _candidate_rows_for_file(rows: list[dict[str, Any]], file_path: Path, root: Path | None) -> list[dict[str, Any]]:
-    relative = _normalized_path(file_path.relative_to(root)) if root and file_path.is_relative_to(root) else _normalized_path(file_path.name)
-    basename = _normalized_path(file_path.name)
-    stem = _normalized_path(_nifti_stem(file_path.name))
+    targets = {
+        _normalized_path(file_path.relative_to(root)) if root and file_path.is_relative_to(root) else "",
+        _normalized_path(file_path.name),
+        _normalized_path(_nifti_stem(file_path.name)),
+        _normalize_text(file_path.name),
+        _normalize_text(_nifti_stem(file_path.name)),
+    }
+    exact_matches = [
+        row
+        for row in rows
+        if any(
+            _normalize_text(value) in targets or _normalized_path(value) in targets
+            for value in row.values()
+            if value is not None and not pd.isna(value)
+        )
+    ]
+    if exact_matches:
+        return exact_matches
 
-    for columns, target in [
-        (["relative_path", "file_path", "path", "object_name"], relative),
-        (["file_name", "filename", "nifti_file"], basename),
-        (["file_name", "filename", "nifti_file"], stem),
-    ]:
-        normalized_columns = [_normalize_column_name(column) for column in columns]
-        candidates = [
-            row
-            for row in rows
-            if any(
-                _normalized_path(row.get(column)) == target
-                for column in normalized_columns
-                if row.get(column) is not None
-            )
-        ]
-        if len(candidates) == 1:
-            return candidates
-        if len(candidates) > 1:
-            return candidates
+    file_tokens = _text_tokens(_nifti_stem(file_path.name))
+    if not file_tokens:
+        return []
 
+    best_score = 0
+    best_rows: list[dict[str, Any]] = []
+    for row in rows:
+        score = _row_token_overlap_score(row, file_tokens)
+        if score > best_score:
+            best_score = score
+            best_rows = [row]
+        elif score == best_score and score > 0:
+            best_rows.append(row)
+    if best_score > 0:
+        return best_rows
     return []
 
 
@@ -729,25 +712,29 @@ def _candidate_rows_for_patient(
     return [
         row
         for row in rows
-        if _normalized_identifier(
-            _row_value(row, ["patient id", "patient", "patientid", "patient_id"])
+        if any(
+            _normalized_identifier(value) == normalized_patient_id
+            for value in row.values()
+            if value is not None and not pd.isna(value)
         )
-        == normalized_patient_id
     ]
 
 
 def _candidate_rows_for_nifti_series(
     rows: list[dict[str, Any]], file_path: Path
 ) -> list[dict[str, Any]]:
-    suffix = _nifti_series_suffix(file_path.name)
-    if not suffix:
+    tokens = _text_tokens(_nifti_stem(file_path.name))
+    if not tokens:
         return []
 
     candidates = []
+    best_score = 0
     for row in rows:
-        description = str(_row_value(row, ["series description", "description"]))
-        normalized_description = _normalize_series_text(description)
-        if _series_description_matches_suffix(normalized_description, suffix):
+        score = _row_token_overlap_score(row, tokens)
+        if score > best_score:
+            best_score = score
+            candidates = [row]
+        elif score == best_score and score > 0:
             candidates.append(row)
     return candidates
 
@@ -772,60 +759,38 @@ def _patient_id_from_nifti_path(file_path: Path, root: Path | None) -> str | Non
     return None
 
 
-def _nifti_series_suffix(file_name: str) -> str | None:
-    stem = _nifti_stem(file_name).lower()
-    suffix = stem.rsplit("_", 1)[-1]
-    return suffix if suffix in {"flair", "t1", "t1gd", "t1ce", "t2"} else None
-
-
-def _series_description_matches_suffix(description: str, suffix: str) -> bool:
-    words = set(description.split())
-    has_post = "post" in words or "gd" in words or "gad" in words or "gadolinium" in words
-    if suffix == "flair":
-        return "flair" in words
-    if suffix == "t1":
-        return "t1" in words and not has_post
-    if suffix in {"t1gd", "t1ce"}:
-        return "t1" in words and has_post
-    if suffix == "t2":
-        return "t2" in words
-    return False
-
-
-def _normalize_series_text(value: str) -> str:
-    text = value.lower().replace("_", " ")
+def _normalize_text(value: Any) -> str:
+    text = str(value or "").replace("\\", "/").strip().lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _text_tokens(value: Any) -> set[str]:
+    return {token for token in _normalize_text(value).split() if token}
+
+
+def _row_token_overlap_score(row: dict[str, Any], tokens: set[str]) -> int:
+    best = 0
+    for value in row.values():
+        if value is None or pd.isna(value):
+            continue
+        value_tokens = _text_tokens(value)
+        if not value_tokens:
+            continue
+        score = len(tokens & value_tokens)
+        if score > best:
+            best = score
+    return best
 
 
 def _normalized_identifier(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
-def _has_linkage_column(rows: list[dict[str, Any]], column_mapping: dict[str, str]) -> bool:
-    linkage = {
-        _normalize_column_name(column)
-        for column in {
-            "relative_path",
-            "file_path",
-            "path",
-            "file_name",
-            "filename",
-            "nifti_file",
-            "object_name",
-        }
-    }
-    for row in rows:
-        mapped = _apply_column_mapping(row, column_mapping)
-        if any(column in mapped for column in linkage):
-            return True
-    return False
-
-
 def _first_row_value(row_matches: dict[Path, dict[str, Any]], aliases: list[str]) -> Any:
     for row in row_matches.values():
         value = _row_value(row, aliases)
-        if value != MISSING:
+        if value is not None:
             return value
     return None
 
@@ -856,16 +821,32 @@ def _nifti_image_count(path: Path) -> int:
 
 def _row_value(row: dict[str, Any] | None, aliases: list[str]) -> Any:
     if not row:
-        return MISSING
+        return None
+    alias_lookup = {_normalize_column_name(alias) for alias in aliases}
     for alias in aliases:
         value = row.get(_normalize_column_name(alias))
         if value is not None and not pd.isna(value) and str(value).strip() != "":
             return value
-    return MISSING
+    alias_tokens = _text_tokens(" ".join(aliases))
+    best_value = None
+    best_score = 0
+    for key, value in row.items():
+        if value is None or pd.isna(value) or str(value).strip() == "":
+            continue
+        key_tokens = _text_tokens(key)
+        score = len(alias_tokens & key_tokens)
+        if score > best_score and _normalize_column_name(key) not in alias_lookup:
+            best_score = score
+            best_value = value
+        elif score == best_score and score > 0:
+            best_value = None
+    if best_score > 0 and best_value is not None:
+        return best_value
+    return None
 
 
 def _present_or_fallback(value: Any, fallback: str) -> Any:
-    if value is None or str(value).strip() in {"", MISSING}:
+    if value is None or str(value).strip() == "":
         return fallback
     return value
 
@@ -879,7 +860,6 @@ def _response(
     patients_inserted: int,
     studies_inserted: int,
     series_inserted: int,
-    id_resolution_used: str,
     warnings: list[str],
 ) -> dict[str, Any]:
     return {
@@ -891,7 +871,6 @@ def _response(
         "patients_inserted": patients_inserted,
         "studies_inserted": studies_inserted,
         "series_inserted": series_inserted,
-        "id_resolution_used": id_resolution_used,
         "warnings": warnings,
         "error": None,
     }
