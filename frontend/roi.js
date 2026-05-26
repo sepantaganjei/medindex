@@ -150,7 +150,7 @@ async function loadImageForKey(objectKey) {
   featuresList.innerHTML = "";
   try {
     const encodedKey = encodeObjectKey(objectKey);
-    const response = await fetch(`/object-storage/objects/${encodedKey}`);
+    const response = await fetch(`/api/object-storage/objects/${encodedKey}`);
     if (!response.ok) {
       throw new Error(`Request failed (${response.status})`);
     }

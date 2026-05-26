@@ -7,7 +7,7 @@ from minio.error import S3Error
 from app.core.config import config
 from app.services.object_storage_service import ObjectStorageService
 
-router = APIRouter(prefix="/object-storage", tags=["object-storage"])
+router = APIRouter(prefix="/api/object-storage", tags=["object-storage"])
 
 object_storage_service = ObjectStorageService(
     config.object_storage_endpoint,

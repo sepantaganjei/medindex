@@ -1,7 +1,7 @@
 services:
   app:
     image: bioimages-app
-    container_name: biopodimages-app
+    container_name: bioimages-app
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8000

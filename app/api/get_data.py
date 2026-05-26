@@ -4,7 +4,7 @@ import app.etl.pipeline as pipe
 from pydantic import BaseModel
 import datetime as dt
 
-router = APIRouter(tags=["GET DATA"])
+router = APIRouter(prefix="/api", tags=["GET DATA"])
 
 
 class StudyInfo(BaseModel):

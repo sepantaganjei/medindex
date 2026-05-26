@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, UploadFile, Form
 import app.etl.pipeline as pipe
 from pydantic import BaseModel
 
-router = APIRouter(tags=["ADD DATA"])
+router = APIRouter(prefix="/api", tags=["ADD DATA"])
 
 
 class NewDatasetAdditionResponse(BaseModel):
