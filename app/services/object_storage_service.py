@@ -1,8 +1,11 @@
+import io
+import os
 from itertools import islice
 from typing import Any, BinaryIO
 
 from minio import Minio
 from minio.datatypes import Object
+from minio.error import S3Error
 
 
 class ObjectStorageService:
@@ -38,6 +41,40 @@ class ObjectStorageService:
             content_type=content_type,
         )
 
+    def upload_bytes(
+        self,
+        bucket_name: str,
+        object_name: str,
+        payload: bytes,
+        content_type: str | None = None,
+    ) -> Any:
+        self.ensure_bucket(bucket_name)
+        data_stream = io.BytesIO(payload)
+        return self._client.put_object(
+            bucket_name,
+            object_name,
+            data_stream,
+            len(payload),
+            content_type=content_type,
+        )
+
+    def upload_file_from_path(
+        self,
+        bucket_name: str,
+        object_name: str,
+        file_path: str,
+        content_type: str | None = None,
+    ) -> Any:
+        file_size = os.path.getsize(file_path)
+        with open(file_path, "rb") as file_data:
+            return self.upload_file(
+                bucket_name,
+                object_name,
+                file_data,
+                file_size,
+                content_type,
+            )
+
     def list_objects(
         self,
         bucket_name: str,
@@ -56,3 +93,20 @@ class ObjectStorageService:
 
     def get_object(self, bucket_name: str, object_name: str) -> Any:
         return self._client.get_object(bucket_name, object_name)
+
+    def get_object_bytes(self, bucket_name: str, object_name: str) -> bytes:
+        response = self.get_object(bucket_name, object_name)
+        try:
+            return response.read()
+        finally:
+            response.close()
+            response.release_conn()
+
+    def object_exists(self, bucket_name: str, object_name: str) -> bool:
+        try:
+            self.stat_object(bucket_name, object_name)
+            return True
+        except S3Error as exc:
+            if exc.code in {"NoSuchKey", "NoSuchBucket"}:
+                return False
+            raise

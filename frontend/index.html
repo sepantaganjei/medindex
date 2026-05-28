@@ -211,9 +211,20 @@
               </div>
 
               <div class="image-viewer">
-                <div class="crosshair horizontal"></div>
-                <div class="crosshair vertical"></div>
-                <p>No DICOM rendering yet</p>
+                <div id="viewer-loading" class="viewer-overlay hidden">
+                  Loading viewer...
+                </div>
+                <div id="viewer-error" class="viewer-overlay error hidden"></div>
+
+                <div id="dicom-viewer" class="viewer-embed hidden">
+                  <img id="dicom-image" alt="DICOM slice" />
+                </div>
+                <div id="nifti-viewer" class="viewer-embed hidden">
+                  <canvas id="niivue-canvas"></canvas>
+                </div>
+                <div id="viewer-placeholder" class="viewer-placeholder">
+                  <p>Select a series to start the viewer.</p>
+                </div>
               </div>
 
               <div class="viewer-controls">
@@ -264,6 +275,7 @@
     </button>
 
     <script src="api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@niivue/niivue@0.58.0/dist/niivue.umd.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

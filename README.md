@@ -35,9 +35,25 @@ The API will be available at `http://localhost:8000` (endpoints under `/api`, ob
 The frontend mock UI will be available at `http://localhost:8080`.
 MinIO will be available at `http://localhost:9000` (API) and `http://localhost:9001` (console).
 
+## Viewer assets
+
+Uploaded viewer assets are read directly from the ZIP ingestion MinIO layout:
+
+```text
+collection_name/patient_id/study_uid/series_uid/file_name
+```
+
+Backend viewer endpoints:
+
+- `GET /api/viewer/series/{series_uid}?collection=...`
+- `GET /api/viewer/dicom/render?object_name=...`
+
+The frontend renders DICOM slices as PNG images returned by the API and loads
+NIfTI volumes with NiiVue from the resolved object-storage URL.
+
 ## ZIP Dataset Ingestion
 
-Use `POST /addZipDataset` to ingest uploaded DICOM or NIfTI ZIP archives. The endpoint stores collection, patient, study, and series metadata in the database and uploads image files to MinIO.
+Use `POST /api/addZipDataset` to ingest uploaded DICOM or NIfTI ZIP archives. The endpoint stores collection, patient, study, and series metadata in the database and uploads image files to MinIO.
 
 Common multipart fields:
 
@@ -46,8 +62,6 @@ Common multipart fields:
 - `collection_name`: optional; defaults to the single top-level ZIP folder or ZIP filename
 - `description`: optional
 - `column_mapping`: optional JSON object for spreadsheet column aliases
-- `use_folder_structure`: optional, defaults to `true`
-- `id_resolution_mode`: optional, `auto`, `xlsx`, or `folder`
 
 ### DICOM ZIP
 
@@ -60,7 +74,7 @@ collection_name/patient_id/study_instance_uid/series_instance_uid/sop_instance_u
 Example:
 
 ```bash
-curl -X POST http://localhost:8000/addZipDataset \
+curl -X POST http://localhost:8000/api/addZipDataset \
   -F dataset_type=dicom \
   -F collection_name=LungStudy \
   -F description="Local DICOM upload" \
@@ -71,7 +85,7 @@ curl -X POST http://localhost:8000/addZipDataset \
 
 NIfTI files are discovered by `.nii` and `.nii.gz` suffix. Optional `.xlsx` or `.csv` metadata rows are used only when they can be linked unambiguously to files by `relative_path`, `file_path`, `path`, `file_name`, `filename`, `nifti_file`, or `object_name`. A single metadata row may also match a single NIfTI file.
 
-If the spreadsheet has no file linkage column, `id_resolution_mode=auto` can still use TCIA-style metadata such as `Patient ID`, `Patient Sex`, `Study Instance UID`, and `Study Date` when the patient ID appears in the NIfTI folder or filename. Series IDs are only taken from the spreadsheet when the NIfTI filename maps unambiguously to one series row; otherwise the series ID is derived from the filename. Use `id_resolution_mode=xlsx` to fail with `422` instead of falling back.
+If the spreadsheet has no file linkage column, ingestion can still use TCIA-style metadata such as `Patient ID`, `Patient Sex`, `Study Instance UID`, and `Study Date` when the patient ID appears in the NIfTI folder or filename. Series IDs are only taken from the spreadsheet when the NIfTI filename maps unambiguously to one series row; otherwise the series ID is derived from the filename.
 
 Folder fallback expects:
 
@@ -88,10 +102,9 @@ collection_name/patient_id/study_uid/series_uid/file_name
 Example:
 
 ```bash
-curl -X POST http://localhost:8000/addZipDataset \
+curl -X POST http://localhost:8000/api/addZipDataset \
   -F dataset_type=nifti \
   -F collection_name=BrainStudy \
-  -F id_resolution_mode=auto \
   -F column_mapping="$(cat column_mapping.example.json)" \
   -F zip_file=@nifti_dataset.zip
 ```
