@@ -95,9 +95,30 @@ class Extraction(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     image_number = Column(String)
     series_uid = Column(String, ForeignKey("series.instance_uid"))
-    feature_name = Column(String)
-    standardized_feature_name = Column(String)
-    vocabulary = Column(String)
     value = Column(Float)
 
     series = relationship("Series", back_populates="extractions")
+
+
+# =========================
+# FIELD MAPPINGs
+# =========================
+class Field_mapping(Base):
+    __tablename__ = "field_mappings"
+
+    field_name_DICOM = Column(String, primary_key=True)
+    standardized_field_name = Column(String)
+    code = Column(Integer)
+    vocabulary = Column(String)
+
+
+# =========================
+# VALUE MAPPINGs
+# =========================
+class Value_mapping(Base):
+    __tablename__ = "value_mappings"
+
+    original_value = Column(String, primary_key=True)
+    standardized_value = Column(String)
+    code = Column(Integer)
+    vocabulary = Column(String)
