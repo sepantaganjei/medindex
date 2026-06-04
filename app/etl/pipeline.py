@@ -167,10 +167,13 @@ def get_collections_available_for_download():
     list_of_collections = []
 
     for item in collections:
-        name = item.get("collectionName", "")
+        collection_name = item.get("collectionName", "")
         description = item.get("description", "")
         description = _clean_description(description)
-        list_of_collections.append({"name": name, "description": description})
+        list_of_collections.append({
+            "collection_name": collection_name,
+            "description": description,
+        })
 
     return list_of_collections
 
@@ -212,7 +215,18 @@ def get_all_extractions():
     session = SessionLocal()
 
     try:
-        return repo.get_all_extractions(session)
+        rows = repo.get_all_extractions(session)
+        return [
+            {
+                "id": extraction.id,
+                "image_number": extraction.image_number,
+                "series_instance_uid_extraction": extraction.series_instance_uid_extraction,
+                "feature_name": extraction.feature_name,
+                "value": extraction.value,
+                "standardized_feature_name": std_name,
+            }
+            for extraction, std_name in rows
+        ]
 
     finally:
         session.close()
@@ -243,10 +257,10 @@ def get_series_on_demand(collectionName):
     ]
 
     map = {
-        "SeriesInstanceUID": "instance_uid",
-        "StudyInstanceUID": "study_instance_uid",
+        "SeriesInstanceUID": "study_instance_uid_series",
+        "StudyInstanceUID": "study_instance_uid_series",
         "Modality": "modality",
-        "BodyPartExamined": "body_part",
+        "BodyPartExamined": "body_part_examined",
         "ProtocolName": "protocol_name",
         "StudyDate": "series_date",
         "SeriesDescription": "series_description",
@@ -258,8 +272,8 @@ def get_series_on_demand(collectionName):
         "MaxSubmissionTimestamp": "max_submission_timestamp",
         "FileSize": "file_size",
         "ThirdPartyAnalysis": "third_party_analysis",
-        "Collection": "collection",
-        "PatientID": "patient_id",
+        "Collection": "collection_name_study",
+        "PatientID": "patient_id_study",
     }
 
     series_to_return = repo.get_series_on_demand(collectionName)
@@ -296,10 +310,10 @@ def get_series_on_demand_on_uid(uid):
     ]
 
     map = {
-        "SeriesInstanceUID": "instance_uid",
-        "StudyInstanceUID": "study_instance_uid",
+        "SeriesInstanceUID": "series_instance_uid",
+        "StudyInstanceUID": "study_instance_uid_series",
         "Modality": "modality",
-        "BodyPartExamined": "body_part",
+        "BodyPartExamined": "body_part_examined",
         "ProtocolName": "protocol_name",
         "StudyDate": "series_date",
         "SeriesDescription": "series_description",
@@ -311,8 +325,8 @@ def get_series_on_demand_on_uid(uid):
         "MaxSubmissionTimestamp": "max_submission_timestamp",
         "FileSize": "file_size",
         "ThirdPartyAnalysis": "third_party_analysis",
-        "Collection": "collection",
-        "PatientID": "patient_id",
+        "Collection": "collection_name_study",
+        "PatientID": "patient_id_study",
     }
 
     series = repo.get_series_on_demand_on_uid(uid)
@@ -348,10 +362,10 @@ def get_series_on_demand_on_study_uid(study_uid):
     ]
 
     map = {
-        "SeriesInstanceUID": "instance_uid",
-        "StudyInstanceUID": "study_instance_uid",
+        "SeriesInstanceUID": "series_instance_uid",
+        "StudyInstanceUID": "study_instance_uid_series",
         "Modality": "modality",
-        "BodyPartExamined": "body_part",
+        "BodyPartExamined": "body_part_examined",
         "ProtocolName": "protocol_name",
         "StudyDate": "series_date",
         "SeriesDescription": "series_description",
@@ -363,8 +377,8 @@ def get_series_on_demand_on_study_uid(study_uid):
         "MaxSubmissionTimestamp": "max_submission_timestamp",
         "FileSize": "file_size",
         "ThirdPartyAnalysis": "third_party_analysis",
-        "Collection": "collection",
-        "PatientID": "patient_id",
+        "Collection": "collection_name_study",
+        "PatientID": "patient_id_study",
     }
 
     series_to_return = repo.get_series_on_demand_on_study_uid(study_uid)
@@ -393,13 +407,13 @@ def get_studies_on_demand(collectionName):
     ]
 
     map = {
-        "StudyInstanceUID": "instance_uid",
-        "Collection": "collection",
-        "StudyDate": "date",
+        "StudyInstanceUID": "study_instance_uid",
+        "Collection": "collection_name_study",
+        "StudyDate": "study_date",
         "DateReleased": "date_released",
-        "StudyDescription": "description",
+        "StudyDescription": "study_description",
         "SeriesCount": "series_count",
-        "PatientID": "patient_id",
+        "PatientID": "patient_id_study",
         "LongitudinalTemporalEventType": "longitudinal_temporal_event_type",
         "LongitudinalTemporalOffsetFromEvent": "longitudinal_temporal_offset_from_event",
     }
@@ -420,18 +434,18 @@ def get_patients_on_demand(collectionName):
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
     map = {
-        "PatientId": "id",
-        "PatientSex": "sex",
-        "PatientAge": "age",
+        "PatientId": "patient_id",
+        "PatientSex": "patient_sex",
+        "PatientAge": "patient_age",
         "EthnicGroup": "ethnic_group",
     }
 
     patients_to_return = repo.get_patients_on_demand(collectionName)
-    for i, study in enumerate(patients_to_return):
+    for i, patient in enumerate(patients_to_return):
         temp = {}
-        for key in study.keys():
+        for key in patient.keys():
             if key in to_select:
-                temp[map[key]] = study[key] if study[key] else None
+                temp[map[key]] = patient[key] if patient[key] else None
 
         patients_to_return[i] = temp
 
@@ -442,9 +456,9 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
     map = {
-        "PatientId": "id",
-        "PatientSex": "sex",
-        "PatientAge": "age",
+        "PatientId": "patient_id",
+        "PatientSex": "patient_sex",
+        "PatientAge": "patient_age",
         "EthnicGroup": "ethnic_group",
     }
 
@@ -464,32 +478,33 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
 
 def get_series_SNOMED_fields():
     to_select = [
-        "SeriesInstanceUID",
-        "StudyInstanceUID",
-        "Modality",
-        "BodyPartExamined",
-        "ProtocolName",
-        "StudyDate",
-        "SeriesDescription",
-        "Site",
-        "Manufacturer",
-        "ManufacturerModelName",
-        "SoftwareVersions",
-        "ImageCount",
-        "MaxSubmissionTimestamp",
-        "FileSize",
-        "ThirdPartyAnalysis",
-        "Collection",
-        "PatientID",
+        "series_instance_uid",
+        "study_instance_uid_series",
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_date",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+        "image_count",
+        "max_submission_timestamp",
+        "file_size",
+        "third_party_analysis",
+        "collection_name_study",
+        "patient_id_study",
     ]
-    session = SessionLocal()
 
+    session = SessionLocal()
+    series_field_mappings = {}
     try:
         mappings = dict(repo.get_SNOMED_fields(session))
+        for field in to_select:
+            series_field_mappings[field] = mappings[field]
 
-        fields = [mappings[field] for field in to_select]
-
-        return fields
+        return series_field_mappings
 
     finally:
         session.close()
@@ -497,39 +512,41 @@ def get_series_SNOMED_fields():
 
 def get_study_SNOMED_fields():
     to_select = [
-        "StudyInstanceUID",
-        "Collection",
-        "StudyDate",
-        "DateReleased",
-        "StudyDescription",
-        "SeriesCount",
-        "PatientID",
-        "LongitudinalTemporalEventType",
-        "LongitudinalTemporalOffsetFromEvent",
+        "study_instance_uid",
+        "collection_name_study",
+        "study_date",
+        "date_released",
+        "study_description",
+        "series_count",
+        "patient_id_study",
+        "longitudinal_temporal_event_type",
+        "longitudinal_temporal_offset_from_event",
     ]
-    session = SessionLocal()
 
+    session = SessionLocal()
+    study_field_mappings = {}
     try:
         mappings = dict(repo.get_SNOMED_fields(session))
+        for field in to_select:
+            study_field_mappings[field] = mappings[field]
 
-        fields = [mappings[field] for field in to_select]
-
-        return fields
+        return study_field_mappings
 
     finally:
         session.close()
 
 
 def get_patient_SNOMED_fields():
-    to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
-    session = SessionLocal()
+    to_select = ["patient_id", "patient_sex", "patient_age", "ethnic_group"]
 
+    session = SessionLocal()
+    patient_field_mappings = {}
     try:
         mappings = dict(repo.get_SNOMED_fields(session))
+        for field in to_select:
+            patient_field_mappings[field] = mappings[field]
 
-        fields = [mappings[field] for field in to_select]
-
-        return fields
+        return patient_field_mappings
 
     finally:
         session.close()

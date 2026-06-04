@@ -7,6 +7,7 @@ from app.db.models import Patient
 from app.db.models import Series
 from app.db.models import Extraction
 from app.db.models import FieldMapping
+from app.db.models import ValueMapping
 from sqlalchemy.orm import joinedload
 import requests
 import re
@@ -151,11 +152,17 @@ def get_series_on_collection(session, collection_name):
 
 
 def get_patient_on_id(session, id):
-    return session.query(Patient).filter(Patient.id == id).first()
+    return session.query(Patient).filter(Patient.patient_id == id).first()
 
 
 def get_all_extractions(session):
-    return session.query(Extraction).all()
+    rows = (
+        session
+        .query(Extraction, ValueMapping.standardized_value)
+        .join(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
+        .all()
+    )
+    return rows
 
 
 def get_series_on_demand(collectionName):
@@ -265,9 +272,9 @@ def get_patients_on_demand(collectionName):
 
     # Attach age to patients
     for patient in patients:
-        patient_id = patient.get("PatientID")
-
+        patient_id = patient.get("PatientId")
         patient["PatientAge"] = age_map.get(patient_id)
+        print(patient["PatientAge"])
 
     print("Done")
 
@@ -313,7 +320,7 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     age_map = {}
 
     for series in series_data:
-        patient_id = series.get("PatientId")
+        patient_id = series.get("PatientID")
         age = series.get("PatientAge")
 
         if patient_id and patient_id not in age_map:
@@ -328,15 +335,15 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     # Attach age to patients
     for patient in patients:
         patient_id = patient.get("PatientId")
-
         patient["PatientAge"] = age_map.get(patient_id)
+        print(patient["PatientAge"])
 
     print("Done")
 
     return patients[0]
 
 
-def get_series_SNOMED_fields(session):
+def get_SNOMED_fields(session):
     return session.query(
-        FieldMapping.FieldNameDICOM, FieldMapping.StandardizedFieldName
+        FieldMapping.field_name_dicom, FieldMapping.standardized_field_name
     ).all()
