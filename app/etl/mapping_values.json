@@ -1,98 +1,122 @@
 {
     "Eccentricity": {
         "standardized_feature_name": "Shape",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "GLCM Homogeneity": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "GLCM Correlation": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "GLRLM Short Run Emphasis": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "GLSZM Zone Entropy": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "NGTDM Coarseness": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "NGTDM Contrast": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "NGTDM Busyness": {
         "standardized_feature_name": "Texture",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "ROI Standard Deviation": {
         "standardized_feature_name": "Standard deviation",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "ROI Mean": {
         "standardized_feature_name": "Mean",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "M": {
         "standardized_feature_name": "Male",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "F": {
         "standardized_feature_name": "Female",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "MR": {
         "standardized_feature_name": "Magnetic resonance imaging",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "BRAIN": {
         "standardized_feature_name": "Brain part",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
     "DIAGNOSIS": {
         "standardized_feature_name": "Diagnosis",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "CT":{
+    "CT": {
         "standardized_feature_name": "Computed tomography",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "PT":{
+    "PT": {
         "standardized_feature_name": "Positron emission tomography",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "CHEST":{
+    "CHEST": {
         "standardized_feature_name": "Thoracic structure",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "WHOLEBODY":{
+    "WHOLEBODY": {
         "standardized_feature_name": "Entire body as a whole",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "NECKCHESTABDPELV":{
+    "NECKCHESTABDPELV": {
         "standardized_feature_name": "Neck, chest, abdomen, and pelvis",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "NECK":{
+    "NECK": {
         "standardized_feature_name": "Neck structure",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "LSSPINE":{
+    "LSSPINE": {
         "standardized_feature_name": "Lumbar spine structure",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "CHESTABDOMEN":{
+    "CHESTABDOMEN": {
         "standardized_feature_name": "Chest and abdomen",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     },
-    "ABDOMEN":{
+    "ABDOMEN": {
         "standardized_feature_name": "Entire abdomen",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 219329
     }
 }

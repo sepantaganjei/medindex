@@ -1,22 +1,27 @@
 {
     "instance_uid": {
         "value": "Identifier",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 118522005
     },
     "description": {
         "value": "Description",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": -1
     },
     "license_name": {
         "value": "Imaging modality",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": -1
     },
     "license_uri": {
         "value": "License uri",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": -1
     },
     "description_uri": {
         "value": "Description uri",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": -1
     }
 }

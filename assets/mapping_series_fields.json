@@ -1,62 +1,77 @@
 {
     "instance_uid": {
         "value": "Identifier",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 118522005
     },
     "study_instance_uid": {
         "value": "Identifier of study",
-        "vocabulary": "SNOMED"
+        "vocabulary": "",
+        "code": -1
     },
     "modality": {
         "value": "Imaging modality",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 360037004
     },
     "body_part": {
         "value": "Body part",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 38866009
     },
     "protocol_name": {
-        "value": "Protocol",
-        "vocabulary": "SNOMED"
+        "value": "Protocols",
+        "vocabulary": "SNOMED",
+        "code": 258049002
     },
     "series_date": {
         "value": "Date",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 410671006
     },
     "series_description": {
         "value": "Description in dialect",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 900000000000510002
     },
     "site": {
         "value": "Healthcare facility",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 257622000
     },
     "manufacturer": {
         "value": "Manufacturer",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": -1
     },
     "manufacturer_model_name": {
         "value": "Device",
-        "vocabulary": ""
+        "vocabulary": "",
+        "code": 49062001
     },
     "software_versions": {
         "value": "Software",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 706687001
     },
     "image_count": {
-        "value": "Image count",
-        "vocabulary": ""
+        "value": "Count of images",
+        "vocabulary": "SNOMED",
+        "code": 410681005
     },
     "max_submission_timestamp": {
-        "value": "Identifier",
-        "vocabulary": "SNOMED"
+        "value": "Timestamp",
+        "vocabulary": "SNOMED",
+        "code": 398215006
     },
     "file_size": {
-        "value": "Identifier",
-        "vocabulary": ""
+        "value": "File size bytes",
+        "vocabulary": "",
+        "code": -1
     },
     "third_party_analysis": {
-        "value": "Third_party_analysis",
-        "vocabulary": ""
+        "value": "Third party analysis",
+        "vocabulary": "",
+        "code": -1
     }
 }

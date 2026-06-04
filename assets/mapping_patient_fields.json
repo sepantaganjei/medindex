@@ -1,18 +1,22 @@
 {
     "id": {
         "value": "Identifier",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 118522005
     },
     "sex": {
         "value": "Gender",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 263495000
     },
     "age": {
         "value": "Age",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 397669002
     },
     "ethnic_group": {
         "value": "Ethnic group",
-        "vocabulary": "SNOMED"
+        "vocabulary": "SNOMED",
+        "code": 372148003
     }
 }
