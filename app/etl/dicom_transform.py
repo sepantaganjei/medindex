@@ -89,11 +89,11 @@ def prepare_collection_data(raw_json_dict_data, _):
     series_json = raw_json_dict_data["series"]
 
     clean_collection_data = {
-        "name": safe_str(collection_json.get("collectionName")),
+        "collectionName": safe_str(collection_json.get("collectionName")),
         "description": _clean_text(safe_str(collection_json.get("description"))),
-        "license_name": safe_str(series_json[0]["LicenseName"]),
-        "license_uri": safe_str(series_json[0]["LicenseURI"]),
-        "description_uri": safe_str(series_json[0]["DataDescriptionURI"]),
+        "LicenseName": safe_str(series_json[0]["LicenseName"]),
+        "LicenseURI": safe_str(series_json[0]["LicenseURI"]),
+        "DataDescriptionURI": safe_str(series_json[0]["DataDescriptionURI"]),
     }
     return clean_collection_data
 
@@ -113,7 +113,7 @@ def prepare_patients_data(raw_json_dict_data):
     patients = {}
 
     for patient in list_of_patients:
-        patient_id = safe_str(patient.get("PatientId"))
+        patient_id = safe_str(patient.get("PatientID"))
 
         if patient_id not in patients:
             # filter related series for this patient
@@ -145,10 +145,10 @@ def prepare_patients_data(raw_json_dict_data):
             ethnic_group = safe_str(patient.get("EthnicGroup", "Missing"))
 
             patients[patient_id] = {
-                "id": patient_id,
-                "sex": sex,
-                "age": age,
-                "ethnic_group": ethnic_group,
+                "PatientID": patient_id,
+                "PatientSex": sex,
+                "PatientAge": age,
+                "EthnicGroup": ethnic_group,
             }
 
     return list(patients.values())
@@ -177,17 +177,17 @@ def prepare_studies_data(raw_json_dict_data):
         date_released = match.iloc[0] if not match.empty else None
 
         studies[study_uid] = {
-            "instance_uid": study_uid,
-            "collection": safe_str(row.get("Collection", "Missing")),
-            "date": safe_date(row.get("StudyDate")),
-            "date_released": safe_date(date_released),
-            "description": safe_str(row.get("StudyDescription", "Missing")),
-            "series_count": safe_int(row.get("SeriesCount")),
-            "patient_id": safe_str(row.get("PatientID", "Missing")),
-            "longitudinal_temporal_event_type": safe_str(
+            "StudyInstanceUID": study_uid,
+            "Collection": safe_str(row.get("Collection", "Missing")),
+            "StudyDate": safe_date(row.get("StudyDate")),
+            "DateReleased": safe_date(date_released),
+            "StudyDescription": safe_str(row.get("StudyDescription", "Missing")),
+            "SeriesCount": safe_int(row.get("SeriesCount")),
+            "PatientID": safe_str(row.get("PatientID", "Missing")),
+            "LongitudinalTemporalEventType": safe_str(
                 row.get("LongitudinalTemporalEventType", "Missing")
             ),
-            "longitudinal_temporal_offset_from_event": safe_int(
+            "LongitudinalTemporalOffsetFromEvent": safe_int(
                 row.get("LongitudinalTemporalOffsetFromEvent")
             ),
         }
@@ -210,31 +210,27 @@ def prepare_series_data(raw_json_dict_data):
 
         if instance_uid not in series_list:
             series_list[instance_uid] = {
-                "instance_uid": instance_uid,
-                "study_instance_uid": safe_str(
-                    series.get("StudyInstanceUID", "Missing")
-                ),
-                "modality": safe_str(series.get("Modality", "Missing")),
-                "body_part": safe_str(series.get("BodyPartExamined", "Missing")),
-                "protocol_name": safe_str(series.get("ProtocolName", "Missing")),
-                "series_date": safe_date(series.get("StudyDate")),
-                "series_description": safe_str(
+                "SeriesInstanceUID": instance_uid,
+                "StudyInstanceUID": safe_str(series.get("StudyInstanceUID", "Missing")),
+                "Modality": safe_str(series.get("Modality", "Missing")),
+                "BodyPartExamined": safe_str(series.get("BodyPartExamined", "Missing")),
+                "ProtocolName": safe_str(series.get("ProtocolName", "Missing")),
+                "SeriesDate": safe_date(series.get("StudyDate")),
+                "SeriesDescription": safe_str(
                     series.get("SeriesDescription", "Missing")
                 ),
-                "site": safe_str(series.get("Site", "Missing")),
-                "manufacturer": safe_str(series.get("Manufacturer", "Missing")),
-                "manufacturer_model_name": safe_str(
+                "Site": safe_str(series.get("Site", "Missing")),
+                "Manufacturer": safe_str(series.get("Manufacturer", "Missing")),
+                "ManufacturerModelName": safe_str(
                     series.get("ManufacturerModelName", "Missing")
                 ),
-                "software_versions": safe_str(
-                    series.get("SoftwareVersions", "Missing")
-                ),
-                "image_count": safe_int(series.get("ImageCount")),
-                "max_submission_timestamp": safe_time(
+                "SoftwareVersions": safe_str(series.get("SoftwareVersions", "Missing")),
+                "ImageCount": safe_int(series.get("ImageCount")),
+                "MaxSubmissionTimestamp": safe_time(
                     series.get("MaxSubmissionTimestamp")
                 ),
-                "file_size": safe_int(series.get("FileSize")),
-                "third_party_analysis": safe_bool(series.get("ThirdPartyAnalysis")),
+                "FileSize": safe_int(series.get("FileSize")),
+                "ThirdPartyAnalysis": safe_bool(series.get("ThirdPartyAnalysis")),
             }
 
     return list(series_list.values())

@@ -9,8 +9,6 @@ import zipfile
 import os
 import re
 import html
-import json
-from pathlib import Path
 
 # ==========
 # Insertions
@@ -82,45 +80,20 @@ series_data_transformers = {
 }
 
 
-def get_mappings():
-    MAPPING_PATH = Path(__file__).resolve().with_name("mapping_values.json")
-
-    with open(MAPPING_PATH, "r") as f:
-        return json.load(f)
-
-
-def standardize_value(value, mapping):
-    mapped = mapping.get(value)
-    return mapped["standardized_feature_name"] if mapped else value
-
-
 # Insertion of new collection
 def _process_and_store_collection(session, raw_data, dataset_type, description=None):
-    mapping = get_mappings()
-
     transform = collection_data_transformers[dataset_type]
     clean_collection_data = transform(raw_data, description)
-
-    for key in list(clean_collection_data.keys()):
-        clean_collection_data[key] = standardize_value(
-            clean_collection_data[key], mapping
-        )
-
     return repo.create_collection(session, clean_collection_data)
 
 
 # Patients insertion from new collection
 def _process_and_store_patients(session, raw_data, dataset_type):
-    mapping = get_mappings()
-
     transform = patients_data_transformers[dataset_type]
     clean_patients_data = transform(raw_data)
 
     patients = []
     for patient in clean_patients_data:
-        for key in list(patient.keys()):
-            patient[key] = standardize_value(patient[key], mapping)
-
         obj = repo.create_patient(session, patient)
         patients.append(obj)
 
@@ -129,16 +102,11 @@ def _process_and_store_patients(session, raw_data, dataset_type):
 
 # Studies insertion from new collection
 def _process_and_store_studies(session, raw_data, dataset_type):
-    mapping = get_mappings()
-
     transform = studies_data_transformers[dataset_type]
     clean_studies_data = transform(raw_data)
 
     studies = []
     for study in clean_studies_data:
-        for key in list(study.keys()):
-            study[key] = standardize_value(study[key], mapping)
-
         obj = repo.create_study(session, study)
         studies.append(obj)
 
@@ -147,16 +115,11 @@ def _process_and_store_studies(session, raw_data, dataset_type):
 
 # Series insertion from new collection
 def _process_and_store_series(session, raw_data, dataset_type):
-    mapping = get_mappings()
-
     transform = series_data_transformers[dataset_type]
     clean_series_data = transform(raw_data)
 
     series = []
     for s in clean_series_data:
-        for key in list(s.keys()):
-            s[key] = standardize_value(s[key], mapping)
-
         obj = repo.create_series(session, s)
         series.append(obj)
 
@@ -165,20 +128,12 @@ def _process_and_store_series(session, raw_data, dataset_type):
 
 # add new feature extraction
 def add_extraction(image_number, series_uid, feature_name, value):
-    with open("assets/mapping_values.json", "r") as f:
-        mapping = json.load(f)
     session = SessionLocal()
     try:
-        feature_mapping = mapping.get(feature_name, {})
-
         data = {
             "image_number": image_number,
             "series_uid": series_uid,
             "feature_name": feature_name,
-            "standardized_feature_name": feature_mapping.get(
-                "standardized_feature_name", "Unknown"
-            ),
-            "vocabulary": feature_mapping.get("vocabulary", "Unknown"),
             "value": value,
         }
         obj = repo.create_extraction(session, data)
@@ -267,7 +222,6 @@ def get_all_extractions():
 
 
 def get_series_on_demand(collectionName):
-    mapping = get_mappings()
     to_select = [
         "SeriesInstanceUID",
         "StudyInstanceUID",
@@ -314,7 +268,6 @@ def get_series_on_demand(collectionName):
         for key in series.keys():
             if key in to_select:
                 temp[map[key]] = series[key] if series[key] else "Missing"
-                temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
         series_to_return[i] = temp
 
@@ -322,7 +275,6 @@ def get_series_on_demand(collectionName):
 
 
 def get_series_on_demand_on_uid(uid):
-    mapping = get_mappings()
     to_select = [
         "SeriesInstanceUID",
         "StudyInstanceUID",
@@ -368,7 +320,6 @@ def get_series_on_demand_on_uid(uid):
     for key in series.keys():
         if key in to_select:
             temp[map[key]] = series[key] if series[key] else "Missing"
-            temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
     series = temp
 
@@ -376,7 +327,6 @@ def get_series_on_demand_on_uid(uid):
 
 
 def get_series_on_demand_on_study_uid(study_uid):
-    mapping = get_mappings()
     to_select = [
         "SeriesInstanceUID",
         "StudyInstanceUID",
@@ -423,7 +373,6 @@ def get_series_on_demand_on_study_uid(study_uid):
         for key in series.keys():
             if key in to_select:
                 temp[map[key]] = series[key] if series[key] else "Missing"
-                temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
         series_to_return[i] = temp
 
@@ -431,7 +380,6 @@ def get_series_on_demand_on_study_uid(study_uid):
 
 
 def get_studies_on_demand(collectionName):
-    mapping = get_mappings()
     to_select = [
         "StudyInstanceUID",
         "Collection",
@@ -462,7 +410,6 @@ def get_studies_on_demand(collectionName):
         for key in study.keys():
             if key in to_select:
                 temp[map[key]] = study[key] if study[key] else None
-                temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
         studies_to_return[i] = temp
 
@@ -470,7 +417,6 @@ def get_studies_on_demand(collectionName):
 
 
 def get_patients_on_demand(collectionName):
-    mapping = get_mappings()
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
     map = {
@@ -486,7 +432,6 @@ def get_patients_on_demand(collectionName):
         for key in study.keys():
             if key in to_select:
                 temp[map[key]] = study[key] if study[key] else None
-                temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
         patients_to_return[i] = temp
 
@@ -494,7 +439,6 @@ def get_patients_on_demand(collectionName):
 
 
 def get_patients_on_demand_on_id(collectionName, patient_id):
-    mapping = get_mappings()
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
     map = {
@@ -509,7 +453,6 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     for key in patient.keys():
         if key in to_select:
             temp[map[key]] = patient[key] if patient[key] else None
-            temp[map[key]] = standardize_value(temp[map[key]], mapping)
 
     patient = temp
 

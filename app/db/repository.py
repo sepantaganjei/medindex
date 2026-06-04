@@ -249,7 +249,7 @@ def get_patients_on_demand(collectionName):
 
     # Attach age to patients
     for patient in patients:
-        patient_id = patient.get("PatientId")
+        patient_id = patient.get("PatientID")
 
         patient["PatientAge"] = age_map.get(patient_id)
 
@@ -297,7 +297,7 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     age_map = {}
 
     for series in series_data:
-        patient_id = series.get("PatientID")
+        patient_id = series.get("PatientId")
         age = series.get("PatientAge")
 
         if patient_id and patient_id not in age_map:

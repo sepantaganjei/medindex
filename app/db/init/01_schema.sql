@@ -1,57 +1,57 @@
 -- collections
 CREATE TABLE IF NOT EXISTS collections (
-    name VARCHAR PRIMARY KEY,
+    collectionName VARCHAR PRIMARY KEY,
     description VARCHAR,
-    license_name VARCHAR,
-    license_uri VARCHAR,
-    description_uri VARCHAR
+    LicenseName VARCHAR,
+    LicenseURI VARCHAR,
+    DataDescriptionURI VARCHAR
 );
 
 -- patients
 CREATE TABLE IF NOT EXISTS patients (
-    id VARCHAR PRIMARY KEY,
-    sex VARCHAR,
-    age INTEGER,
-    ethnic_group VARCHAR
+    PatientID VARCHAR PRIMARY KEY,
+    PatientSex VARCHAR,
+    PatientAge INTEGER,
+    EthnicGroup VARCHAR
 );
 
 -- studies
 CREATE TABLE IF NOT EXISTS studies (
-    instance_uid VARCHAR PRIMARY KEY,
-    collection VARCHAR REFERENCES collections(name),
-    date DATE,
-    date_released DATE,
-    description VARCHAR,
-    series_count INTEGER,
-    patient_id VARCHAR REFERENCES patients(id),
-    longitudinal_temporal_event_type VARCHAR,
-    longitudinal_temporal_offset_from_event VARCHAR
+    StudyInstanceUID VARCHAR PRIMARY KEY,
+    Collection VARCHAR REFERENCES collections(collectionName),
+    StudyDate DATE,
+    DateReleased DATE,
+    StudyDescription VARCHAR,
+    SeriesCount INTEGER,
+    PatientID VARCHAR REFERENCES patients(PatientID),
+    LongitudinalTemporalEventType VARCHAR,
+    LongitudinalTemporalOffsetFromEvent VARCHAR
 );
 
 -- series
 CREATE TABLE IF NOT EXISTS series (
-    instance_uid VARCHAR PRIMARY KEY,
-    study_instance_uid VARCHAR REFERENCES studies(instance_uid),
-    modality VARCHAR,
-    body_part VARCHAR,
-    protocol_name VARCHAR,
-    series_date DATE,
-    series_description VARCHAR,
-    site VARCHAR,
-    manufacturer VARCHAR,
-    manufacturer_model_name VARCHAR,
-    software_versions VARCHAR,
-    image_count INTEGER,
-    max_submission_timestamp TIME,
-    file_size INTEGER,
-    third_party_analysis BOOLEAN
+    SeriesInstanceUID VARCHAR PRIMARY KEY,
+    StudyInstanceUID VARCHAR REFERENCES studies(instance_uid),
+    Modality VARCHAR,
+    BodyPartExamined VARCHAR,
+    ProtocolName VARCHAR,
+    SeriesDate DATE,
+    SeriesDescription VARCHAR,
+    Site VARCHAR,
+    Manufacturer VARCHAR,
+    ManufacturerModelName VARCHAR,
+    SoftwareVersions VARCHAR,
+    ImageCount INTEGER,
+    MaxSubmissionTimestamp TIME,
+    FileSize INTEGER,
+    ThirdPartyAnalysis BOOLEAN
 );
 
 -- extractions
 CREATE TABLE IF NOT EXISTS extractions (
     id SERIAL PRIMARY KEY,
     image_number VARCHAR,
-    series_uid VARCHAR REFERENCES series(instance_uid),
+    SeriesInstanceUID VARCHAR REFERENCES series(instance_uid),
     value FLOAT
 );
 

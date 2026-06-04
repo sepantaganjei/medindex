@@ -80,10 +80,10 @@ def _find_correspoding_columns_in(table, mapping):
 # Data preparation for collection storage
 
 collection_mappings = {
-    "name": ["project", "collection name", "collection"],
-    "license_name": ["license name", "license_name"],
-    "license_uri": ["license uri", "license_uri"],
-    "description_uri": [
+    "collectionName": ["project", "collection name", "collection"],
+    "LicenseName": ["license name", "license_name"],
+    "LicenseURI": ["license uri", "license_uri"],
+    "DataDescriptionURI": [
         "description uri",
         "description_uri",
         "collection_uri",
@@ -95,11 +95,11 @@ collection_mappings = {
 def prepare_collection_data(tabular_file, description):
 
     clean_collection_data = {
-        "name": None,
+        "collectionName": None,
         "description": description,
-        "license_name": None,
-        "license_uri": None,
-        "description_uri": None,
+        "LicenseName": None,
+        "LicenseURI": None,
+        "DataDescriptionURI": None,
     }
 
     try:
@@ -151,8 +151,8 @@ def extract_age(value):
 
 
 patient_mappings = {
-    "id": ["patient id", "patient", "patientid", "patient_id"],
-    "sex": [
+    "PatientID": ["patient id", "patient", "patientid", "patient_id"],
+    "PatientSex": [
         "patient sex",
         "patient_sex",
         "sex",
@@ -160,8 +160,8 @@ patient_mappings = {
         "patient gender",
         "patientsex",
     ],
-    "age": ["patient age", "age", "patient_age"],
-    "ethnic_group": ["ethnic group", "ethnicity", "race"],
+    "PatientAge": ["patient age", "age", "patient_age"],
+    "EthnicGroup": ["ethnic group", "ethnicity", "race"],
 }
 
 
@@ -179,40 +179,37 @@ def prepare_patients_data(tabular_files):
 
     for _, row in df.iterrows():
         patient = {
-            "id": None,
-            "sex": None,
-            "age": None,
-            "ethnic_group": None,
+            "PatientID": None,
+            "PatientSex": None,
+            "PatientAge": None,
+            "EthnicGroup": None,
         }
 
         for field in patient:
             if field in matched_columns:
                 patient[field] = safe_str(row.get(matched_columns[field]))
 
-        patient_id = patient["id"]
+        patient_id = patient["PatientID"]
 
         # initialize patient if needed
         if patient_id not in patients:
             patients[patient_id] = {
-                "id": patient_id,
-                "sex": "Missing",
-                "age": -1,
-                "ethnic_group": "Missing",
+                "PatientID": patient_id,
+                "PatientSex": "Missing",
+                "PatientAge": -1,
+                "EthnicGroup": "Missing",
             }
 
         # merge logic
-        if patient["sex"] and patients[patient_id]["sex"] == "Missing":
-            patients[patient_id]["sex"] = patient["sex"]
+        if patient["PatientSex"] and patients[patient_id]["PatientSex"] == "Missing":
+            patients[patient_id]["PatientSex"] = patient["PatientSex"]
 
-        if (
-            patient["ethnic_group"]
-            and patients[patient_id]["ethnic_group"] == "Missing"
-        ):
-            patients[patient_id]["ethnic_group"] = patient["ethnic_group"]
+        if patient["EthnicGroup"] and patients[patient_id]["EthnicGroup"] == "Missing":
+            patients[patient_id]["EthnicGroup"] = patient["EthnicGroup"]
 
-        age = extract_age(patient["age"])
-        if patients[patient_id]["age"] == -1 and age != -1:
-            patients[patient_id]["age"] = age
+        age = extract_age(patient["PatientAge"])
+        if patients[patient_id]["PatientAge"] == -1 and age != -1:
+            patients[patient_id]["PatientAge"] = age
 
     return list(patients.values())
 
@@ -220,17 +217,15 @@ def prepare_patients_data(tabular_files):
 # Data preparation for study storage
 
 study_mappings = {
-    "instance_uid": ["study instance uid", "study uid", "studyinstanceuid"],
-    "collection": ["project", "collection", "study project"],
-    "date": ["study date", "date"],
-    "date_released": ["date released", "release date"],
-    "description": ["study description", "description"],
-    "series_count": ["series number", "series count"],
-    "patient_id": ["patient id", "patient"],
-    "longitudinal_temporal_event_type": ["longitudinal temporal event type"],
-    "longitudinal_temporal_offset_from_event": [
-        "longitudinal temporal offset from event"
-    ],
+    "StudyInstanceUID": ["study instance uid", "study uid", "studyinstanceuid"],
+    "Collection": ["project", "collection", "study project"],
+    "StudyDate": ["study date", "date"],
+    "DateReleased": ["date released", "release date"],
+    "StudyDescription": ["study description", "description"],
+    "SeriesCount": ["series number", "series count"],
+    "PatientID": ["patient id", "patient"],
+    "LongitudinalTemporalEventType": ["longitudinal temporal event type"],
+    "LongitudinalTemporalOffsetFromEvent": ["longitudinal temporal offset from event"],
 }
 
 
@@ -249,15 +244,15 @@ def prepare_studies_data(tabular_files):
 
     for _, row in df.iterrows():
         study = {
-            "instance_uid": None,
-            "collection": None,
-            "date": None,
-            "date_released": None,
-            "description": None,
-            "series_count": None,
-            "patient_id": None,
-            "longitudinal_temporal_event_type": None,
-            "longitudinal_temporal_offset_from_event": None,
+            "StudyInstanceUID": None,
+            "Collection": None,
+            "StudyDate": None,
+            "DateReleased": None,
+            "StudyDescription": None,
+            "SeriesCount": None,
+            "PatientID": None,
+            "LongitudinalTemporalEventType": None,
+            "LongitudinalTemporalOffsetFromEvent": None,
         }
 
         for field in study:
@@ -272,54 +267,57 @@ def prepare_studies_data(tabular_files):
         # initialize study
         if study_id not in studies:
             studies[study_id] = {
-                "instance_uid": study_id,
-                "collection": "Missing",
-                "date": None,
-                "date_released": None,
-                "description": "Missing",
-                "series_count": -1,
-                "patient_id": "Missing",
-                "longitudinal_temporal_event_type": "Missing",
-                "longitudinal_temporal_offset_from_event": -99999,
+                "StudyInstanceUID": study_id,
+                "Collection": "Missing",
+                "StudyDate": None,
+                "DateReleased": None,
+                "StudyDescription": "Missing",
+                "SeriesCount": -1,
+                "PatientID": "Missing",
+                "LongitudinalTemporalEventType": "Missing",
+                "LongitudinalTemporalOffsetFromEvent": -99999,
             }
 
         # merge logic (same philosophy as patients)
 
-        if study["collection"] and studies[study_id]["collection"] == "Missing":
-            studies[study_id]["collection"] = study["collection"]
+        if study["Collection"] and studies[study_id]["Collection"] == "Missing":
+            studies[study_id]["Collection"] = study["Collection"]
 
-        if study["description"] and studies[study_id]["description"] == "Missing":
-            studies[study_id]["description"] = study["description"]
+        if (
+            study["StudyDescription"]
+            and studies[study_id]["StudyDescription"] == "Missing"
+        ):
+            studies[study_id]["StudyDescription"] = study["StudyDescription"]
 
-        if study["patient_id"] and studies[study_id]["patient_id"] == "Missing":
-            studies[study_id]["patient_id"] = study["patient_id"]
+        if study["PatientID"] and studies[study_id]["PatientID"] == "Missing":
+            studies[study_id]["PatientID"] = study["PatientID"]
 
         # dates (only fill if missing)
-        if not studies[study_id]["date"]:
-            studies[study_id]["date"] = safe_date(study["date"])
+        if not studies[study_id]["StudyDate"]:
+            studies[study_id]["StudyDate"] = safe_date(study["StudyDate"])
 
-        if not studies[study_id]["date_released"]:
-            studies[study_id]["date_released"] = safe_date(study["date_released"])
+        if not studies[study_id]["DateReleased"]:
+            studies[study_id]["DateReleased"] = safe_date(study["DateReleased"])
 
         # numeric fields
-        series_count = safe_int(study["series_count"])
-        if studies[study_id]["series_count"] == -1 and series_count is not None:
-            studies[study_id]["series_count"] = series_count
+        series_count = safe_int(study["SeriesCount"])
+        if studies[study_id]["SeriesCount"] == -1 and series_count is not None:
+            studies[study_id]["SeriesCount"] = series_count
 
-        event_offset = safe_int(study["longitudinal_temporal_offset_from_event"])
+        event_offset = safe_int(study["LongitudinalTemporalOffsetFromEvent"])
         if (
-            studies[study_id]["longitudinal_temporal_offset_from_event"] == -99999
+            studies[study_id]["LongitudinalTemporalOffsetFromEvent"] == -99999
             and event_offset is not None
         ):
-            studies[study_id]["longitudinal_temporal_offset_from_event"] = event_offset
+            studies[study_id]["LongitudinalTemporalOffsetFromEvent"] = event_offset
 
         # categorical
         if (
-            study["longitudinal_temporal_event_type"]
-            and studies[study_id]["longitudinal_temporal_event_type"] == "Missing"
+            study["LongitudinalTemporalEventType"]
+            and studies[study_id]["LongitudinalTemporalEventType"] == "Missing"
         ):
-            studies[study_id]["longitudinal_temporal_event_type"] = study[
-                "longitudinal_temporal_event_type"
+            studies[study_id]["LongitudinalTemporalEventType"] = study[
+                "LongitudinalTemporalEventType"
             ]
 
     return list(studies.values())
@@ -328,21 +326,21 @@ def prepare_studies_data(tabular_files):
 # Data preparation for series storage
 
 series_mappings = {
-    "instance_uid": ["series instance uid", "seriesinstanceuid", "series uid"],
-    "study_instance_uid": ["study instance uid", "studyinstanceuid"],
-    "modality": ["modality"],
-    "body_part": ["body part examined", "bodypartexamined"],
-    "protocol_name": ["protocol name", "protocolname"],
-    "series_date": ["series date"],
-    "series_description": ["series description", "description"],
-    "site": ["site"],
-    "manufacturer": ["manufacturer"],
-    "manufacturer_model_name": ["manufacturer model name"],
-    "software_versions": ["software versions"],
-    "image_count": ["image count", "images"],
-    "max_submission_timestamp": ["max submission timestamp"],
-    "file_size": ["file size"],
-    "third_party_analysis": ["third party analysis"],
+    "SeriesInstanceUID": ["series instance uid", "seriesinstanceuid", "series uid"],
+    "StudyInstanceUID": ["study instance uid", "studyinstanceuid"],
+    "Modality": ["modality"],
+    "BodyPartExamined": ["body part examined", "bodypartexamined"],
+    "ProtocolName": ["protocol name", "protocolname"],
+    "SeriesDate": ["series date"],
+    "SeriesDescription": ["series description", "description"],
+    "Site": ["site", "healthcare facility", "healthcarefacility"],
+    "Manufacturer": ["manufacturer"],
+    "ManufacturerModelName": ["manufacturer model name"],
+    "SoftwareVersions": ["software versions"],
+    "ImageCount": ["image count", "images"],
+    "MaxSubmissionTimestamp": ["max submission timestamp"],
+    "FileSize": ["file size"],
+    "ThirdPartyAnalysis": ["third party analysis"],
 }
 
 
@@ -367,81 +365,81 @@ def prepare_series_data(tabular_file):
             else:
                 series[field] = None
 
-        instance_uid = series["instance_uid"]
+        instance_uid = series["SeriesInstanceUID"]
 
         if not instance_uid or instance_uid == "Missing":
             continue
 
         if instance_uid not in series_list:
             series_list[instance_uid] = {
-                "instance_uid": instance_uid,
-                "study_instance_uid": "Missing",
-                "modality": "Missing",
-                "body_part": "Missing",
-                "protocol_name": "Missing",
-                "series_date": None,
-                "series_description": "Missing",
-                "site": "Missing",
-                "manufacturer": "Missing",
-                "manufacturer_model_name": "Missing",
-                "software_versions": "Missing",
-                "image_count": -1,
-                "max_submission_timestamp": None,
-                "file_size": -1,
-                "third_party_analysis": None,
+                "SeriesInstanceUID": instance_uid,
+                "StudyInstanceUID": "Missing",
+                "Modality": "Missing",
+                "BodyPartExamined": "Missing",
+                "ProtocolName": "Missing",
+                "SeriesDate": None,
+                "SeriesDescription": "Missing",
+                "Site": "Missing",
+                "Manufacturer": "Missing",
+                "ManufacturerModelName": "Missing",
+                "SoftwareVersions": "Missing",
+                "ImageCount": -1,
+                "MaxSubmissionTimestamp": None,
+                "FileSize": -1,
+                "ThirdPartyAnalysis": None,
             }
 
         s = series_list[instance_uid]
 
         # merge logic (same pattern as patients)
 
-        if series.get("study_instance_uid") and s["study_instance_uid"] == "Missing":
-            s["study_instance_uid"] = series["study_instance_uid"]
+        if series.get("StudyInstanceUID") and s["StudyInstanceUID"] == "Missing":
+            s["StudyInstanceUID"] = series["StudyInstanceUID"]
 
-        if series.get("modality") and s["modality"] == "Missing":
-            s["modality"] = series["modality"]
+        if series.get("Modality") and s["Modality"] == "Missing":
+            s["Modality"] = series["Modality"]
 
-        if series.get("body_part") and s["body_part"] == "Missing":
-            s["body_part"] = series["body_part"]
+        if series.get("BodyPartExamined") and s["BodyPartExamined"] == "Missing":
+            s["BodyPartExamined"] = series["BodyPartExamined"]
 
-        if series.get("protocol_name") and s["protocol_name"] == "Missing":
-            s["protocol_name"] = series["protocol_name"]
+        if series.get("ProtocolName") and s["ProtocolName"] == "Missing":
+            s["ProtocolName"] = series["ProtocolName"]
 
-        if not s["series_date"]:
-            s["series_date"] = safe_date(series.get("series_date"))
+        if not s["SeriesDate"]:
+            s["SeriesDate"] = safe_date(series.get("SeriesDate"))
 
-        if series.get("series_description") and s["series_description"] == "Missing":
-            s["series_description"] = series["series_description"]
+        if series.get("SeriesDescription") and s["SeriesDescription"] == "Missing":
+            s["SeriesDescription"] = series["SeriesDescription"]
 
-        if series.get("site") and s["site"] == "Missing":
-            s["site"] = series["site"]
+        if series.get("Site") and s["Site"] == "Missing":
+            s["Site"] = series["Site"]
 
-        if series.get("manufacturer") and s["manufacturer"] == "Missing":
-            s["manufacturer"] = series["manufacturer"]
+        if series.get("Manufacturer") and s["Manufacturer"] == "Missing":
+            s["Manufacturer"] = series["Manufacturer"]
 
         if (
-            series.get("manufacturer_model_name")
-            and s["manufacturer_model_name"] == "Missing"
+            series.get("ManufacturerModelName")
+            and s["ManufacturerModelName"] == "Missing"
         ):
-            s["manufacturer_model_name"] = series["manufacturer_model_name"]
+            s["ManufacturerModelName"] = series["ManufacturerModelName"]
 
-        if series.get("software_versions") and s["software_versions"] == "Missing":
-            s["software_versions"] = series["software_versions"]
+        if series.get("SoftwareVersions") and s["SoftwareVersions"] == "Missing":
+            s["SoftwareVersions"] = series["SoftwareVersions"]
 
-        img_count = safe_int(series.get("image_count"))
-        if s["image_count"] == -1 and img_count is not None:
-            s["image_count"] = img_count
+        img_count = safe_int(series.get("ImageCount"))
+        if s["ImageCount"] == -1 and img_count is not None:
+            s["ImageCount"] = img_count
 
-        if not s["max_submission_timestamp"]:
-            s["max_submission_timestamp"] = safe_time(
-                series.get("max_submission_timestamp")
+        if not s["MaxSubmissionTimestamp"]:
+            s["MaxSubmissionTimestamp"] = safe_time(
+                series.get("MaxSubmissionTimestamp")
             )
 
-        file_size = safe_int(series.get("file_size"))
-        if s["file_size"] == -1 and file_size is not None:
-            s["file_size"] = file_size
+        file_size = safe_int(series.get("FileSize"))
+        if s["FileSize"] == -1 and file_size is not None:
+            s["FileSize"] = file_size
 
-        if s["third_party_analysis"] is None:
-            s["third_party_analysis"] = safe_bool(series.get("third_party_analysis"))
+        if s["ThirdPartyAnalysis"] is None:
+            s["ThirdPartyAnalysis"] = safe_bool(series.get("ThirdPartyAnalysis"))
 
     return list(series_list.values())
