@@ -1,20 +1,20 @@
 {
-    "id": {
+    "PatientID": {
         "value": "Identifier",
         "vocabulary": "SNOMED",
         "code": 118522005
     },
-    "sex": {
+    "PatientSex": {
         "value": "Gender",
         "vocabulary": "SNOMED",
         "code": 263495000
     },
-    "age": {
+    "PatientAge": {
         "value": "Age",
         "vocabulary": "SNOMED",
         "code": 397669002
     },
-    "ethnic_group": {
+    "EthnicGroup": {
         "value": "Ethnic group",
         "vocabulary": "SNOMED",
         "code": 372148003

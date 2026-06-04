@@ -1,25 +1,25 @@
 {
-    "instance_uid": {
-        "value": "Identifier",
+    "collectionName": {
+        "value": "Name",
         "vocabulary": "SNOMED",
-        "code": 118522005
+        "code": 734841007
     },
     "description": {
         "value": "Description",
         "vocabulary": "",
         "code": -1
     },
-    "license_name": {
-        "value": "Imaging modality",
+    "LicenseName": {
+        "value": "Licence name",
         "vocabulary": "",
         "code": -1
     },
-    "license_uri": {
+    "LicenseURI": {
         "value": "License uri",
         "vocabulary": "",
         "code": -1
     },
-    "description_uri": {
+    "DataDescriptionURI": {
         "value": "Description uri",
         "vocabulary": "",
         "code": -1

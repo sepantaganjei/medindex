@@ -6,6 +6,7 @@ from app.db.models import Study
 from app.db.models import Patient
 from app.db.models import Series
 from app.db.models import Extraction
+from app.db.models import FieldMapping
 from sqlalchemy.orm import joinedload
 import requests
 import re
@@ -31,7 +32,12 @@ def get_json_or_empty(response):
 # Output
 # - obejct that we added or that we found
 def create_collection(session, data: dict):
-    obj = session.query(Collection).filter_by(name=data["name"]).first()
+    obj = (
+        session
+        .query(Collection)
+        .filter_by(collection_name=data["collection_name"])
+        .first()
+    )
 
     if obj:
         return obj
@@ -50,7 +56,12 @@ def create_collection(session, data: dict):
 # Output
 # - obejct that we added or that we found
 def create_study(session, data: dict):
-    obj = session.query(Study).filter_by(instance_uid=data["instance_uid"]).first()
+    obj = (
+        session
+        .query(Study)
+        .filter_by(study_instance_uid=data["study_instance_uid"])
+        .first()
+    )
 
     if obj:
         return obj
@@ -69,7 +80,7 @@ def create_study(session, data: dict):
 # Output
 # - obejct that we added or that we found
 def create_patient(session, data: dict):
-    obj = session.query(Patient).filter_by(id=data["id"]).first()
+    obj = session.query(Patient).filter_by(patient_id=data["patient_id"]).first()
 
     if obj:
         return obj
@@ -88,7 +99,12 @@ def create_patient(session, data: dict):
 # Output
 # - obejct that we added or that we found
 def create_series(session, data: dict):
-    obj = session.query(Series).filter_by(instance_uid=data["instance_uid"]).first()
+    obj = (
+        session
+        .query(Series)
+        .filter_by(series_instance_uid=data["series_instance_uid"])
+        .first()
+    )
 
     if obj:
         return obj
@@ -318,3 +334,9 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     print("Done")
 
     return patients[0]
+
+
+def get_series_SNOMED_fields(session):
+    return session.query(
+        FieldMapping.FieldNameDICOM, FieldMapping.StandardizedFieldName
+    ).all()

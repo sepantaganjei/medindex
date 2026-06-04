@@ -1,75 +1,75 @@
 {
-    "instance_uid": {
+    "SeriesInstanceUID": {
         "value": "Identifier",
         "vocabulary": "SNOMED",
         "code": 118522005
     },
-    "study_instance_uid": {
+    "StudyInstanceUID_series": {
         "value": "Identifier of study",
         "vocabulary": "",
         "code": -1
     },
-    "modality": {
+    "Modality": {
         "value": "Imaging modality",
         "vocabulary": "SNOMED",
         "code": 360037004
     },
-    "body_part": {
+    "BodyPartExamined": {
         "value": "Body part",
         "vocabulary": "SNOMED",
         "code": 38866009
     },
-    "protocol_name": {
+    "ProtocolName": {
         "value": "Protocols",
         "vocabulary": "SNOMED",
         "code": 258049002
     },
-    "series_date": {
+    "SeriesDate": {
         "value": "Date",
         "vocabulary": "SNOMED",
         "code": 410671006
     },
-    "series_description": {
+    "SeriesDescription": {
         "value": "Description in dialect",
         "vocabulary": "SNOMED",
         "code": 900000000000510002
     },
-    "site": {
+    "Site": {
         "value": "Healthcare facility",
         "vocabulary": "SNOMED",
         "code": 257622000
     },
-    "manufacturer": {
+    "Manufacturer": {
         "value": "Manufacturer",
         "vocabulary": "",
         "code": -1
     },
-    "manufacturer_model_name": {
+    "ManufacturerModelName": {
         "value": "Device",
         "vocabulary": "",
         "code": 49062001
     },
-    "software_versions": {
+    "SoftwareVersions": {
         "value": "Software",
         "vocabulary": "SNOMED",
         "code": 706687001
     },
-    "image_count": {
+    "ImageCount": {
         "value": "Count of images",
         "vocabulary": "SNOMED",
         "code": 410681005
     },
-    "max_submission_timestamp": {
+    "MaxSubmissionTimestamp": {
         "value": "Timestamp",
         "vocabulary": "SNOMED",
         "code": 398215006
     },
-    "file_size": {
+    "FileSize": {
         "value": "File size bytes",
         "vocabulary": "",
         "code": -1
     },
-    "third_party_analysis": {
+    "ThirdPartyAnalysis": {
         "value": "Third party analysis",
         "vocabulary": "",
         "code": -1

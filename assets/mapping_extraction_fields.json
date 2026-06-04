@@ -1,20 +1,25 @@
 {
-    "extraction_id": {
+    "Id": {
         "value": "identifier",
         "vocabulary": "SNOMED",
         "code": 118522005
     },
-    "image_number": {
+    "ImageNumber": {
         "value": "Image",
         "vocabulary": "SNOMED",
         "code": 900000000000520007
     },
-    "series_uid": {
+    "SeriesInstanceUID_extraction": {
         "value": "Series",
         "vocabulary": "SNOMED",
         "code": 13039001
     },
-    "value": {
+    "FeatureName": {
+        "value": "Name",
+        "vocabulary": "SNOMED",
+        "code": 734841007
+    },
+    "Value": {
         "value": "Quantitative value",
         "vocabulary": "SNOMED",
         "code": 30766002

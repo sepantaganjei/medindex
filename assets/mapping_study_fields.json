@@ -1,45 +1,45 @@
 {
-    "instance_uid": {
+    "StudyInstanceUID": {
         "value": "Identifier",
         "vocabulary": "SNOMED",
         "code": 118522005
     },
-    "collection": {
+    "CollectionName_study": {
         "value": "Collection",
         "vocabulary": "",
         "code": -1
     },
-    "date": {
+    "StudyDate": {
         "value": "Date",
         "vocabulary": "SNOMED",
         "code": 410671006
     },
-    "date_released": {
+    "DateReleased": {
         "value": "Date of release",
         "vocabulary": "SNOMED",
         "code": 439771001
     },
-    "description": {
+    "StudyDescription": {
         "value": "Description in dialect",
         "vocabulary": "SNOMED",
         "code": 900000000000510002
     },
-    "series_count": {
+    "SeriesCount": {
         "value": "Count of series",
         "vocabulary": "SNOMED",
         "code": 410681005
     },
-    "patient_id": {
+    "PatientID_study": {
         "value": "Patient",
         "vocabulary": "SNOMED",
         "code": 116154003
     },
-    "longitudinal_temporal_event_type": {
+    "LongitudinalTemporalEventType": {
         "value": "Event",
         "vocabulary": "SNOMED",
         "code": 272379006
     },
-    "longitudinal_temporal_offset_from_event": {
+    "LongitudinalTemporalOffsetFromEvent": {
         "value": "Relative time",
         "vocabulary": "SNOMED",
         "code": 118578006

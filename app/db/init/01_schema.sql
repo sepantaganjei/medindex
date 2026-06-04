@@ -1,90 +1,106 @@
 -- collections
 CREATE TABLE IF NOT EXISTS collections (
-    collectionName VARCHAR PRIMARY KEY,
+    collection_name VARCHAR PRIMARY KEY,
     description VARCHAR,
-    LicenseName VARCHAR,
-    LicenseURI VARCHAR,
-    DataDescriptionURI VARCHAR
+    license_name VARCHAR,
+    license_uri VARCHAR,
+    data_description_uri VARCHAR
 );
 
 -- patients
 CREATE TABLE IF NOT EXISTS patients (
-    PatientID VARCHAR PRIMARY KEY,
-    PatientSex VARCHAR,
-    PatientAge INTEGER,
-    EthnicGroup VARCHAR
+    patient_id VARCHAR PRIMARY KEY,
+    patient_sex VARCHAR,
+    patient_age INTEGER,
+    ethnic_group VARCHAR
 );
 
 -- studies
 CREATE TABLE IF NOT EXISTS studies (
-    StudyInstanceUID VARCHAR PRIMARY KEY,
-    Collection VARCHAR REFERENCES collections(collectionName),
-    StudyDate DATE,
-    DateReleased DATE,
-    StudyDescription VARCHAR,
-    SeriesCount INTEGER,
-    PatientID VARCHAR REFERENCES patients(PatientID),
-    LongitudinalTemporalEventType VARCHAR,
-    LongitudinalTemporalOffsetFromEvent VARCHAR
+    study_instance_uid VARCHAR PRIMARY KEY,
+    collection_name_study VARCHAR REFERENCES collections(collection_name),
+    study_date DATE,
+    date_released DATE,
+    study_description VARCHAR,
+    series_count INTEGER,
+    patient_id_study VARCHAR REFERENCES patients(patient_id),
+    longitudinal_temporal_event_type VARCHAR,
+    longitudinal_temporal_offset_from_event VARCHAR
 );
 
 -- series
 CREATE TABLE IF NOT EXISTS series (
-    SeriesInstanceUID VARCHAR PRIMARY KEY,
-    StudyInstanceUID VARCHAR REFERENCES studies(instance_uid),
-    Modality VARCHAR,
-    BodyPartExamined VARCHAR,
-    ProtocolName VARCHAR,
-    SeriesDate DATE,
-    SeriesDescription VARCHAR,
-    Site VARCHAR,
-    Manufacturer VARCHAR,
-    ManufacturerModelName VARCHAR,
-    SoftwareVersions VARCHAR,
-    ImageCount INTEGER,
-    MaxSubmissionTimestamp TIME,
-    FileSize INTEGER,
-    ThirdPartyAnalysis BOOLEAN
+    series_instance_uid VARCHAR PRIMARY KEY,
+    study_instance_uid_series VARCHAR REFERENCES studies(study_instance_uid),
+    modality VARCHAR,
+    body_part_examined VARCHAR,
+    protocol_name VARCHAR,
+    series_date DATE,
+    series_description VARCHAR,
+    site VARCHAR,
+    manufacturer VARCHAR,
+    manufacturer_model_name VARCHAR,
+    software_versions VARCHAR,
+    image_count INTEGER,
+    max_submission_timestamp TIME,
+    file_size INTEGER,
+    third_party_analysis BOOLEAN
 );
 
 -- extractions
 CREATE TABLE IF NOT EXISTS extractions (
     id SERIAL PRIMARY KEY,
     image_number VARCHAR,
-    SeriesInstanceUID VARCHAR REFERENCES series(instance_uid),
+    series_instance_uid_extraction VARCHAR REFERENCES series(series_instance_uid),
+    feature_name VARCHAR,
     value FLOAT
 );
 
+-- field mappings
 CREATE TABLE IF NOT EXISTS field_mappings (
-    field_name_DICOM VARCHAR PRIMARY KEY,
+    field_name_dicom VARCHAR PRIMARY KEY,
     standardized_field_name VARCHAR,
-    code INTEGER,
+    code BIGINT,
     vocabulary VARCHAR
 );
 
 INSERT INTO field_mappings (
-    field_name_DICOM,
+    field_name_dicom,
     standardized_field_name,
     code,
     vocabulary
 )
 VALUES
-('instance_uid', 'Identifier', 118522005, 'SNOMED'),
+
+-- =========================
+-- COLLECTION
+-- =========================
+('collection_name', 'Name', 734841007, 'SNOMED'),
 ('description', 'Description', -1, ''),
-('license_name', 'Imaging modality', -1, ''),
+('license_name', 'Licence name', -1, ''),
 ('license_uri', 'License uri', -1, ''),
-('description_uri', 'Description uri', -1, ''),
-('extraction_id', 'identifier', 118522005, 'SNOMED'),
-('image_number', 'Image', 900000000000520007, 'SNOMED'),
-('series_uid', 'Series', 13039001, 'SNOMED'),
-('value', 'Quantitative value', 30766002, 'SNOMED'),
-('id', 'Identifier', 118522005, 'SNOMED'),
-('sex', 'Gender', 263495000, 'SNOMED'),
-('age', 'Age', 397669002, 'SNOMED'),
-('ethnic_group', 'Ethnic group', 372148003, 'SNOMED'),
-('study_instance_uid', 'Identifier of study', -1, ''),
+('data_description_uri', 'Description uri', -1, ''),
+
+-- =========================
+-- STUDY
+-- =========================
+('study_instance_uid', 'Identifier', 118522005, 'SNOMED'),
+('collection_name_study', 'Collection', -1, ''),
+('study_date', 'Date', 410671006, 'SNOMED'),
+('date_released', 'Date of release', 439771001, 'SNOMED'),
+('study_description', 'Description in dialect', 900000000000510002, 'SNOMED'),
+('SeriesCount', 'Count of series', 410681005, 'SNOMED'),
+('patient_id_study', 'Patient', 116154003, 'SNOMED'),
+('longitudinal_temporal_event_type', 'Event', 272379006, 'SNOMED'),
+('longitudinal_temporal_offset_from_event', 'Relative time', 118578006, 'SNOMED'),
+
+-- =========================
+-- SERIES
+-- =========================
+('series_instance_uid', 'Identifier', 118522005, 'SNOMED'),
+('StudyInstanceUID_series', 'Identifier of study', -1, ''),
 ('modality', 'Imaging modality', 360037004, 'SNOMED'),
-('body_part', 'Body part', 38866009, 'SNOMED'),
+('body_part_examined', 'Body part', 38866009, 'SNOMED'),
 ('protocol_name', 'Protocols', 258049002, 'SNOMED'),
 ('series_date', 'Date', 410671006, 'SNOMED'),
 ('series_description', 'Description in dialect', 900000000000510002, 'SNOMED'),
@@ -96,18 +112,29 @@ VALUES
 ('max_submission_timestamp', 'Timestamp', 398215006, 'SNOMED'),
 ('file_size', 'File size bytes', -1, ''),
 ('third_party_analysis', 'Third party analysis', -1, ''),
-('collection', 'Collection', -1, ''),
-('date', 'Date', 410671006, 'SNOMED'),
-('date_released', 'Date of release', 439771001, 'SNOMED'),
-('series_count', 'Count of series', 410681005, 'SNOMED'),
-('patient_id', 'Patient', 116154003, 'SNOMED'),
-('longitudinal_temporal_event_type', 'Event', 272379006, 'SNOMED'),
-('longitudinal_temporal_offset_from_event', 'Relative time', 118578006, 'SNOMED');
 
+-- =========================
+-- PATIENT
+-- =========================
+('patient_id', 'Identifier', 118522005, 'SNOMED'),
+('patient_sex', 'Gender', 263495000, 'SNOMED'),
+('patient_age', 'Age', 397669002, 'SNOMED'),
+('ethnic_group', 'Ethnic group', 372148003, 'SNOMED'),
+
+-- =========================
+-- EXTRACTION
+-- =========================
+('id', 'identifier', 118522005, 'SNOMED'),
+('image_number', 'Image', 900000000000520007, 'SNOMED'),
+('series_instance_uid_extraction', 'Series', 13039001, 'SNOMED'),
+('feature_name', 'Name', 734841007, 'SNOMED'),
+('value', 'Quantitative value', 30766002, 'SNOMED');
+
+-- value mappings
 CREATE TABLE IF NOT EXISTS value_mappings (
     original_value VARCHAR PRIMARY KEY,
     standardized_value VARCHAR,
-    code INTEGER,
+    code BIGINT,
     vocabulary VARCHAR
 );
 

@@ -132,7 +132,7 @@ def add_extraction(image_number, series_uid, feature_name, value):
     try:
         data = {
             "image_number": image_number,
-            "series_uid": series_uid,
+            "series_instance_uid_extraction": series_uid,
             "feature_name": feature_name,
             "value": value,
         }
@@ -457,3 +457,79 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     patient = temp
 
     return patient
+
+
+# SNOMED mapped fields retrieval
+
+
+def get_series_SNOMED_fields():
+    to_select = [
+        "SeriesInstanceUID",
+        "StudyInstanceUID",
+        "Modality",
+        "BodyPartExamined",
+        "ProtocolName",
+        "StudyDate",
+        "SeriesDescription",
+        "Site",
+        "Manufacturer",
+        "ManufacturerModelName",
+        "SoftwareVersions",
+        "ImageCount",
+        "MaxSubmissionTimestamp",
+        "FileSize",
+        "ThirdPartyAnalysis",
+        "Collection",
+        "PatientID",
+    ]
+    session = SessionLocal()
+
+    try:
+        mappings = dict(repo.get_SNOMED_fields(session))
+
+        fields = [mappings[field] for field in to_select]
+
+        return fields
+
+    finally:
+        session.close()
+
+
+def get_study_SNOMED_fields():
+    to_select = [
+        "StudyInstanceUID",
+        "Collection",
+        "StudyDate",
+        "DateReleased",
+        "StudyDescription",
+        "SeriesCount",
+        "PatientID",
+        "LongitudinalTemporalEventType",
+        "LongitudinalTemporalOffsetFromEvent",
+    ]
+    session = SessionLocal()
+
+    try:
+        mappings = dict(repo.get_SNOMED_fields(session))
+
+        fields = [mappings[field] for field in to_select]
+
+        return fields
+
+    finally:
+        session.close()
+
+
+def get_patient_SNOMED_fields():
+    to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
+    session = SessionLocal()
+
+    try:
+        mappings = dict(repo.get_SNOMED_fields(session))
+
+        fields = [mappings[field] for field in to_select]
+
+        return fields
+
+    finally:
+        session.close()
