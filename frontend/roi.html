@@ -1,92 +1,146 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>ROI Selector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MedVault – ROI Selector</title>
+    <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="roi.css" />
   </head>
-  <body>
-    <header id="roiHeader">
-      <div class="header-controls">
-        <label for="objectKeyInput">Object key</label>
+  <body class="roi-page">
+
+    <!-- HEADER -->
+    <header class="roi-topbar">
+      
+      <div class="roi-header-controls">
+        <label class="roi-label" for="objectKeyInput">Object key</label>
         <input
           id="objectKeyInput"
           type="text"
           placeholder="e.g. samples/brain.png"
           autocomplete="off"
+          class="roi-input"
         />
-        <button id="loadImageBtn">Load image</button>
+        <button id="loadImageBtn" class="">Load image</button>
+        <span id="loadStatus" class="roi-status">Awaiting image</span>
       </div>
-      <span id="loadStatus" class="status">Awaiting image</span>
+
+      
     </header>
 
-    <div id="container">
-      <div id="toolbars">
-        <!-- ROI DECISION -->
-        <div id="roiToolbar" class="toolbar-group">
-          <button id="roiBtn">ROI Decision ▾</button>
-          <div id="roiMenu" class="dropdown-menu hidden">
-            <div class="roi-option" data-type="polygon">ROI Polygon</div>
-            <div class="roi-option" data-type="ellipse">ROI Ellipse</div>
-            <div class="roi-option" data-type="freehand">ROI Free Hand</div>
-          </div>
-        </div>
+    <!-- MAIN LAYOUT -->
+    <div id="container" class="roi-container">
 
-        <!-- FEATURE EXTRACTION -->
-        <div id="featureToolbar" class="toolbar-group">
-          <button id="featureBtn">Feature Extraction ▾</button>
-          <div id="featureMenu" class="dropdown-menu hidden">
-            <label class="feature-option"><input type="checkbox" value="mean" /> Mean</label>
-            <label class="feature-option"><input type="checkbox" value="std" /> Standard Deviation</label>
-            <label class="feature-option"><input type="checkbox" value="eccentricity" /> Eccentricity</label>
-            <label class="feature-option"><input type="checkbox" value="histogram" /> Histogram</label>
-            <label class="feature-option"><input type="checkbox" value="glcm_homogeneity" /> GLCM Homogeneity</label>
-            <label class="feature-option"><input type="checkbox" value="glcm_correlation" /> GLCM Correlation</label>
-            <label class="feature-option"><input type="checkbox" value="glrlm_sre" /> GLRLM Short Run Emphasis</label>
-            <label class="feature-option"><input type="checkbox" value="glszm_ze" /> GLSZM Zone Entropy</label>
-            <label class="feature-option"><input type="checkbox" value="ngtdm_coarseness" /> NGTDM Coarseness</label>
-            <label class="feature-option"><input type="checkbox" value="ngtdm_contrast" /> NGTDM Contrast</label>
-            <label class="feature-option"><input type="checkbox" value="ngtdm_busyness" /> NGTDM Busyness</label>
-            <div class="feature-actions">
-              <button id="selectAllBtn">All</button>
-              <button id="clearAllBtn">Clear</button>
+      <!-- TOOLBARS -->
+      <aside class="sidebar">
+        <div id="toolbars" class="roi-toolbars">
+          <div class="roi-brand">
+            <div class="brand-icon">+</div>
+            <div>
+              <h1>MedVault</h1>
+              <p>ROI Selector</p>
+            </div>
+          </div>
+
+          <a class="roi-back-link" href="index.html">← Back</a>
+          
+          <!-- ROI DECISION -->
+          <div id="roiToolbar" class="toolbar-group">
+            <button id="roiBtn" class="toolbar-btn">ROI Decision ▾</button>
+            <div id="roiMenu" class="dropdown-menu hidden">
+              <div class="roi-option" data-type="polygon">
+                <span class="roi-option-icon">⬡</span> ROI Polygon
+              </div>
+              <div class="roi-option" data-type="ellipse">
+                <span class="roi-option-icon">⬭</span> ROI Ellipse
+              </div>
+              <div class="roi-option" data-type="freehand">
+                <span class="roi-option-icon">✏</span> ROI Free Hand
+              </div>
+            </div>
+          </div>
+
+          <!-- FEATURE EXTRACTION -->
+          <div id="featureToolbar" class="toolbar-group">
+            <button id="featureBtn" class="toolbar-btn">Feature Extraction ▾</button>
+            <div id="featureMenu" class="dropdown-menu hidden">
+              <label class="feature-option"><input type="checkbox" value="mean" /> Mean</label>
+              <label class="feature-option"><input type="checkbox" value="std" /> Standard Deviation</label>
+              <label class="feature-option"><input type="checkbox" value="eccentricity" /> Eccentricity</label>
+              <label class="feature-option"><input type="checkbox" value="histogram" /> Histogram</label>
+              <label class="feature-option"><input type="checkbox" value="glcm_homogeneity" /> GLCM Homogeneity</label>
+              <label class="feature-option"><input type="checkbox" value="glcm_correlation" /> GLCM Correlation</label>
+              <label class="feature-option"><input type="checkbox" value="glrlm_sre" /> GLRLM Short Run Emphasis</label>
+              <label class="feature-option"><input type="checkbox" value="glszm_ze" /> GLSZM Zone Entropy</label>
+              <label class="feature-option"><input type="checkbox" value="ngtdm_coarseness" /> NGTDM Coarseness</label>
+              <label class="feature-option"><input type="checkbox" value="ngtdm_contrast" /> NGTDM Contrast</label>
+              <label class="feature-option"><input type="checkbox" value="ngtdm_busyness" /> NGTDM Busyness</label>
+              <div class="feature-actions">
+                <button id="selectAllBtn">All</button>
+                <button id="clearAllBtn">Clear</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </aside>
 
-      <div id="left">
-        <h3>ROI Selection</h3>
-        <div id="canvasContainer">
+      <!-- LEFT: ROI SELECTION -->
+      <div id="left" class="roi-panel">
+        <div class="panel-header">
+          <h2>ROI Selection</h2>
+          <div id="zoomControls" class="zoom-controls">
+            <button id="zoomOutBtn" class="zoom-btn" title="Zoom out">−</button>
+            <button id="zoomInBtn" class="zoom-btn" title="Zoom in">+</button>
+          </div>
+        </div>
+        <div id="canvasContainer" class="canvas-container">
           <canvas id="canvas"></canvas>
         </div>
       </div>
 
-      <div id="zoomControls">
-        <button id="zoomInBtn">+</button>
-        <button id="zoomOutBtn">-</button>
-      </div>
-
-      <div id="right">
-        <h3>ROI Preview</h3>
-        <div id="previewWrapper">
+      <!-- RIGHT: PREVIEW + FEATURES -->
+      <div id="right" class="roi-panel">
+        <div class="panel-header">
+          <h2>ROI Preview</h2>
+        </div>
+        <div id="previewWrapper" class="preview-wrapper">
           <canvas id="previewCanvas"></canvas>
         </div>
 
-        <div id="featuresPanel">
-          <h3>Extracted Features</h3>
-          <div id="featuresStatus">No features computed yet.</div>
+        <div id="featuresPanel" class="features-panel">
+          <div class="features-panel-header">
+            <h3>Extracted Features</h3>
+            <span id="featuresStatus" class="features-status-badge">No features computed yet</span>
+          </div>
           <div id="featuresList" class="features-list"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CONFIRM DIALOG -->
+    <div id="dialog" class="roi-dialog" style="display:none;" data-flex-display="flex">
+      <div class="roi-dialog-inner">
+        <div class="roi-dialog-icon">✓</div>
+        <p class="roi-dialog-title">Confirm ROI selection?</p>
+        <p class="roi-dialog-sub">Do you want to extract features from this region?</p>
+        <div class="roi-dialog-actions">
+          <button id="yesBtn" class="btn-primary">Confirm</button>
+          <button id="noBtn" class="btn-outline">Redraw</button>
         </div>
       </div>
     </div>
 
-    <div id="dialog">
-      <p>La ROI selezionata è corretta?</p>
-      <button id="yesBtn">Sì</button>
-      <button id="noBtn">No</button>
-    </div>
-
+    <script>
+      // Patch: roi.js sets dialog.style.display = "block" but the overlay needs "flex"
+      document.addEventListener("DOMContentLoaded", () => {
+        const dlg = document.getElementById("dialog");
+        const observer = new MutationObserver(() => {
+          if (dlg.style.display === "block") dlg.style.display = "flex";
+        });
+        observer.observe(dlg, { attributes: true, attributeFilter: ["style"] });
+      });
+    </script>
     <script src="roi.js"></script>
   </body>
 </html>

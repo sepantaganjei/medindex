@@ -1,201 +1,359 @@
-body {
+/* ============================================
+   ROI TOOL — aligned with MedVault styles.css
+   ============================================ */
+
+/* Page shell */
+body.roi-page {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f6f8fb;
+  font-family: Inter, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
 
-#roiHeader {
+/* ── TOPBAR ─────────────────────────────────── */
+.roi-topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  background: #fff;
-  border-bottom: 1px solid #d7dde5;
+  gap: 20px;
+  padding: 0 20px;
+  height: 60px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
   flex-wrap: wrap;
 }
 
-#roiHeader .header-controls {
+.roi-brand {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-#roiHeader input {
-  padding: 6px 10px;
-  border: 1px solid #c5ccd6;
-  border-radius: 6px;
-  min-width: 260px;
-}
-
-#roiHeader button {
-  padding: 7px 12px;
-  border-radius: 6px;
-  border: 1px solid #76839a;
-  background: #fff;
-  cursor: pointer;
-}
-
-#roiHeader button:hover {
-  background: #eef1f6;
-}
-
-#loadStatus {
-  font-size: 13px;
-  color: #475569;
-}
-
-/* LAYOUT PRINCIPALE */
-#container {
-  display: flex;
-  flex: 1;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 10px;
   gap: 10px;
-  overflow: hidden;
-}
-
-/* BARRA TOOLBAR (contiene ROI + Feature) */
-#toolbars {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
   flex-shrink: 0;
 }
 
-/* SINGOLO GRUPPO TOOLBAR */
+.roi-brand h1 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.roi-brand p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.roi-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.roi-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.roi-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.roi-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.roi-status {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.roi-back-link {
+  margin-top: 2em;
+  margin-right: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  transition: 0.15s ease;
+}
+
+.roi-back-link:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ── SHARED BUTTON VARIANTS ────────────────── */
+.btn-primary {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-outline {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  transition: 0.15s ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ── MAIN CONTAINER ─────────────────────────── */
+.roi-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── TOOLBARS COLUMN ────────────────────────── */
+.roi-toolbars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── TOOLBAR GROUPS ─────────────────────────── */
 .toolbar-group {
   position: relative;
 }
 
-.toolbar-group > button {
+.toolbar-btn {
   width: 100%;
   white-space: nowrap;
-  padding: 8px 12px;
+  padding: 9px 14px;
   cursor: pointer;
-  font-size: 14px;
-  background: #fff;
-  border: 1px solid #999;
-  border-radius: 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
   text-align: left;
+  transition: 0.15s ease;
 }
 
-.toolbar-group > button:hover {
-  background: #f0f0f0;
+.toolbar-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
 }
 
-/* MENU A TENDINA (comune a entrambi) */
+/* ── DROPDOWN MENU ──────────────────────────── */
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
-  background: white;
-  border: 1px solid #bbb;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-soft), 0 8px 24px rgba(15, 23, 42, 0.1);
   z-index: 2000;
-  min-width: 220px;
+  min-width: 230px;
+  overflow: hidden;
 }
 
 .hidden {
   display: none;
 }
 
-/* OPZIONI ROI */
+/* ROI options */
 .roi-option {
-  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
   cursor: pointer;
   font-size: 14px;
+  color: var(--text);
+  transition: 0.1s ease;
 }
 
 .roi-option:hover {
-  background: #eee;
+  background: var(--surface-soft);
+  color: var(--primary);
 }
 
-/* OPZIONI FEATURE (checkbox) */
+.roi-option-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Feature options (checkbox rows) */
 .feature-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 10px;
+  padding: 9px 16px;
   cursor: pointer;
   font-size: 13px;
+  color: var(--text);
   user-select: none;
+  transition: 0.1s ease;
 }
 
 .feature-option:hover {
-  background: #f0f0f0;
+  background: var(--surface-soft);
 }
 
 .feature-option input[type="checkbox"] {
   width: 15px;
   height: 15px;
   cursor: pointer;
-  accent-color: #0066cc;
+  accent-color: var(--primary);
   flex-shrink: 0;
 }
 
-/* PULSANTI ALL / CLEAR */
 .feature-actions {
   display: flex;
-  gap: 6px;
-  padding: 8px 14px;
-  border-top: 1px solid #eee;
-  margin-top: 2px;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
 }
 
 .feature-actions button {
   flex: 1;
-  padding: 5px 0;
+  padding: 6px 0;
+  font: inherit;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  border: 1px solid #bbb;
-  border-radius: 3px;
-  background: #f8f8f8;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  transition: 0.15s ease;
 }
 
 .feature-actions button:hover {
-  background: #e8e8e8;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-/* COLONNE */
-#left,
-#right {
+/* ── PANELS (left / right) ──────────────────── */
+.roi-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding: 12px;
+  gap: 10px;
 }
 
-h3 {
-  margin: 5px 0 10px 0;
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
 }
 
-/* AREA CANVAS */
-#canvasContainer {
+.panel-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ── ZOOM CONTROLS ──────────────────────────── */
+.zoom-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  transition: 0.15s ease;
+  line-height: 1;
+}
+
+.zoom-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+/* ── CANVAS CONTAINER ───────────────────────── */
+.canvas-container {
   flex: 1;
-  border: 1px solid #444;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   overflow: hidden;
-  background: #222;
+  background: radial-gradient(circle at center, #1e293b 0%, var(--viewer-bg) 65%);
   position: relative;
+  min-height: 0;
 }
 
 #canvas {
   display: block;
 }
 
-/* PREVIEW */
-#previewWrapper {
-  flex: 1;
-  border: 1px solid #444;
+/* ── PREVIEW WRAPPER ────────────────────────── */
+.preview-wrapper {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   overflow: hidden;
-  background: #ddd;
+  background: var(--surface-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -206,20 +364,41 @@ h3 {
   max-height: 100%;
 }
 
-#featuresPanel {
-  margin-top: 12px;
-  background: #fff;
-  border: 1px solid #d7dde5;
-  border-radius: 6px;
-  padding: 10px;
-  max-height: 40%;
+/* ── FEATURES PANEL ─────────────────────────── */
+.features-panel {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
   overflow: auto;
+  min-height: 0;
+  box-shadow: var(--shadow-soft);
 }
 
-#featuresStatus {
-  font-size: 13px;
-  color: #475569;
-  margin-bottom: 8px;
+.features-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.features-panel-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.features-status-badge {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
 }
 
 .features-list {
@@ -233,40 +412,91 @@ h3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f1f5f9;
-  border-radius: 4px;
-  padding: 4px 6px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
   gap: 8px;
 }
 
 .feature-item span:first-child {
-  color: #475569;
+  color: var(--text-muted);
 }
 
-/* ZOOM BUTTONS */
-#zoomControls {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
+.feature-item span:last-child {
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
 }
 
-#zoomControls button {
-  width: 50px;
-  height: 50px;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-/* DIALOG */
-#dialog {
+/* ── DIALOG ─────────────────────────────────── */
+.roi-dialog {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  border: 1px solid black;
-  padding: 20px;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 5000;
-  display: none;
+}
+
+.roi-dialog-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+}
+
+.roi-dialog-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 2px solid var(--accent);
+  color: var(--accent-hover);
+  font-size: 22px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+}
+
+.roi-dialog-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.roi-dialog-sub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.roi-dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+/* ── RESPONSIVE ─────────────────────────────── */
+@media (max-width: 800px) {
+  .roi-container {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .roi-toolbars { 
+    flex-direction: row;
+  }
+
+  .canvas-container {
+    height: 300px;
+    flex: none;
+  }
 }
