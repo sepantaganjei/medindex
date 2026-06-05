@@ -146,7 +146,7 @@ def get_series_on_collection(session, collection_name):
         .query(Series)
         .join(Series.study)
         .options(joinedload(Series.study))
-        .filter(Study.collection == collection_name)
+        .filter(Study.collection_name_study == collection_name)
         .all()
     )
 
@@ -347,3 +347,12 @@ def get_SNOMED_fields(session):
     return session.query(
         FieldMapping.field_name_dicom, FieldMapping.standardized_field_name
     ).all()
+
+
+def SNOMED_value_mapping(session, original_value):
+    return (
+        session
+        .query(ValueMapping.standardized_value)
+        .filter(ValueMapping.original_value == original_value)
+        .scalar()
+    )

@@ -179,24 +179,56 @@ def get_collections_available_for_download():
 
 
 def get_all_series(collection_name):
+    fields_to_map = [
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+    ]
+
     session = SessionLocal()
 
     try:
         if not collection_name:
-            return repo.get_all_series(session)
+            list_of_series = repo.get_all_series(session)
+        else:
+            list_of_series = repo.get_series_on_collection(session, collection_name)
 
-        return repo.get_series_on_collection(session, collection_name)
+        for series in list_of_series:
+            for field in fields_to_map:
+                value = getattr(series, field)
+
+                if value:
+                    standardized_value = repo.SNOMED_value_mapping(session, value)
+
+                    if standardized_value:
+                        setattr(series, field, standardized_value)
+
+        return list_of_series
 
     finally:
         session.close()
 
 
 def get_patient_on_id(id):
+    fields_to_map = ["patient_sex", "ethnic_group"]
     session = SessionLocal()
 
     try:
-        return repo.get_patient_on_id(session, id)
+        patient = repo.get_patient_on_id(session, id)
+        for field in fields_to_map:
+            value = getattr(patient, field)
+            if value:
+                standardized_value = repo.SNOMED_value_mapping(session, value)
 
+                if standardized_value:
+                    setattr(patient, field, standardized_value)
+
+        return patient
     finally:
         session.close()
 
@@ -236,6 +268,7 @@ def get_all_extractions():
 
 
 def get_series_on_demand(collectionName):
+    # Retrieval
     to_select = [
         "SeriesInstanceUID",
         "StudyInstanceUID",
@@ -257,7 +290,7 @@ def get_series_on_demand(collectionName):
     ]
 
     map = {
-        "SeriesInstanceUID": "study_instance_uid_series",
+        "SeriesInstanceUID": "series_instance_uid",
         "StudyInstanceUID": "study_instance_uid_series",
         "Modality": "modality",
         "BodyPartExamined": "body_part_examined",
@@ -285,7 +318,34 @@ def get_series_on_demand(collectionName):
 
         series_to_return[i] = temp
 
-    return series_to_return
+    # Mapping
+    fields_to_map = [
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+    ]
+
+    session = SessionLocal()
+    try:
+        for series in series_to_return:
+            for field in fields_to_map:
+                original_value = series.get(field)
+                if original_value:
+                    standardized_value = repo.SNOMED_value_mapping(
+                        session, original_value
+                    )
+
+                    if standardized_value:
+                        series[field] = standardized_value
+
+        return series_to_return
+    finally:
+        session.close()
 
 
 def get_series_on_demand_on_uid(uid):
@@ -337,10 +397,35 @@ def get_series_on_demand_on_uid(uid):
 
     series = temp
 
-    return series
+    # Mapping
+    fields_to_map = [
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+    ]
+
+    session = SessionLocal()
+    try:
+        for field in fields_to_map:
+            original_value = series.get(field)
+            if original_value:
+                standardized_value = repo.SNOMED_value_mapping(session, original_value)
+
+                if standardized_value:
+                    series[field] = standardized_value
+
+        return series
+    finally:
+        session.close()
 
 
 def get_series_on_demand_on_study_uid(study_uid):
+    # Retrieval
     to_select = [
         "SeriesInstanceUID",
         "StudyInstanceUID",
@@ -390,7 +475,34 @@ def get_series_on_demand_on_study_uid(study_uid):
 
         series_to_return[i] = temp
 
-    return series_to_return
+    # Mapping
+    fields_to_map = [
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+    ]
+
+    session = SessionLocal()
+    try:
+        for series in series_to_return:
+            for field in fields_to_map:
+                original_value = series.get(field)
+                if original_value:
+                    standardized_value = repo.SNOMED_value_mapping(
+                        session, original_value
+                    )
+
+                    if standardized_value:
+                        series[field] = standardized_value
+
+        return series_to_return
+    finally:
+        session.close()
 
 
 def get_studies_on_demand(collectionName):
@@ -427,7 +539,25 @@ def get_studies_on_demand(collectionName):
 
         studies_to_return[i] = temp
 
-    return studies_to_return
+    # Mapping
+    fields_to_map = ["study_description", "longitudinal_temporal_event_type"]
+
+    session = SessionLocal()
+    try:
+        for study in studies_to_return:
+            for field in fields_to_map:
+                original_value = study.get(field)
+                if original_value:
+                    standardized_value = repo.SNOMED_value_mapping(
+                        session, original_value
+                    )
+
+                    if standardized_value:
+                        study[field] = standardized_value
+
+        return studies_to_return
+    finally:
+        session.close()
 
 
 def get_patients_on_demand(collectionName):
@@ -449,7 +579,21 @@ def get_patients_on_demand(collectionName):
 
         patients_to_return[i] = temp
 
-    return patients_to_return
+    fields_to_map = ["patient_sex", "ethnic_group"]
+    session = SessionLocal()
+    try:
+        for patient in patients_to_return:
+            for field in fields_to_map:
+                value = patient.get(field)
+                if value:
+                    standardized_value = repo.SNOMED_value_mapping(session, value)
+
+                    if standardized_value:
+                        patient[field] = standardized_value
+
+        return patients_to_return
+    finally:
+        session.close()
 
 
 def get_patients_on_demand_on_id(collectionName, patient_id):
@@ -470,7 +614,20 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
 
     patient = temp
 
-    return patient
+    fields_to_map = ["patient_sex", "ethnic_group"]
+    session = SessionLocal()
+    try:
+        for field in fields_to_map:
+            value = patient.get(field)
+            if value:
+                standardized_value = repo.SNOMED_value_mapping(session, value)
+
+                if standardized_value:
+                    patient[field] = standardized_value
+
+        return patient
+    finally:
+        session.close()
 
 
 # SNOMED mapped fields retrieval
