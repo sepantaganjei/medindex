@@ -18,6 +18,12 @@ const imageSlider = document.getElementById("image-slider");
 const metadataContent = document.getElementById("metadata-content");
 const metadataSeriesTab = document.getElementById("metadata-series-tab");
 const metadataPatientTab = document.getElementById("metadata-patient-tab");
+const viewerPlaceholder = document.getElementById("viewer-placeholder");
+const viewerLoading = document.getElementById("viewer-loading");
+const viewerError = document.getElementById("viewer-error");
+const dicomViewer = document.getElementById("dicom-viewer");
+const dicomImage = document.getElementById("dicom-image");
+const viewerControls = document.querySelector(".viewer-controls");
 
 const seriesViewButton = document.getElementById("series-view-button");
 const availableViewButton = document.getElementById("available-view-button");
@@ -76,6 +82,7 @@ let isAvailableCollectionsLoading = true;
 let seriesPage = 1;
 let availableCollectionsPage = 1;
 let dicomPage = 1;
+let activeImageObjects = [];
 
 const seriesPageSize = 100;
 const availableCollectionsPageSize = 25;
@@ -121,6 +128,140 @@ function getPatientAgeDisplayValue(value) {
   }
 
   return getDisplayValue(value);
+}
+
+function getSeriesSource(series) {
+  if (series?.source) {
+    return series.source;
+  }
+
+  if (String(series?.modality ?? "").trim().toUpperCase() === "NIFTI") {
+    return "NIfTI";
+  }
+
+  const collectionMeta = collections.find(
+    (collection) => collection.id === series.collection,
+  );
+
+  if (collectionMeta?.source) {
+    return collectionMeta.source;
+  }
+
+  return "DICOM";
+}
+
+function normalizeViewerSeries(series) {
+  if (series?.seriesUid) {
+    return {
+      ...series,
+      source: getSeriesSource(series),
+    };
+  }
+
+  return {
+    seriesUid: series.instance_uid ?? series.seriesUid ?? "",
+    studyUid: series.study_instance_uid ?? "",
+    patientId: series.patient_id ?? "Unknown",
+    modality: series.modality ?? "Unknown",
+    bodyPart: series.body_part ?? "",
+    protocolName: series.protocol_name ?? "",
+    seriesDate: series.series_date ?? "",
+    description: series.series_description ?? "",
+    numImages: series.image_count ?? 0,
+    collection: series.collection ?? "",
+    manufacturer: series.manufacturer ?? "",
+    manufacturerModelName: series.manufacturer_model_name ?? "",
+    source: "DICOM",
+  };
+}
+
+function resetViewerState() {
+  viewerLoading?.classList.add("hidden");
+  viewerError?.classList.add("hidden");
+  viewerPlaceholder?.classList.add("hidden");
+  dicomViewer?.classList.add("hidden");
+  viewerControls?.classList.add("hidden");
+  activeImageObjects = [];
+
+  if (dicomImage) {
+    dicomImage.removeAttribute("src");
+  }
+}
+
+function setViewerLoading(message) {
+  if (viewerLoading) {
+    viewerLoading.textContent = message;
+    viewerLoading.classList.remove("hidden");
+  }
+  viewerError?.classList.add("hidden");
+  viewerPlaceholder?.classList.add("hidden");
+}
+
+function setViewerError(message) {
+  if (viewerError) {
+    viewerError.textContent = message;
+    viewerError.classList.remove("hidden");
+  }
+  viewerLoading?.classList.add("hidden");
+  dicomViewer?.classList.add("hidden");
+}
+
+function showImageSlice(index) {
+  if (!dicomImage || activeImageObjects.length === 0) {
+    return;
+  }
+
+  const clampedIndex = Math.max(0, Math.min(index, activeImageObjects.length - 1));
+  const object = activeImageObjects[clampedIndex];
+  dicomImage.onload = () => {
+    viewerLoading?.classList.add("hidden");
+  };
+  dicomImage.onerror = () => {
+    setViewerError("Image slice failed to render.");
+  };
+  dicomImage.src = object.url;
+}
+
+function loadImageSliceViewer(viewerInfo) {
+  activeImageObjects = viewerInfo.objects ?? [];
+  if (activeImageObjects.length === 0) {
+    throw new Error("No images were found for this series.");
+  }
+
+  dicomViewer?.classList.remove("hidden");
+  viewerPlaceholder?.classList.add("hidden");
+  viewerControls?.classList.remove("hidden");
+
+  if (imageSlider) {
+    imageSlider.min = 1;
+    imageSlider.max = activeImageObjects.length;
+    imageSlider.value = 1;
+  }
+  if (viewerImages) {
+    viewerImages.textContent =
+      viewerInfo.source === "NIfTI"
+        ? `${activeImageObjects.length} slices`
+        : `${activeImageObjects.length} images`;
+  }
+
+  showImageSlice(0);
+}
+
+async function loadViewerForSeries(series) {
+  resetViewerState();
+  setViewerLoading("Loading image series...");
+
+  try {
+    const viewerInfo = await fetchSeriesViewer(
+      apiBaseUrl,
+      series.seriesUid,
+      series.collection,
+    );
+    loadImageSliceViewer(viewerInfo);
+  } catch (error) {
+    console.error("Viewer load failed", error);
+    setViewerError(`Viewer failed: ${error.message}`);
+  }
 }
 
 function renderCollections() {
@@ -886,7 +1027,7 @@ async function handleCollectionDownload(collectionName, button) {
 }
 
 function openViewer(series) {
-  activeViewerSeries = series;
+  activeViewerSeries = normalizeViewerSeries(series);
   lastSearchScrollY = window.scrollY;
   updateBackToTopButton();
   appShell.classList.add("viewer-mode");
@@ -894,17 +1035,28 @@ function openViewer(series) {
   searchPage.classList.remove("active");
   viewerPage.classList.add("active");
 
-  viewerTitle.textContent = `${normalizeModality(series.modality)} series`;
-  viewerSubtitle.textContent = `${series.patientId} · ${getDisplayValue(
-    series.bodyPart,
+  viewerTitle.textContent = `${normalizeModality(activeViewerSeries.modality)} series`;
+  viewerSubtitle.textContent = `${activeViewerSeries.patientId} · ${getDisplayValue(
+    activeViewerSeries.bodyPart,
   )}`;
-  viewerModality.textContent = normalizeModality(series.modality);
-  viewerImages.textContent = `${series.numImages} images`;
+  viewerModality.textContent = normalizeModality(activeViewerSeries.modality);
 
-  imageSlider.max = series.numImages;
-  imageSlider.value = Math.ceil(series.numImages / 2);
+  if (getSeriesSource(activeViewerSeries) === "NIfTI") {
+    viewerImages.textContent = "NIfTI volume";
+  } else {
+    viewerImages.textContent = `${activeViewerSeries.numImages} images`;
+  }
 
-  renderSeriesMetadata(series);
+  imageSlider.max = activeViewerSeries.numImages || 1;
+  imageSlider.value = Math.ceil((activeViewerSeries.numImages || 1) / 2);
+
+  renderSeriesMetadata(activeViewerSeries);
+  if (!activeViewerSeries.seriesUid) {
+    setViewerError("Missing series UID. Unable to load viewer.");
+    return;
+  }
+
+  loadViewerForSeries(activeViewerSeries);
 }
 
 function closeViewer() {
@@ -913,6 +1065,7 @@ function closeViewer() {
 
   viewerPage.classList.remove("active");
   searchPage.classList.add("active");
+  resetViewerState();
 
   requestAnimationFrame(() => {
     window.scrollTo({
@@ -946,6 +1099,11 @@ modalityFilter.addEventListener("change", () => {
   renderSeries();
 });
 backButton.addEventListener("click", closeViewer);
+imageSlider.addEventListener("input", () => {
+  if (activeImageObjects.length > 0) {
+    showImageSlice(Number(imageSlider.value) - 1);
+  }
+});
 window.addEventListener("scroll", updateBackToTopButton);
 backToTopButton.addEventListener("click", scrollToTop);
 
@@ -973,9 +1131,8 @@ clearCollectionsButton.addEventListener("click", () => {
   renderSeries();
 });
 
-const apiBaseUrl =
-  new URLSearchParams(window.location.search).get("apiBaseUrl") ??
-  window.location.origin;
+const queryParams = new URLSearchParams(window.location.search);
+const apiBaseUrl = queryParams.get("apiBaseUrl") ?? window.location.origin;
 
 async function initializeData() {
   collections = [];

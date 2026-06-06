@@ -22,6 +22,14 @@ class Config:
     object_storage_secret_key: str = os.getenv("OBJECT_STORAGE_SECRET_KEY", "minioadmin")
     object_storage_bucket: str = os.getenv("OBJECT_STORAGE_BUCKET", "bioimages")
     object_storage_secure: bool = os.getenv("OBJECT_STORAGE_SECURE", "false").lower() == "true"
+    cors_allow_origins: tuple[str, ...] = tuple(
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+        if origin.strip()
+    ) or (
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    )
 
     @property
     def database_url(self) -> str:

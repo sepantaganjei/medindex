@@ -34,3 +34,88 @@ docker compose up
 The API will be available at `http://localhost:8000` (endpoints under `/api`, object storage under `/api/object-storage`).
 The frontend mock UI will be available at `http://localhost:8080`.
 MinIO will be available at `http://localhost:9000` (API) and `http://localhost:9001` (console).
+
+## Viewer assets
+
+Uploaded viewer assets are read directly from the ZIP ingestion MinIO layout:
+
+```text
+collection_name/patient_id/study_uid/series_uid/file_name
+```
+
+Backend viewer endpoints:
+
+- `GET /api/viewer/series/{series_uid}?collection=...`
+- `GET /api/viewer/dicom/render?object_name=...`
+
+The frontend renders DICOM and NIfTI slices as PNG images returned by the API.
+NIfTI PNG slices are generated from the original `.nii` or `.nii.gz` object with
+SimpleITK.
+
+## ZIP Dataset Ingestion
+
+Use `POST /api/addZipDataset` to ingest uploaded DICOM or NIfTI ZIP archives. The endpoint stores collection, patient, study, and series metadata in the database and uploads image files to MinIO.
+
+Common multipart fields:
+
+- `dataset_type`: `dicom` or `nifti`
+- `zip_file`: ZIP archive
+- `metadata_file`: optional `.csv` or `.xlsx` metadata file outside the ZIP
+- `collection_name`: optional; defaults to the single top-level ZIP folder or ZIP filename
+- `description`: optional
+- `column_mapping`: optional JSON object for spreadsheet column aliases
+
+### DICOM ZIP
+
+DICOM metadata is read from the actual uploaded DICOM file headers. Files missing `PatientID`, `StudyInstanceUID`, or `SeriesInstanceUID` are skipped; non-DICOM files are skipped with a warning. MinIO object names use:
+
+```text
+collection_name/patient_id/study_instance_uid/series_instance_uid/sop_instance_uid.dcm
+```
+
+Example:
+
+```bash
+curl -X POST http://localhost:8000/api/addZipDataset \
+  -F dataset_type=dicom \
+  -F collection_name=LungStudy \
+  -F description="Local DICOM upload" \
+  -F zip_file=@dicom_dataset.zip
+```
+
+### NIfTI ZIP
+
+NIfTI files are discovered by `.nii` and `.nii.gz` suffix. Optional `.xlsx` or `.csv` metadata rows can be supplied either inside the ZIP or as the separate `metadata_file` multipart field. External `metadata_file` takes precedence when both are present. Metadata rows are used only when they can be linked unambiguously to files by `relative_path`, `file_path`, `path`, `file_name`, `filename`, `nifti_file`, or `object_name`. A single metadata row may also match a single NIfTI file.
+
+If the spreadsheet has no file linkage column, ingestion can still use TCIA-style metadata such as `Patient ID`, `Patient Sex`, `Study Instance UID`, and `Study Date` when the patient ID appears in the NIfTI folder or filename. Series IDs are only taken from the spreadsheet when the NIfTI filename maps unambiguously to one series row; otherwise the series ID is derived from the filename.
+
+Folder fallback expects:
+
+```text
+collection/patient_id/study_uid/series_uid/file.nii.gz
+```
+
+When no series folder exists, the NIfTI filename stem is used as the series ID. Object names use:
+
+```text
+collection_name/patient_id/study_uid/series_uid/file_name
+```
+
+Example:
+
+```bash
+curl -X POST http://localhost:8000/api/addZipDataset \
+  -F dataset_type=nifti \
+  -F collection_name=BrainStudy \
+  -F column_mapping="$(cat column_mapping.example.json)" \
+  -F metadata_file=@metadata.xlsx \
+  -F zip_file=@nifti_dataset.zip
+```
+
+`column_mapping` maps canonical API fields to spreadsheet headers. For example,
+`"patient sex": "sex"` means the spreadsheet column `sex` will populate the
+patient `sex` field. Header matching is case-insensitive and treats spaces and
+underscores the same. The bundled `column_mapping.example.json` matches the
+TCIA-style headers in `BraTS-TCGA-GBM.xlsx`; for that file, the mapping is
+effectively documentation because the default aliases already recognize those
+headers.

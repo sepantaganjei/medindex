@@ -471,3 +471,30 @@ async function uploadDataset(apiBaseUrl, file) {
 
   return result;
 }
+
+function buildViewerParams(baseUrl, collectionName) {
+  const params = new URLSearchParams();
+  if (collectionName) {
+    params.set("collection", collectionName);
+  }
+  if (baseUrl) {
+    params.set("base_url", baseUrl);
+  }
+  return params;
+}
+
+function withQuery(url, params) {
+  const query = params.toString();
+  return query ? `${url}?${query}` : url;
+}
+
+function buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName) {
+  const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  const params = buildViewerParams(baseUrl, collectionName);
+  const url = `${baseUrl}/api/viewer/series/${encodeURIComponent(seriesUid)}`;
+  return withQuery(url, params);
+}
+
+async function fetchSeriesViewer(apiBaseUrl, seriesUid, collectionName) {
+  return fetchJson(buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName));
+}
