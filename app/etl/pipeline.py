@@ -11,7 +11,6 @@ import re
 import html
 import json
 from pathlib import Path
-from app.services import viewer_assets
 
 # ==========
 # Insertions
@@ -30,8 +29,6 @@ def add_new_dataset(collection_name, dataset_type, description=None, zip_file=No
 
     if zip_file:
         extract_zip(zip_file, collection_name)
-        if dataset_type == "NIFTI":
-            viewer_assets.upload_nifti_assets(collection_name, collection_name)
 
     raw_data = extract.get_data_from_archive(collection_name, dataset_type)
     if not raw_data:

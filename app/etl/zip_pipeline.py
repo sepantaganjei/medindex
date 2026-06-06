@@ -3,6 +3,7 @@ import hashlib
 import json
 import mimetypes
 import re
+import stat
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -20,6 +21,9 @@ from app.services.object_storage_service import ObjectStorageService
 ALLOWED_DATASET_TYPES = {"dicom", "nifti"}
 NIFTI_SUFFIXES = (".nii", ".nii.gz")
 METADATA_SUFFIXES = (".xlsx", ".csv")
+MAX_ZIP_FILES = 20_000
+MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
+MAX_SINGLE_FILE_BYTES = 2 * 1024 * 1024 * 1024
 
 
 class ZipIngestionError(Exception):
@@ -42,6 +46,7 @@ def ingest_zip_dataset(
     *,
     dataset_type: str,
     zip_file,
+    metadata_file=None,
     collection_name: str | None = None,
     description: str | None = None,
     column_mapping: str | dict[str, str] | None = None,
@@ -53,11 +58,16 @@ def ingest_zip_dataset(
     parsed_column_mapping = _parse_column_mapping(column_mapping)
 
     with tempfile.TemporaryDirectory(prefix="bioimages_zip_") as temp_dir:
-        extract_root = Path(temp_dir) / "extracted"
+        temp_root = Path(temp_dir)
+        extract_root = temp_root / "extracted"
         _safe_extract_zip(zip_file, extract_root)
+        metadata_path = None
+        if dataset_type == "nifti":
+            metadata_path = _save_external_metadata_file(metadata_file, temp_root)
         resolved_collection = resolve_collection_name(
             getattr(zip_file, "filename", None), extract_root, collection_name
         )
+        _raise_if_collection_exists(resolved_collection)
 
         if dataset_type == "dicom":
             result = _ingest_dicom_zip(
@@ -71,6 +81,7 @@ def ingest_zip_dataset(
                 resolved_collection,
                 description,
                 parsed_column_mapping,
+                metadata_path,
             )
 
     return result
@@ -233,13 +244,36 @@ def discover_nifti_files(root: Path) -> list[Path]:
     )
 
 
-def load_optional_tabular_metadata(root: Path) -> tuple[list[dict[str, Any]], list[str]]:
+def load_tabular_metadata_file(path: Path) -> list[dict[str, Any]]:
+    suffix = path.suffix.lower()
+    if suffix not in METADATA_SUFFIXES:
+        raise ZipIngestionError("metadata_file must be a .csv or .xlsx file.", 400)
+    if suffix == ".csv":
+        with path.open(newline="", encoding="utf-8-sig") as handle:
+            return [_normalize_row(row) for row in csv.DictReader(handle)]
+    return [
+        _normalize_row(row)
+        for row in pd.read_excel(path, engine="openpyxl").to_dict(orient="records")
+    ]
+
+
+def load_optional_tabular_metadata(
+    root: Path,
+    metadata_path: Path | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
     warnings: list[str] = []
     metadata_files = sorted(
         path
         for path in root.rglob("*")
         if path.is_file() and path.suffix.lower() in METADATA_SUFFIXES
     )
+    if metadata_path:
+        if metadata_files:
+            warnings.append(
+                "External metadata_file was provided; metadata files inside the ZIP were ignored."
+            )
+        return load_tabular_metadata_file(metadata_path), warnings
+
     if not metadata_files:
         return [], warnings
     if len(metadata_files) > 1:
@@ -247,14 +281,7 @@ def load_optional_tabular_metadata(root: Path) -> tuple[list[dict[str, Any]], li
             f"Multiple metadata files found; using {metadata_files[0].name} and ignoring {len(metadata_files) - 1} others."
         )
 
-    path = metadata_files[0]
-    if path.suffix.lower() == ".csv":
-        with path.open(newline="", encoding="utf-8-sig") as handle:
-            rows = list(csv.DictReader(handle))
-    else:
-        rows = pd.read_excel(path, engine="openpyxl").to_dict(orient="records")
-
-    return [_normalize_row(row) for row in rows], warnings
+    return load_tabular_metadata_file(metadata_files[0]), warnings
 
 
 def match_nifti_rows_to_files(
@@ -318,27 +345,73 @@ def derive_nifti_identity_from_path(file: Path, collection_name: str, root: Path
         parts = parts[1:]
 
     stem = _nifti_stem(file.name)
-    patient_id = sanitize_path_segment(parts[0]) if len(parts) >= 1 else f"{collection_name}-patient"
-    study_uid = sanitize_path_segment(parts[1]) if len(parts) >= 2 else f"{patient_id}-study"
-    series_uid = sanitize_path_segment(parts[2]) if len(parts) >= 3 else sanitize_path_segment(stem)
+    patient_source = sanitize_path_segment(parts[0]) if len(parts) >= 1 else "patient"
+    patient_id = _collection_scoped_id(collection_name, patient_source)
+    study_source = sanitize_path_segment(parts[1]) if len(parts) >= 2 else "study"
+    study_uid = _collection_scoped_id(collection_name, study_source)
+    series_source = sanitize_path_segment(parts[2]) if len(parts) >= 3 else sanitize_path_segment(stem)
+    series_uid = _collection_scoped_id(collection_name, series_source)
     return patient_id, study_uid, series_uid
 
 
-def upload_dataset_files_to_minio(files: list[FileIdentity]) -> int:
+def upload_dataset_files_to_minio(files: list[FileIdentity]) -> list[str]:
     storage = ObjectStorageService(
         config.object_storage_endpoint,
         config.object_storage_access_key,
         config.object_storage_secret_key,
         config.object_storage_secure,
     )
-    uploaded = 0
+    uploaded_objects = []
     for item in files:
-        size = item.source_path.stat().st_size
-        content_type = mimetypes.guess_type(item.source_path.name)[0] or "application/octet-stream"
-        with item.source_path.open("rb") as handle:
-            storage.upload_file(config.object_storage_bucket, item.object_name, handle, size, content_type)
-        uploaded += 1
-    return uploaded
+        try:
+            size = item.source_path.stat().st_size
+            content_type = mimetypes.guess_type(item.source_path.name)[0] or "application/octet-stream"
+            with item.source_path.open("rb") as handle:
+                storage.upload_file(
+                    config.object_storage_bucket,
+                    item.object_name,
+                    handle,
+                    size,
+                    content_type,
+                )
+            uploaded_objects.append(item.object_name)
+        except Exception:
+            cleanup_uploaded_objects(uploaded_objects, storage)
+            raise
+    return uploaded_objects
+
+
+def cleanup_uploaded_objects(
+    object_names: list[str],
+    storage: ObjectStorageService | None = None,
+) -> None:
+    storage = storage or ObjectStorageService(
+        config.object_storage_endpoint,
+        config.object_storage_access_key,
+        config.object_storage_secret_key,
+        config.object_storage_secure,
+    )
+    for object_name in object_names:
+        try:
+            storage.delete_object(config.object_storage_bucket, object_name)
+        except Exception:
+            pass
+
+
+def persist_uploaded_dataset(
+    collection: dict[str, Any],
+    patients: list[dict[str, Any]],
+    studies: list[dict[str, Any]],
+    series: list[dict[str, Any]],
+    identities: list[FileIdentity],
+) -> tuple[int, dict[str, int]]:
+    uploaded_objects = upload_dataset_files_to_minio(identities)
+    try:
+        inserted_counts = _insert_records(collection, patients, studies, series)
+    except Exception:
+        cleanup_uploaded_objects(uploaded_objects)
+        raise
+    return len(uploaded_objects), inserted_counts
 
 
 def sanitize_path_segment(value: Any) -> str:
@@ -346,6 +419,10 @@ def sanitize_path_segment(value: Any) -> str:
     text = text.replace("\\", "/").split("/")[-1]
     text = re.sub(r"[^A-Za-z0-9._-]+", "_", text).strip("._-")
     return text or "missing"
+
+
+def _collection_scoped_id(collection_name: str, value: Any) -> str:
+    return f"{sanitize_path_segment(collection_name)}__{sanitize_path_segment(value)}"
 
 
 def _ingest_dicom_zip(root: Path, collection_name: str, description: str | None) -> dict[str, Any]:
@@ -363,8 +440,13 @@ def _ingest_dicom_zip(root: Path, collection_name: str, description: str | None)
     collection, patients, studies, series, identities = build_dicom_records_from_files(
         valid_files, collection_name, description
     )
-    uploaded = upload_dataset_files_to_minio(identities)
-    inserted_counts = _insert_records(collection, patients, studies, series)
+    uploaded, inserted_counts = persist_uploaded_dataset(
+        collection,
+        patients,
+        studies,
+        series,
+        identities,
+    )
 
     return _response(
         dataset_type="dicom",
@@ -383,12 +465,13 @@ def _ingest_nifti_zip(
     collection_name: str,
     description: str | None,
     column_mapping: dict[str, str],
+    metadata_path: Path | None,
 ) -> dict[str, Any]:
     files = discover_nifti_files(root)
     if not files:
         raise ZipIngestionError("No NIfTI files found in ZIP.", 422)
 
-    metadata_rows, warnings = load_optional_tabular_metadata(root)
+    metadata_rows, warnings = load_optional_tabular_metadata(root, metadata_path)
     if len(metadata_rows) == 1 and len(files) == 1:
         row_matches = {
             files[0]: _row_with_match_scope(
@@ -415,8 +498,13 @@ def _ingest_nifti_zip(
         collection_name,
         description,
     )
-    uploaded = upload_dataset_files_to_minio(identities)
-    inserted_counts = _insert_records(collection, patients, studies, series)
+    uploaded, inserted_counts = persist_uploaded_dataset(
+        collection,
+        patients,
+        studies,
+        series,
+        identities,
+    )
 
     return _response(
         dataset_type="nifti",
@@ -563,18 +651,86 @@ def _add_if_missing(session, model, key: str, data: dict[str, Any]) -> bool:
     return False
 
 
+def _raise_if_collection_exists(collection_name: str) -> None:
+    session = SessionLocal()
+    try:
+        if session.query(Collection).filter(Collection.name == collection_name).first():
+            raise ZipIngestionError(
+                f"Collection '{collection_name}' already exists.",
+                409,
+            )
+    finally:
+        session.close()
+
+
 def _safe_extract_zip(upload_file, target_root: Path) -> None:
     target_root.mkdir(parents=True, exist_ok=True)
     try:
         upload_file.file.seek(0)
         with zipfile.ZipFile(upload_file.file) as archive:
-            for member in archive.infolist():
-                destination = target_root / member.filename
-                if not destination.resolve().is_relative_to(target_root.resolve()):
-                    raise ZipIngestionError("ZIP contains an unsafe path.", 400)
+            _validate_zip_archive(archive, target_root)
             archive.extractall(target_root)
     except zipfile.BadZipFile as exc:
         raise ZipIngestionError("Malformed ZIP file.", 400) from exc
+
+
+def _validate_zip_archive(archive: zipfile.ZipFile, target_root: Path) -> None:
+    members = archive.infolist()
+    if len(members) > MAX_ZIP_FILES:
+        raise ZipIngestionError(
+            f"ZIP contains too many files; maximum is {MAX_ZIP_FILES}.",
+            413,
+        )
+
+    total_uncompressed_size = 0
+    target_root_resolved = target_root.resolve()
+    for member in members:
+        _validate_zip_member(member, target_root_resolved)
+        total_uncompressed_size += member.file_size
+        if member.file_size > MAX_SINGLE_FILE_BYTES:
+            raise ZipIngestionError(
+                f"ZIP member '{member.filename}' is too large.",
+                413,
+            )
+        if total_uncompressed_size > MAX_UNCOMPRESSED_BYTES:
+            raise ZipIngestionError(
+                "ZIP uncompressed size exceeds the configured limit.",
+                413,
+            )
+
+
+def _validate_zip_member(member: zipfile.ZipInfo, target_root_resolved: Path) -> None:
+    member_path = Path(member.filename)
+    if member_path.is_absolute():
+        raise ZipIngestionError("ZIP contains an absolute path.", 400)
+    if _is_zip_symlink(member):
+        raise ZipIngestionError("ZIP contains a symlink entry.", 400)
+
+    destination = target_root_resolved / member.filename
+    if not destination.resolve().is_relative_to(target_root_resolved):
+        raise ZipIngestionError("ZIP contains an unsafe path.", 400)
+
+
+def _is_zip_symlink(member: zipfile.ZipInfo) -> bool:
+    unix_mode = member.external_attr >> 16
+    return stat.S_ISLNK(unix_mode)
+
+
+def _save_external_metadata_file(metadata_file, temp_root: Path) -> Path | None:
+    if metadata_file is None:
+        return None
+
+    filename = Path(getattr(metadata_file, "filename", "") or "").name
+    suffix = Path(filename).suffix.lower()
+    if suffix not in METADATA_SUFFIXES:
+        raise ZipIngestionError("metadata_file must be a .csv or .xlsx file.", 400)
+
+    metadata_path = temp_root / f"external_metadata{suffix}"
+    metadata_file.file.seek(0)
+    with metadata_path.open("wb") as handle:
+        while chunk := metadata_file.file.read(1024 * 1024):
+            handle.write(chunk)
+    return metadata_path
 
 
 def _parse_column_mapping(column_mapping: str | dict[str, str] | None) -> dict[str, str]:
@@ -647,15 +803,11 @@ def _apply_column_mapping(row: dict[str, Any], column_mapping: dict[str, str]) -
     if not column_mapping:
         return row
     mapped = dict(row)
-    normalized_mapping = {
-        _normalize_column_name(key): _normalize_column_name(value)
-        for key, value in column_mapping.items()
-    }
-    for key, value in normalized_mapping.items():
-        if value in row and key not in mapped:
-            mapped[key] = row[value]
-        if key in row and value not in mapped:
-            mapped[value] = row[key]
+    for canonical_field, spreadsheet_header in column_mapping.items():
+        canonical_key = _normalize_column_name(canonical_field)
+        spreadsheet_key = _normalize_column_name(spreadsheet_header)
+        if spreadsheet_key in row:
+            mapped[canonical_key] = row[spreadsheet_key]
     return mapped
 
 
@@ -822,26 +974,10 @@ def _nifti_image_count(path: Path) -> int:
 def _row_value(row: dict[str, Any] | None, aliases: list[str]) -> Any:
     if not row:
         return None
-    alias_lookup = {_normalize_column_name(alias) for alias in aliases}
     for alias in aliases:
         value = row.get(_normalize_column_name(alias))
         if value is not None and not pd.isna(value) and str(value).strip() != "":
             return value
-    alias_tokens = _text_tokens(" ".join(aliases))
-    best_value = None
-    best_score = 0
-    for key, value in row.items():
-        if value is None or pd.isna(value) or str(value).strip() == "":
-            continue
-        key_tokens = _text_tokens(key)
-        score = len(alias_tokens & key_tokens)
-        if score > best_score and _normalize_column_name(key) not in alias_lookup:
-            best_score = score
-            best_value = value
-        elif score == best_score and score > 0:
-            best_value = None
-    if best_score > 0 and best_value is not None:
-        return best_value
     return None
 
 

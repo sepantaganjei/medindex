@@ -110,3 +110,6 @@ class ObjectStorageService:
             if exc.code in {"NoSuchKey", "NoSuchBucket"}:
                 return False
             raise
+
+    def delete_object(self, bucket_name: str, object_name: str) -> None:
+        self._client.remove_object(bucket_name, object_name)

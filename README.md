@@ -48,8 +48,9 @@ Backend viewer endpoints:
 - `GET /api/viewer/series/{series_uid}?collection=...`
 - `GET /api/viewer/dicom/render?object_name=...`
 
-The frontend renders DICOM slices as PNG images returned by the API and loads
-NIfTI volumes with NiiVue from the resolved object-storage URL.
+The frontend renders DICOM and NIfTI slices as PNG images returned by the API.
+NIfTI PNG slices are generated from the original `.nii` or `.nii.gz` object with
+SimpleITK.
 
 ## ZIP Dataset Ingestion
 
@@ -59,6 +60,7 @@ Common multipart fields:
 
 - `dataset_type`: `dicom` or `nifti`
 - `zip_file`: ZIP archive
+- `metadata_file`: optional `.csv` or `.xlsx` metadata file outside the ZIP
 - `collection_name`: optional; defaults to the single top-level ZIP folder or ZIP filename
 - `description`: optional
 - `column_mapping`: optional JSON object for spreadsheet column aliases
@@ -83,7 +85,7 @@ curl -X POST http://localhost:8000/api/addZipDataset \
 
 ### NIfTI ZIP
 
-NIfTI files are discovered by `.nii` and `.nii.gz` suffix. Optional `.xlsx` or `.csv` metadata rows are used only when they can be linked unambiguously to files by `relative_path`, `file_path`, `path`, `file_name`, `filename`, `nifti_file`, or `object_name`. A single metadata row may also match a single NIfTI file.
+NIfTI files are discovered by `.nii` and `.nii.gz` suffix. Optional `.xlsx` or `.csv` metadata rows can be supplied either inside the ZIP or as the separate `metadata_file` multipart field. External `metadata_file` takes precedence when both are present. Metadata rows are used only when they can be linked unambiguously to files by `relative_path`, `file_path`, `path`, `file_name`, `filename`, `nifti_file`, or `object_name`. A single metadata row may also match a single NIfTI file.
 
 If the spreadsheet has no file linkage column, ingestion can still use TCIA-style metadata such as `Patient ID`, `Patient Sex`, `Study Instance UID`, and `Study Date` when the patient ID appears in the NIfTI folder or filename. Series IDs are only taken from the spreadsheet when the NIfTI filename maps unambiguously to one series row; otherwise the series ID is derived from the filename.
 
@@ -106,6 +108,7 @@ curl -X POST http://localhost:8000/api/addZipDataset \
   -F dataset_type=nifti \
   -F collection_name=BrainStudy \
   -F column_mapping="$(cat column_mapping.example.json)" \
+  -F metadata_file=@metadata.xlsx \
   -F zip_file=@nifti_dataset.zip
 ```
 

@@ -35,6 +35,7 @@ class DatasetType(str, Enum):
 def add_zip_dataset(
     dataset_type: DatasetType = Form(...),
     zip_file: UploadFile = File(...),
+    metadata_file: UploadFile | None = File(None),
     collection_name: str | None = Form(None),
     description: str | None = Form(None),
     column_mapping: str | None = Form(None),
@@ -43,6 +44,7 @@ def add_zip_dataset(
         return ingest_zip_dataset(
             dataset_type=dataset_type.value,
             zip_file=zip_file,
+            metadata_file=metadata_file,
             collection_name=collection_name,
             description=description,
             column_mapping=column_mapping,

@@ -37,3 +37,17 @@ def render_dicom(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return Response(content=payload, media_type="image/png")
+
+
+@router.get("/nifti/render")
+def render_nifti(
+    object_name: str = Query(...),
+    axis: str = Query("z"),
+    slice: int = Query(0, ge=0),
+) -> Response:
+    try:
+        payload = viewer_assets.render_nifti_png(object_name, axis, slice)
+    except viewer_assets.ViewerAssetError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return Response(content=payload, media_type="image/png")

@@ -23,8 +23,6 @@ const viewerLoading = document.getElementById("viewer-loading");
 const viewerError = document.getElementById("viewer-error");
 const dicomViewer = document.getElementById("dicom-viewer");
 const dicomImage = document.getElementById("dicom-image");
-const niftiViewer = document.getElementById("nifti-viewer");
-const niivueCanvas = document.getElementById("niivue-canvas");
 const viewerControls = document.querySelector(".viewer-controls");
 
 const seriesViewButton = document.getElementById("series-view-button");
@@ -84,18 +82,11 @@ let isAvailableCollectionsLoading = true;
 let seriesPage = 1;
 let availableCollectionsPage = 1;
 let dicomPage = 1;
-let niivueInstance = null;
-let activeDicomObjects = [];
+let activeImageObjects = [];
 
 const seriesPageSize = 100;
 const availableCollectionsPageSize = 25;
 const dicomPageSize = 100;
-const niivueScriptUrls = [
-  "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.58.0/dist/niivue.umd.js",
-  "https://unpkg.com/@niivue/niivue@0.58.0/dist/niivue.umd.js",
-];
-
-let niivueDependencyPromise = null;
 
 const modalityFilterGroups = [
   ["CT", "Computed tomography"],
@@ -137,68 +128,6 @@ function getPatientAgeDisplayValue(value) {
   }
 
   return getDisplayValue(value);
-}
-
-function getNiivueConstructor() {
-  return [
-    window.Niivue,
-    window.NiiVue,
-    window.niivue?.Niivue,
-    window.niivue?.NiiVue,
-    window.niivue,
-  ].find((candidate) => typeof candidate === "function");
-}
-
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const existingScript = document.querySelector(`script[src="${src}"]`);
-    if (existingScript?.dataset.loaded === "true") {
-      resolve();
-      return;
-    }
-
-    const script = existingScript ?? document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      script.dataset.loaded = "true";
-      resolve();
-    };
-    script.onerror = () => {
-      reject(new Error(`Failed to load ${src}`));
-    };
-
-    if (!existingScript) {
-      document.head.appendChild(script);
-    }
-  });
-}
-
-async function loadNiivueConstructor() {
-  const existingConstructor = getNiivueConstructor();
-  if (existingConstructor) {
-    return existingConstructor;
-  }
-
-  if (!niivueDependencyPromise) {
-    niivueDependencyPromise = (async () => {
-      for (const src of niivueScriptUrls) {
-        try {
-          await loadScript(src);
-          const constructor = getNiivueConstructor();
-          if (constructor) {
-            return constructor;
-          }
-        } catch (error) {
-          console.warn("NiiVue script load failed", error);
-        }
-      }
-
-      throw new Error("NiiVue dependency was not loaded from the CDN.");
-    })();
-  }
-
-  return niivueDependencyPromise;
 }
 
 function getSeriesSource(series) {
@@ -251,9 +180,8 @@ function resetViewerState() {
   viewerError?.classList.add("hidden");
   viewerPlaceholder?.classList.add("hidden");
   dicomViewer?.classList.add("hidden");
-  niftiViewer?.classList.add("hidden");
   viewerControls?.classList.add("hidden");
-  activeDicomObjects = [];
+  activeImageObjects = [];
 
   if (dicomImage) {
     dicomImage.removeAttribute("src");
@@ -276,86 +204,47 @@ function setViewerError(message) {
   }
   viewerLoading?.classList.add("hidden");
   dicomViewer?.classList.add("hidden");
-  niftiViewer?.classList.add("hidden");
 }
 
-function showDicomSlice(index) {
-  if (!dicomImage || activeDicomObjects.length === 0) {
+function showImageSlice(index) {
+  if (!dicomImage || activeImageObjects.length === 0) {
     return;
   }
 
-  const clampedIndex = Math.max(0, Math.min(index, activeDicomObjects.length - 1));
-  const object = activeDicomObjects[clampedIndex];
+  const clampedIndex = Math.max(0, Math.min(index, activeImageObjects.length - 1));
+  const object = activeImageObjects[clampedIndex];
   dicomImage.onload = () => {
     viewerLoading?.classList.add("hidden");
   };
   dicomImage.onerror = () => {
-    setViewerError("DICOM slice failed to render.");
+    setViewerError("Image slice failed to render.");
   };
   dicomImage.src = object.url;
 }
 
-function loadDicomViewer(viewerInfo) {
-  activeDicomObjects = viewerInfo.objects ?? [];
-  if (activeDicomObjects.length === 0) {
-    throw new Error("No DICOM images were found for this series.");
+function loadImageSliceViewer(viewerInfo) {
+  activeImageObjects = viewerInfo.objects ?? [];
+  if (activeImageObjects.length === 0) {
+    throw new Error("No images were found for this series.");
   }
 
   dicomViewer?.classList.remove("hidden");
-  niftiViewer?.classList.add("hidden");
   viewerPlaceholder?.classList.add("hidden");
   viewerControls?.classList.remove("hidden");
 
   if (imageSlider) {
     imageSlider.min = 1;
-    imageSlider.max = activeDicomObjects.length;
+    imageSlider.max = activeImageObjects.length;
     imageSlider.value = 1;
   }
   if (viewerImages) {
-    viewerImages.textContent = `${activeDicomObjects.length} images`;
+    viewerImages.textContent =
+      viewerInfo.source === "NIfTI"
+        ? `${activeImageObjects.length} slices`
+        : `${activeImageObjects.length} images`;
   }
 
-  showDicomSlice(0);
-}
-
-function getObjectFileName(objectName, fallbackName) {
-  const rawName = objectName || fallbackName || "volume.nii.gz";
-  const parts = String(rawName).split("/");
-  return parts[parts.length - 1] || "volume.nii.gz";
-}
-
-async function loadNiftiViewer(viewerInfo, series) {
-  const NiivueConstructor = await loadNiivueConstructor();
-
-  if (!niivueInstance) {
-    niivueInstance = new NiivueConstructor();
-    niivueInstance.attachToCanvas(niivueCanvas);
-  }
-
-  if (typeof niivueInstance.loadVolumes !== "function") {
-    throw new Error("NiiVue API is unavailable.");
-  }
-
-  niftiViewer?.classList.remove("hidden");
-  dicomViewer?.classList.add("hidden");
-  viewerPlaceholder?.classList.add("hidden");
-  viewerControls?.classList.add("hidden");
-
-  const niftiObject = viewerInfo.objects?.[0];
-  if (!niftiObject?.url) {
-    throw new Error("No NIfTI file was found for this series.");
-  }
-  if (viewerImages) {
-    viewerImages.textContent = "NIfTI volume";
-  }
-
-  const volumeName = getObjectFileName(niftiObject.object_name, series.seriesUid);
-
-  await niivueInstance.loadVolumes([
-    { url: niftiObject.url, name: volumeName },
-  ]);
-
-  viewerLoading?.classList.add("hidden");
+  showImageSlice(0);
 }
 
 async function loadViewerForSeries(series) {
@@ -368,12 +257,7 @@ async function loadViewerForSeries(series) {
       series.seriesUid,
       series.collection,
     );
-    const source = viewerInfo.source ?? getSeriesSource(series);
-    if (source === "NIfTI") {
-      await loadNiftiViewer(viewerInfo, series);
-    } else {
-      loadDicomViewer(viewerInfo);
-    }
+    loadImageSliceViewer(viewerInfo);
   } catch (error) {
     console.error("Viewer load failed", error);
     setViewerError(`Viewer failed: ${error.message}`);
@@ -1216,8 +1100,8 @@ modalityFilter.addEventListener("change", () => {
 });
 backButton.addEventListener("click", closeViewer);
 imageSlider.addEventListener("input", () => {
-  if (activeDicomObjects.length > 0) {
-    showDicomSlice(Number(imageSlider.value) - 1);
+  if (activeImageObjects.length > 0) {
+    showImageSlice(Number(imageSlider.value) - 1);
   }
 });
 window.addEventListener("scroll", updateBackToTopButton);
