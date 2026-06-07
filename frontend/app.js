@@ -1,6 +1,7 @@
 const appShell = document.getElementById("app-shell");
 const collectionsList = document.getElementById("collections-list");
 const seriesTable = document.getElementById("series-table");
+const seriesTableHead = document.querySelector("#series-browser-section thead tr");
 const seriesPagination = document.getElementById("series-pagination");
 const searchInput = document.getElementById("search-input");
 const modalityFilter = document.getElementById("modality-filter");
@@ -69,6 +70,8 @@ const backToTopButton = document.getElementById("back-to-top-button");
 let selectedCollections = new Set();
 
 let availableCollectionsData = [];
+let dicomFieldMappings = { series: {}, studies: {}, patients: {} };
+let dicomFieldMappingsPromise = null;
 let activeDicomSearchType = "series";
 let dicomResults = [];
 let lastDicomCollectionName = "";
@@ -88,6 +91,54 @@ const seriesPageSize = 100;
 const availableCollectionsPageSize = 25;
 const dicomPageSize = 100;
 
+function getSeriesFieldLabel(keys, fallback) {
+  return fieldLabel(dicomFieldMappings.series, keys, fallback);
+}
+
+function getStudyFieldLabel(keys, fallback) {
+  return fieldLabel(dicomFieldMappings.studies, keys, fallback);
+}
+
+function getPatientFieldLabel(keys, fallback) {
+  return fieldLabel(dicomFieldMappings.patients, keys, fallback);
+}
+
+function renderSeriesTableHeaders() {
+  if (!seriesTableHead) {
+    return;
+  }
+
+  seriesTableHead.innerHTML = `
+    <th>${escapeHtml(getSeriesFieldLabel(["SeriesInstanceUID", "series_instance_uid"], "Series UID"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["PatientID", "PatientID_study", "patient_id_study"], "Patient"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["Modality", "modality"], "Modality"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["BodyPartExamined", "body_part_examined"], "Body Part"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["SeriesDescription", "series_description"], "Description"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["ImageCount", "image_count"], "Images"))}</th>
+    <th>${escapeHtml(getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"))}</th>
+    <th></th>
+  `;
+}
+
+async function ensureDicomFieldMappings() {
+  if (!dicomFieldMappingsPromise) {
+    dicomFieldMappingsPromise = loadSnomedFieldMappings(apiBaseUrl)
+      .then((loadedMappings) => {
+        dicomFieldMappings = loadedMappings;
+        renderSeriesTableHeaders();
+        renderDicomResults();
+        return loadedMappings;
+      })
+      .catch((error) => {
+        console.warn("Could not load SNOMED field mappings.", error);
+        dicomFieldMappings = { series: {}, studies: {}, patients: {} };
+        return dicomFieldMappings;
+      });
+  }
+
+  return dicomFieldMappingsPromise;
+}
+
 const modalityFilterGroups = [
   ["CT", "Computed tomography"],
   ["MR", "Magnetic resonance imaging"],
@@ -101,17 +152,27 @@ function normalizeModality(value) {
     return "Missing";
   }
 
-  return rawValue;
+  const normalizedValue = rawValue.toLowerCase();
+  const group = modalityFilterGroups.find((aliases) =>
+    aliases.some((alias) => alias.toLowerCase() === normalizedValue),
+  );
+
+  return group ? group.at(-1) : rawValue;
 }
 
 function getModalityFilterKey(value) {
-  const modality = normalizeModality(value);
-  const normalizedModality = modality.toLowerCase();
+  const rawValue = String(value ?? "").trim();
+
+  if (!rawValue) {
+    return "Missing";
+  }
+
+  const normalizedModality = rawValue.toLowerCase();
   const group = modalityFilterGroups.find((aliases) =>
     aliases.some((alias) => alias.toLowerCase() === normalizedModality),
   );
 
-  return group ? group.join(" / ") : modality;
+  return group ? group.join(" / ") : rawValue;
 }
 
 function getDisplayValue(value) {
@@ -412,6 +473,8 @@ function renderSeriesPagination(totalResults) {
 }
 
 function renderSeries() {
+  renderSeriesTableHeaders();
+
   const filteredSeries = getFilteredSeries();
   const totalPages = Math.max(1, Math.ceil(filteredSeries.length / seriesPageSize));
 
@@ -652,13 +715,13 @@ function renderDicomSeriesTable(results) {
       <table>
         <thead>
           <tr>
-            <th>Series UID</th>
-            <th>Patient</th>
-            <th>Modality</th>
-            <th>Body Part</th>
-            <th>Description</th>
-            <th>Images</th>
-            <th>Collection</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["SeriesInstanceUID", "series_instance_uid"], "Series UID"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["PatientID", "PatientID_study", "patient_id_study"], "Patient"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["Modality", "modality"], "Modality"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["BodyPartExamined", "body_part_examined"], "Body Part"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["SeriesDescription", "series_description"], "Description"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["ImageCount", "image_count"], "Images"))}</th>
+            <th>${escapeHtml(getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -698,12 +761,12 @@ function renderDicomStudiesTable(results) {
       <table>
         <thead>
           <tr>
-            <th>Study UID</th>
-            <th>Patient</th>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Series Count</th>
-            <th>Collection</th>
+            <th>${escapeHtml(getStudyFieldLabel(["StudyInstanceUID", "study_instance_uid"], "Study UID"))}</th>
+            <th>${escapeHtml(getStudyFieldLabel(["PatientID", "PatientID_study", "patient_id_study"], "Patient"))}</th>
+            <th>${escapeHtml(getStudyFieldLabel(["StudyDate", "study_date"], "Date"))}</th>
+            <th>${escapeHtml(getStudyFieldLabel(["StudyDescription", "study_description"], "Description"))}</th>
+            <th>${escapeHtml(getStudyFieldLabel(["SeriesCount", "series_count"], "Series Count"))}</th>
+            <th>${escapeHtml(getStudyFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -738,10 +801,10 @@ function renderDicomPatientsTable(results) {
       <table>
         <thead>
           <tr>
-            <th>Patient ID</th>
-            <th>Sex</th>
-            <th>Age</th>
-            <th>Ethnic Group</th>
+            <th>${escapeHtml(getPatientFieldLabel(["PatientID", "PatientId", "patient_id"], "Patient ID"))}</th>
+            <th>${escapeHtml(getPatientFieldLabel(["PatientSex", "patient_sex"], "Sex"))}</th>
+            <th>${escapeHtml(getPatientFieldLabel(["PatientAge", "patient_age"], "Age"))}</th>
+            <th>${escapeHtml(getPatientFieldLabel(["EthnicGroup", "ethnic_group"], "Ethnic Group"))}</th>
           </tr>
         </thead>
         <tbody>
@@ -781,6 +844,8 @@ async function handleDicomSearch() {
   renderDicomExplorer();
 
   try {
+    await ensureDicomFieldMappings();
+
     if (activeDicomSearchType === "studies") {
       dicomResults = await searchDicomStudies(apiBaseUrl, collectionName);
     } else if (activeDicomSearchType === "patients") {
@@ -937,40 +1002,40 @@ function setMetadataTab(tab) {
 function renderSeriesMetadata(series) {
   setMetadataTab("series");
   renderMetadataRows([
-    ["Series UID", series.seriesUid],
-    ["Study UID", series.studyUid],
-    ["Patient ID", series.patientId],
-    ["Modality", normalizeModality(series.modality)],
-    ["Body Part", series.bodyPart],
-    ["Description", series.description],
-    ["Protocol", series.protocolName],
-    ["Series Date", series.seriesDate],
-    ["Number of Images", series.numImages],
-    ["Collection", series.collection],
-    ["Manufacturer", series.manufacturer],
-    ["Model", series.manufacturerModelName],
+    [getSeriesFieldLabel(["SeriesInstanceUID", "series_instance_uid"], "Series UID"), series.seriesUid],
+    [getSeriesFieldLabel(["StudyInstanceUID", "StudyInstanceUID_series", "study_instance_uid_series"], "Study UID"), series.studyUid],
+    [getSeriesFieldLabel(["PatientID", "PatientID_study", "patient_id_study"], "Patient ID"), series.patientId],
+    [getSeriesFieldLabel(["Modality", "modality"], "Modality"), normalizeModality(series.modality)],
+    [getSeriesFieldLabel(["BodyPartExamined", "body_part_examined"], "Body Part"), series.bodyPart],
+    [getSeriesFieldLabel(["SeriesDescription", "series_description"], "Description"), series.description],
+    [getSeriesFieldLabel(["ProtocolName", "protocol_name"], "Protocol"), series.protocolName],
+    [getSeriesFieldLabel(["SeriesDate", "series_date"], "Series Date"), series.seriesDate],
+    [getSeriesFieldLabel(["ImageCount", "image_count"], "Number of Images"), series.numImages],
+    [getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"), series.collection],
+    [getSeriesFieldLabel(["Manufacturer", "manufacturer"], "Manufacturer"), series.manufacturer],
+    [getSeriesFieldLabel(["ManufacturerModelName", "manufacturer_model_name"], "Model"), series.manufacturerModelName],
   ]);
 }
 
 function renderPatientMetadata(series, patient = null) {
   setMetadataTab("patient");
   renderMetadataRows([
-    ["Patient ID", patient?.id ?? series.patientId],
-    ["Sex", patient?.sex ?? series.patientSex],
-    ["Age", getPatientAgeDisplayValue(patient?.age ?? series.patientAge)],
-    ["Ethnic Group", patient?.ethnic_group ?? series.patientEthnicGroup],
-    ["Collection", series.collection],
+    [getPatientFieldLabel(["PatientID", "PatientId", "patient_id"], "Patient ID"), patient?.id ?? series.patientId],
+    [getPatientFieldLabel(["PatientSex", "patient_sex"], "Sex"), patient?.sex ?? series.patientSex],
+    [getPatientFieldLabel(["PatientAge", "patient_age"], "Age"), getPatientAgeDisplayValue(patient?.age ?? series.patientAge)],
+    [getPatientFieldLabel(["EthnicGroup", "ethnic_group"], "Ethnic Group"), patient?.ethnic_group ?? series.patientEthnicGroup],
+    [getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"), series.collection],
   ]);
 }
 
 function renderPatientMetadataLoading(series) {
   setMetadataTab("patient");
   renderMetadataRows([
-    ["Patient ID", series.patientId],
-    ["Sex", "Loading..."],
-    ["Age", "Loading..."],
-    ["Ethnic Group", "Loading..."],
-    ["Collection", series.collection],
+    [getPatientFieldLabel(["PatientID", "PatientId", "patient_id"], "Patient ID"), series.patientId],
+    [getPatientFieldLabel(["PatientSex", "patient_sex"], "Sex"), "Loading..."],
+    [getPatientFieldLabel(["PatientAge", "patient_age"], "Age"), "Loading..."],
+    [getPatientFieldLabel(["EthnicGroup", "ethnic_group"], "Ethnic Group"), "Loading..."],
+    [getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"), series.collection],
   ]);
 }
 
@@ -1191,7 +1256,7 @@ async function initializeData() {
       renderAvailableCollections();
     });
 
-  await Promise.allSettled([seriesLoad, availableLoad]);
+  await Promise.allSettled([ensureDicomFieldMappings(), seriesLoad, availableLoad]);
 }
 
 seriesViewButton.addEventListener("click", () => {

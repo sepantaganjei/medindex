@@ -38,7 +38,7 @@ class SeriesResponse(BaseModel):
     max_submission_timestamp: dt.time | None = None
     file_size: int | None = None
     third_party_analysis: bool | None = None
-    study: StudyInfo
+    study: StudyInfo | None = None
 
     model_config = {"from_attributes": True}
 

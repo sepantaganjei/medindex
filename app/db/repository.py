@@ -9,8 +9,12 @@ from app.db.models import Extraction
 from app.db.models import FieldMapping
 from app.db.models import ValueMapping
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy import inspect
 import requests
 import re
+
+_VALUE_MAPPINGS_AVAILABLE = None
 
 
 def get_json_or_empty(response):
@@ -350,9 +354,25 @@ def get_SNOMED_fields(session):
 
 
 def SNOMED_value_mapping(session, original_value):
-    return (
-        session
-        .query(ValueMapping.standardized_value)
-        .filter(ValueMapping.original_value == original_value)
-        .scalar()
-    )
+    global _VALUE_MAPPINGS_AVAILABLE
+
+    if _VALUE_MAPPINGS_AVAILABLE is False:
+        return None
+
+    if _VALUE_MAPPINGS_AVAILABLE is None:
+        _VALUE_MAPPINGS_AVAILABLE = inspect(session.bind).has_table("value_mappings")
+
+    if not _VALUE_MAPPINGS_AVAILABLE:
+        return None
+
+    try:
+        return (
+            session
+            .query(ValueMapping.standardized_value)
+            .filter(ValueMapping.original_value == original_value)
+            .scalar()
+        )
+    except ProgrammingError:
+        session.rollback()
+        _VALUE_MAPPINGS_AVAILABLE = False
+        return None

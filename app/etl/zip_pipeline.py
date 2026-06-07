@@ -163,9 +163,9 @@ def build_dicom_records_from_files(
         patients.setdefault(
             patient_id,
             {
-                "id": patient_id,
-                "sex": _dicom_str(dataset, "PatientSex"),
-                "age": _extract_age(_dicom_str(dataset, "PatientAge", "")),
+                "patient_id": patient_id,
+                "patient_sex": _dicom_str(dataset, "PatientSex"),
+                "patient_age": _extract_age(_dicom_str(dataset, "PatientAge", "")),
                 "ethnic_group": _dicom_str(dataset, "EthnicGroup"),
             },
         )
@@ -173,12 +173,12 @@ def build_dicom_records_from_files(
         studies.setdefault(
             study_uid,
             {
-                "instance_uid": study_uid,
-                "collection": collection_name,
-                "patient_id": patient_id,
-                "date": _parse_date(_dicom_str(dataset, "StudyDate", "")),
+                "study_instance_uid": study_uid,
+                "collection_name_study": collection_name,
+                "patient_id_study": patient_id,
+                "study_date": _parse_date(_dicom_str(dataset, "StudyDate", "")),
                 "date_released": None,
-                "description": _dicom_str(dataset, "StudyDescription"),
+                "study_description": _dicom_str(dataset, "StudyDescription"),
                 "series_count": 0,
                 "longitudinal_temporal_event_type": None,
                 "longitudinal_temporal_offset_from_event": None,
@@ -188,10 +188,10 @@ def build_dicom_records_from_files(
         series.setdefault(
             series_uid,
             {
-                "instance_uid": series_uid,
-                "study_instance_uid": study_uid,
+                "series_instance_uid": series_uid,
+                "study_instance_uid_series": study_uid,
                 "modality": _dicom_str(dataset, "Modality"),
-                "body_part": _dicom_str(dataset, "BodyPartExamined"),
+                "body_part_examined": _dicom_str(dataset, "BodyPartExamined"),
                 "protocol_name": _dicom_str(dataset, "ProtocolName"),
                 "series_date": _parse_date(_dicom_str(dataset, "StudyDate", "")),
                 "series_description": _dicom_str(dataset, "SeriesDescription"),
@@ -227,11 +227,11 @@ def build_dicom_records_from_files(
         record["file_size"] = series_file_sizes.get(series_uid, 0)
 
     collection = {
-        "name": collection_name,
+        "collection_name": collection_name,
         "description": description,
         "license_name": None,
         "license_uri": None,
-        "description_uri": None,
+        "data_description_uri": None,
     }
     return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
 
@@ -555,21 +555,21 @@ def _build_nifti_records(
         patients.setdefault(
             patient_id,
             {
-                "id": patient_id,
-                "sex": _row_value(row, ["patient sex", "patient_sex", "sex", "gender"]) if row else None,
-                "age": _extract_age(_row_value(row, ["patient age", "age", "patient_age"]) if row else None),
+                "patient_id": patient_id,
+                "patient_sex": _row_value(row, ["patient sex", "patient_sex", "sex", "gender"]) if row else None,
+                "patient_age": _extract_age(_row_value(row, ["patient age", "age", "patient_age"]) if row else None),
                 "ethnic_group": _row_value(row, ["ethnic group", "ethnicity", "race"]) if row else None,
             },
         )
         studies.setdefault(
             study_uid,
             {
-                "instance_uid": study_uid,
-                "collection": collection_name,
-                "patient_id": patient_id,
-                "date": _parse_date(_row_value(row, ["study date", "date"]) if row else None),
+                "study_instance_uid": study_uid,
+                "collection_name_study": collection_name,
+                "patient_id_study": patient_id,
+                "study_date": _parse_date(_row_value(row, ["study date", "date"]) if row else None),
                 "date_released": _parse_date(_row_value(row, ["date released", "release date"]) if row else None),
-                "description": _row_value(row, ["study description", "description"]) if row else None,
+                "study_description": _row_value(row, ["study description", "description"]) if row else None,
                 "series_count": 0,
                 "longitudinal_temporal_event_type": _row_value(row, ["longitudinal temporal event type"]) if row else None,
                 "longitudinal_temporal_offset_from_event": _row_value(row, ["longitudinal temporal offset from event"]) if row else None,
@@ -578,10 +578,10 @@ def _build_nifti_records(
         series.setdefault(
             series_uid,
             {
-                "instance_uid": series_uid,
-                "study_instance_uid": study_uid,
+                "series_instance_uid": series_uid,
+                "study_instance_uid_series": study_uid,
                 "modality": _row_value(row, ["modality"]) if row else "NIFTI",
-                "body_part": _row_value(row, ["body part examined", "bodypartexamined", "body part"]) if row else None,
+                "body_part_examined": _row_value(row, ["body part examined", "bodypartexamined", "body part"]) if row else None,
                 "protocol_name": _row_value(row, ["protocol name", "protocolname"]) if use_series_metadata else None,
                 "series_date": _parse_date(_row_value(row, ["series date"]) if use_series_metadata else None),
                 "series_description": _row_value(row, ["series description", "description"]) if use_series_metadata else fallback_series,
@@ -610,11 +610,11 @@ def _build_nifti_records(
         studies[study_uid]["series_count"] = len(values)
 
     collection = {
-        "name": collection_name,
+        "collection_name": collection_name,
         "description": description or _first_row_value(row_matches, ["description", "study description"]),
         "license_name": _first_row_value(row_matches, ["license name", "license_name"]),
         "license_uri": _first_row_value(row_matches, ["license uri", "license_uri"]),
-        "description_uri": _first_row_value(row_matches, ["description uri", "collection uri", "collection_uri"]),
+        "data_description_uri": _first_row_value(row_matches, ["description uri", "collection uri", "collection_uri"]),
     }
     return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
 
@@ -627,14 +627,14 @@ def _insert_records(
 ) -> dict[str, int]:
     session = SessionLocal()
     try:
-        _add_if_missing(session, Collection, "name", collection)
+        _add_if_missing(session, Collection, "collection_name", collection)
         counts = {"patients": 0, "studies": 0, "series": 0}
         for patient in patients:
-            counts["patients"] += int(_add_if_missing(session, Patient, "id", patient))
+            counts["patients"] += int(_add_if_missing(session, Patient, "patient_id", patient))
         for study in studies:
-            counts["studies"] += int(_add_if_missing(session, Study, "instance_uid", study))
+            counts["studies"] += int(_add_if_missing(session, Study, "study_instance_uid", study))
         for item in series:
-            counts["series"] += int(_add_if_missing(session, Series, "instance_uid", item))
+            counts["series"] += int(_add_if_missing(session, Series, "series_instance_uid", item))
         session.commit()
         return counts
     except Exception:
@@ -654,7 +654,12 @@ def _add_if_missing(session, model, key: str, data: dict[str, Any]) -> bool:
 def _raise_if_collection_exists(collection_name: str) -> None:
     session = SessionLocal()
     try:
-        if session.query(Collection).filter(Collection.name == collection_name).first():
+        if (
+            session
+            .query(Collection)
+            .filter(Collection.collection_name == collection_name)
+            .first()
+        ):
             raise ZipIngestionError(
                 f"Collection '{collection_name}' already exists.",
                 409,
