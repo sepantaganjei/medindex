@@ -610,7 +610,7 @@ def _build_nifti_records(
         studies[study_uid]["series_count"] = len(values)
 
     collection = {
-        "name": collection_name,
+        "collection_name": collection_name,
         "description": description or _first_row_value(row_matches, ["description", "study description"]),
         "license_name": _first_row_value(row_matches, ["license name", "license_name"]),
         "license_uri": _first_row_value(row_matches, ["license uri", "license_uri"]),
@@ -627,14 +627,14 @@ def _insert_records(
 ) -> dict[str, int]:
     session = SessionLocal()
     try:
-        _add_if_missing(session, Collection, "name", collection)
+        _add_if_missing(session, Collection, "collection_name", collection)
         counts = {"patients": 0, "studies": 0, "series": 0}
         for patient in patients:
-            counts["patients"] += int(_add_if_missing(session, Patient, "id", patient))
+            counts["patients"] += int(_add_if_missing(session, Patient, "patient_id", patient))
         for study in studies:
-            counts["studies"] += int(_add_if_missing(session, Study, "instance_uid", study))
+            counts["studies"] += int(_add_if_missing(session, Study, "study_instance_uid", study))
         for item in series:
-            counts["series"] += int(_add_if_missing(session, Series, "instance_uid", item))
+            counts["series"] += int(_add_if_missing(session, Series, "series_instance_uid", item))
         session.commit()
         return counts
     except Exception:
@@ -644,9 +644,51 @@ def _insert_records(
         session.close()
 
 
+MODEL_FIELD_ALIASES = {
+    Collection: {
+        "name": "collection_name",
+        "description_uri": "data_description_uri",
+    },
+    Patient: {
+        "id": "patient_id",
+        "sex": "patient_sex",
+        "age": "patient_age",
+    },
+    Study: {
+        "instance_uid": "study_instance_uid",
+        "collection": "collection_name_study",
+        "patient_id": "patient_id_study",
+        "date": "study_date",
+        "description": "study_description",
+    },
+    Series: {
+        "instance_uid": "series_instance_uid",
+        "study_instance_uid": "study_instance_uid_series",
+        "body_part": "body_part_examined",
+    },
+}
+
+
+def _to_model_fields(model, data: dict[str, Any]) -> dict[str, Any]:
+    aliases = MODEL_FIELD_ALIASES.get(model, {})
+    model_columns = set(model.__table__.columns.keys())
+    normalized: dict[str, Any] = {}
+
+    for key, value in data.items():
+        column = aliases.get(key, key)
+        if column in model_columns:
+            normalized[column] = value
+
+    return normalized
+
+
 def _add_if_missing(session, model, key: str, data: dict[str, Any]) -> bool:
-    if not session.query(model).filter(getattr(model, key) == data[key]).first():
-        session.add(model(**data))
+    model_data = _to_model_fields(model, data)
+    if key not in model_data:
+        raise KeyError(f"Missing key '{key}' for {model.__name__}")
+
+    if not session.query(model).filter(getattr(model, key) == model_data[key]).first():
+        session.add(model(**model_data))
         return True
     return False
 
@@ -654,7 +696,7 @@ def _add_if_missing(session, model, key: str, data: dict[str, Any]) -> bool:
 def _raise_if_collection_exists(collection_name: str) -> None:
     session = SessionLocal()
     try:
-        if session.query(Collection).filter(Collection.name == collection_name).first():
+        if session.query(Collection).filter(Collection.collection_name == collection_name).first():
             raise ZipIngestionError(
                 f"Collection '{collection_name}' already exists.",
                 409,

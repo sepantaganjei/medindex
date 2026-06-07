@@ -25,18 +25,42 @@ async function fetchJson(url, options = {}) {
 function mapSeries(seriesDetail) {
   const study = seriesDetail.study ?? {};
   const patient = study.patient ?? seriesDetail.patient ?? {};
+  const patientId = firstDefined(
+    study,
+    ["patient_id", "patient_id_study", "patientId", "PatientID"],
+    firstDefined(patient, ["id", "patient_id", "patientId"], "Unknown"),
+  );
 
   return {
-    seriesUid: seriesDetail.instance_uid,
-    studyUid: seriesDetail.study_instance_uid,
-    patientId: study.patient_id ?? patient.id ?? "Unknown",
+    seriesUid: firstDefined(seriesDetail, [
+      "series_instance_uid",
+      "instance_uid",
+      "seriesUid",
+      "SeriesInstanceUID",
+    ]),
+    studyUid: firstDefined(seriesDetail, [
+      "study_instance_uid_series",
+      "study_instance_uid",
+      "studyUid",
+      "StudyInstanceUID",
+    ]),
+    patientId,
     modality: seriesDetail.modality ?? "Unknown",
-    bodyPart: seriesDetail.body_part ?? "Unknown",
+    bodyPart: firstDefined(seriesDetail, [
+      "body_part_examined",
+      "body_part",
+      "bodyPart",
+      "BodyPartExamined",
+    ], "Unknown"),
     protocolName: seriesDetail.protocol_name ?? "",
     seriesDate: seriesDetail.series_date ?? null,
     description: seriesDetail.series_description ?? "",
     numImages: seriesDetail.image_count ?? 0,
-    collection: study.collection ?? "Unknown",
+    collection: firstDefined(
+      study,
+      ["collection_name_study", "collection", "collection_name", "Collection"],
+      firstDefined(seriesDetail, ["collection", "collection_name", "Collection"], "Unknown"),
+    ),
 
     site: seriesDetail.site ?? null,
     manufacturer: seriesDetail.manufacturer ?? null,
@@ -46,8 +70,8 @@ function mapSeries(seriesDetail) {
     fileSize: seriesDetail.file_size ?? null,
     thirdPartyAnalysis: seriesDetail.third_party_analysis ?? null,
 
-    patientSex: patient.sex ?? study.patient_sex ?? seriesDetail.patient_sex ?? null,
-    patientAge: patient.age ?? study.patient_age ?? seriesDetail.patient_age ?? null,
+    patientSex: patient.sex ?? patient.patient_sex ?? study.patient_sex ?? seriesDetail.patient_sex ?? null,
+    patientAge: patient.age ?? patient.patient_age ?? study.patient_age ?? seriesDetail.patient_age ?? null,
     patientEthnicGroup:
       patient.ethnic_group ??
       study.ethnic_group ??
@@ -279,7 +303,10 @@ function getCollectionSource(collectionName, savedCollectionMap) {
 function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
   const collectionMap = new Map();
   const savedCollectionMap = new Map(
-    savedCollections.map((collection) => [collection.name, collection]),
+    savedCollections.map((collection) => [
+      firstDefined(collection, ["name", "collection_name", "Collection"]),
+      collection,
+    ]),
   );
 
   seriesRows.forEach((series) => {
@@ -303,8 +330,10 @@ function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
 }
 
 function mapAvailableCollection(collection) {
+  const name = firstDefined(collection, ["name", "collection_name", "Collection"]);
+
   return {
-    name: collection.name,
+    name,
     description: collection.description ?? "",
     source: "TCIA",
     licenseName: "DICOM",

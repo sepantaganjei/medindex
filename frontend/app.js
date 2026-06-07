@@ -24,6 +24,7 @@ const viewerError = document.getElementById("viewer-error");
 const dicomViewer = document.getElementById("dicom-viewer");
 const dicomImage = document.getElementById("dicom-image");
 const viewerControls = document.querySelector(".viewer-controls");
+const openRoiButton = document.getElementById("open-roi-button");
 
 const seriesViewButton = document.getElementById("series-view-button");
 const availableViewButton = document.getElementById("available-view-button");
@@ -75,6 +76,7 @@ let lastDicomCollectionName = "";
 let dicomIsLoading = false;
 let dicomError = "";
 let activeViewerSeries = null;
+let activeViewerInfo = null;
 let activeMetadataTab = "series";
 let lastSearchScrollY = 0;
 let isSeriesLoading = true;
@@ -181,7 +183,11 @@ function resetViewerState() {
   viewerPlaceholder?.classList.add("hidden");
   dicomViewer?.classList.add("hidden");
   viewerControls?.classList.add("hidden");
+  if (openRoiButton) {
+    openRoiButton.disabled = true;
+  }
   activeImageObjects = [];
+  activeViewerInfo = null;
 
   if (dicomImage) {
     dicomImage.removeAttribute("src");
@@ -213,6 +219,9 @@ function showImageSlice(index) {
 
   const clampedIndex = Math.max(0, Math.min(index, activeImageObjects.length - 1));
   const object = activeImageObjects[clampedIndex];
+  if (imageSlider) {
+    imageSlider.value = clampedIndex + 1;
+  }
   dicomImage.onload = () => {
     viewerLoading?.classList.add("hidden");
   };
@@ -224,6 +233,7 @@ function showImageSlice(index) {
 
 function loadImageSliceViewer(viewerInfo) {
   activeImageObjects = viewerInfo.objects ?? [];
+  activeViewerInfo = viewerInfo;
   if (activeImageObjects.length === 0) {
     throw new Error("No images were found for this series.");
   }
@@ -243,8 +253,41 @@ function loadImageSliceViewer(viewerInfo) {
         ? `${activeImageObjects.length} slices`
         : `${activeImageObjects.length} images`;
   }
+  if (openRoiButton) {
+    openRoiButton.disabled = false;
+  }
 
   showImageSlice(0);
+}
+
+function getSelectedImageObject() {
+  if (activeImageObjects.length === 0) {
+    return null;
+  }
+  const selectedIndex = imageSlider ? Number(imageSlider.value) - 1 : 0;
+  const clampedIndex = Math.max(0, Math.min(selectedIndex, activeImageObjects.length - 1));
+  return activeImageObjects[clampedIndex];
+}
+
+function openSelectedImageInRoi() {
+  const object = getSelectedImageObject();
+  if (!object || !activeViewerInfo) {
+    return;
+  }
+
+  const url = new URL("roi.html", window.location.href);
+  url.searchParams.set("image_url", object.url);
+  url.searchParams.set("source", activeViewerInfo.source);
+  url.searchParams.set("object_name", object.object_name);
+
+  if (activeViewerInfo.source === "NIfTI") {
+    url.searchParams.set("axis", object.axis ?? activeViewerInfo.axis ?? "z");
+    url.searchParams.set("slice", String(object.slice ?? 0));
+  } else {
+    url.searchParams.set("frame", String(object.frame ?? 0));
+  }
+
+  window.location.href = url.toString();
 }
 
 async function loadViewerForSeries(series) {
@@ -1104,6 +1147,7 @@ imageSlider.addEventListener("input", () => {
     showImageSlice(Number(imageSlider.value) - 1);
   }
 });
+openRoiButton?.addEventListener("click", openSelectedImageInRoi);
 window.addEventListener("scroll", updateBackToTopButton);
 backToTopButton.addEventListener("click", scrollToTop);
 

@@ -60,23 +60,23 @@ nifti_slice_png_cache: OrderedDict[tuple[str, str, int], bytes] = OrderedDict()
 def get_series_context(series_uid: str, collection: str | None = None) -> ViewerSeriesContext:
     session = SessionLocal()
     try:
-        query = session.query(Series).filter(Series.instance_uid == series_uid)
+        query = session.query(Series).filter(Series.series_instance_uid == series_uid)
         if collection:
-            query = query.join(Series.study).filter(Study.collection == collection)
+            query = query.join(Series.study).filter(Study.collection_name_study == collection)
         series = query.first()
 
         if not series or not series.study:
             raise ViewerSeriesNotFound("Series not found in the local database.")
-        if not series.study.collection:
+        if not series.study.collection_name_study:
             raise ViewerSeriesNotFound("Series collection is missing.")
-        if not series.study.patient_id:
+        if not series.study.patient_id_study:
             raise ViewerSeriesNotFound("Series patient is missing.")
 
         return ViewerSeriesContext(
-            collection=series.study.collection,
-            patient_id=series.study.patient_id,
-            study_uid=series.study_instance_uid,
-            series_uid=series.instance_uid,
+            collection=series.study.collection_name_study,
+            patient_id=series.study.patient_id_study,
+            study_uid=series.study_instance_uid_series,
+            series_uid=series.series_instance_uid,
             modality=series.modality,
         )
     finally:
