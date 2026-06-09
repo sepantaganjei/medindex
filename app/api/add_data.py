@@ -85,7 +85,7 @@ class FeatureInput(BaseModel):
     value: float
 
 
-class ROI(BaseModel):
+class ROI_coordinates(BaseModel):
     x: float
     y: float
 
@@ -94,7 +94,7 @@ class ExtractionInput(BaseModel):
     image_number: str
     series_instance_uid: str
     features_extracted: list[FeatureInput]
-    roi_coordinates: list[ROI]
+    roi_coordinates: list[ROI_coordinates]
 
 
 class ExtractionInsertionResponse(BaseModel):

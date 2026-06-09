@@ -170,8 +170,9 @@ def get_patient_on_id(session, id):
 def get_all_extractions(session):
     rows = (
         session
-        .query(Extraction, ValueMapping.standardized_value)
-        .join(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
+        .query(Roi, Extraction, ValueMapping.standardized_value)
+        .join(Extraction, Extraction.roi_id == Roi.id)
+        .outerjoin(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
         .all()
     )
     return rows

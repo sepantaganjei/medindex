@@ -258,22 +258,72 @@ def get_all_collections():
 
 
 def get_all_extractions():
-    session = SessionLocal()
+    list_of_rois = []
+    current_roi = {}
+    current_roi_id = None
+    extracted_features = []
 
+    session = SessionLocal()
     try:
         rows = repo.get_all_extractions(session)
-        return [
-            {
-                "id": extraction.id,
-                "image_number": extraction.image_number,
-                "series_instance_uid_extraction": extraction.series_instance_uid_extraction,
-                "feature_name": extraction.feature_name,
-                "value": extraction.value,
-                "standardized_feature_name": std_name,
-            }
-            for extraction, std_name in rows
-        ]
 
+        for roi, extraction, std_name in rows:
+            new_roi_id = getattr(roi, "id")
+
+            if current_roi_id is None:
+                current_roi_id = new_roi_id
+
+                feature_extracted = {
+                    "id": extraction.id,
+                    "feature_name": extraction.feature_name,
+                    "standardized_feature_name": std_name,
+                    "value": extraction.value,
+                }
+                extracted_features.append(feature_extracted)
+
+                current_roi = {
+                    "roi_id": new_roi_id,
+                    "image_number": roi.image_number,
+                    "series_instance_uid_roi": roi.series_instance_uid_roi,
+                    "roi_coordinates": roi.roi_coordinates,
+                }
+
+            elif current_roi_id != -1 and current_roi_id != new_roi_id:
+                current_roi["features_extracted"] = extracted_features
+                list_of_rois.append(current_roi)
+
+                current_roi_id = new_roi_id
+
+                extracted_features = []
+                feature_extracted = {
+                    "id": extraction.id,
+                    "feature_name": extraction.feature_name,
+                    "standardized_feature_name": std_name,
+                    "value": extraction.value,
+                }
+                extracted_features.append(feature_extracted)
+
+                current_roi = {
+                    "roi_id": new_roi_id,
+                    "image_number": roi.image_number,
+                    "series_instance_uid_roi": roi.series_instance_uid_roi,
+                    "roi_coordinates": roi.roi_coordinates,
+                }
+            else:
+                feature_extracted = {
+                    "id": extraction.id,
+                    "feature_name": extraction.feature_name,
+                    "standardized_feature_name": std_name,
+                    "value": extraction.value,
+                }
+                extracted_features.append(feature_extracted)
+
+        # add last roi
+        if current_roi:
+            current_roi["features_extracted"] = extracted_features
+            list_of_rois.append(current_roi)
+
+        return list_of_rois
     finally:
         session.close()
 
