@@ -25,6 +25,7 @@ const viewerError = document.getElementById("viewer-error");
 const dicomViewer = document.getElementById("dicom-viewer");
 const dicomImage = document.getElementById("dicom-image");
 const viewerControls = document.querySelector(".viewer-controls");
+const openRoiButton = document.getElementById("open-roi-button");
 
 const seriesViewButton = document.getElementById("series-view-button");
 const availableViewButton = document.getElementById("available-view-button");
@@ -59,6 +60,21 @@ const dicomPagination = document.getElementById("dicom-pagination");
 const uploadInput = document.getElementById("dataset-upload-input");
 const uploadButton = document.getElementById("dataset-upload-button");
 const uploadStatus = document.getElementById("upload-status");
+const uploadModal = document.getElementById("upload-modal");
+const uploadForm = document.getElementById("upload-form");
+const uploadModalClose = document.getElementById("upload-modal-close");
+const uploadCancelButton = document.getElementById("upload-cancel-button");
+const uploadDatasetType = document.getElementById("upload-dataset-type");
+const uploadCollectionName = document.getElementById("upload-collection-name");
+const uploadDescription = document.getElementById("upload-description");
+const uploadMetadataFile = document.getElementById("upload-metadata-file");
+const uploadDescriptionSeriesMatching = document.getElementById(
+  "upload-description-series-matching",
+);
+const uploadColumnMapping = document.getElementById("upload-column-mapping");
+const uploadNiftiFields = document.getElementById("upload-nifti-fields");
+const uploadModalStatus = document.getElementById("upload-modal-status");
+const uploadSubmitButton = document.getElementById("upload-submit-button");
 
 const collectionsCount = document.getElementById("collections-count");
 const selectAllCollectionsButton = document.getElementById(
@@ -78,6 +94,7 @@ let lastDicomCollectionName = "";
 let dicomIsLoading = false;
 let dicomError = "";
 let activeViewerSeries = null;
+let activeViewerInfo = null;
 let activeMetadataTab = "series";
 let lastSearchScrollY = 0;
 let isSeriesLoading = true;
@@ -242,7 +259,11 @@ function resetViewerState() {
   viewerPlaceholder?.classList.add("hidden");
   dicomViewer?.classList.add("hidden");
   viewerControls?.classList.add("hidden");
+  if (openRoiButton) {
+    openRoiButton.disabled = true;
+  }
   activeImageObjects = [];
+  activeViewerInfo = null;
 
   if (dicomImage) {
     dicomImage.removeAttribute("src");
@@ -274,6 +295,9 @@ function showImageSlice(index) {
 
   const clampedIndex = Math.max(0, Math.min(index, activeImageObjects.length - 1));
   const object = activeImageObjects[clampedIndex];
+  if (imageSlider) {
+    imageSlider.value = clampedIndex + 1;
+  }
   dicomImage.onload = () => {
     viewerLoading?.classList.add("hidden");
   };
@@ -285,6 +309,7 @@ function showImageSlice(index) {
 
 function loadImageSliceViewer(viewerInfo) {
   activeImageObjects = viewerInfo.objects ?? [];
+  activeViewerInfo = viewerInfo;
   if (activeImageObjects.length === 0) {
     throw new Error("No images were found for this series.");
   }
@@ -304,8 +329,41 @@ function loadImageSliceViewer(viewerInfo) {
         ? `${activeImageObjects.length} slices`
         : `${activeImageObjects.length} images`;
   }
+  if (openRoiButton) {
+    openRoiButton.disabled = false;
+  }
 
   showImageSlice(0);
+}
+
+function getSelectedImageObject() {
+  if (activeImageObjects.length === 0) {
+    return null;
+  }
+  const selectedIndex = imageSlider ? Number(imageSlider.value) - 1 : 0;
+  const clampedIndex = Math.max(0, Math.min(selectedIndex, activeImageObjects.length - 1));
+  return activeImageObjects[clampedIndex];
+}
+
+function openSelectedImageInRoi() {
+  const object = getSelectedImageObject();
+  if (!object || !activeViewerInfo) {
+    return;
+  }
+
+  const url = new URL("roi.html", window.location.href);
+  url.searchParams.set("image_url", object.url);
+  url.searchParams.set("source", activeViewerInfo.source);
+  url.searchParams.set("object_name", object.object_name);
+
+  if (activeViewerInfo.source === "NIfTI") {
+    url.searchParams.set("axis", object.axis ?? activeViewerInfo.axis ?? "z");
+    url.searchParams.set("slice", String(object.slice ?? 0));
+  } else {
+    url.searchParams.set("frame", String(object.frame ?? 0));
+  }
+
+  window.location.href = url.toString();
 }
 
 async function loadViewerForSeries(series) {
@@ -1169,6 +1227,7 @@ imageSlider.addEventListener("input", () => {
     showImageSlice(Number(imageSlider.value) - 1);
   }
 });
+openRoiButton?.addEventListener("click", openSelectedImageInRoi);
 window.addEventListener("scroll", updateBackToTopButton);
 backToTopButton.addEventListener("click", scrollToTop);
 
@@ -1298,55 +1357,189 @@ availableSearchInput.addEventListener("input", () => {
   renderAvailableCollections();
 });
 
-if (uploadButton && uploadInput) {
-  uploadButton.addEventListener("click", () => {
-    uploadInput.click();
+function setUploadModalStatus(message, type = "") {
+  if (!uploadModalStatus) {
+    return;
+  }
+  uploadModalStatus.textContent = message;
+  uploadModalStatus.classList.toggle("error", type === "error");
+  uploadModalStatus.classList.toggle("success", type === "success");
+}
+
+function getUploadZipFile() {
+  return uploadInput?.files?.[0] ?? null;
+}
+
+function updateUploadTypeFields() {
+  const isNifti = uploadDatasetType?.value === "nifti";
+  uploadNiftiFields?.classList.toggle("hidden", !isNifti);
+  if (!isNifti) {
+    if (uploadMetadataFile) {
+      uploadMetadataFile.value = "";
+    }
+    if (uploadColumnMapping) {
+      uploadColumnMapping.value = "";
+    }
+  }
+}
+
+function updateUploadSubmitState() {
+  const hasZip = Boolean(getUploadZipFile());
+  const hasCollection = Boolean(uploadCollectionName?.value.trim());
+  const hasDatasetType = Boolean(uploadDatasetType?.value);
+
+  if (uploadSubmitButton) {
+    uploadSubmitButton.disabled = !(hasZip && hasCollection && hasDatasetType);
+  }
+}
+
+function setUploadFormDisabled(disabled) {
+  [
+    uploadDatasetType,
+    uploadCollectionName,
+    uploadDescription,
+    uploadInput,
+    uploadMetadataFile,
+    uploadDescriptionSeriesMatching,
+    uploadColumnMapping,
+    uploadSubmitButton,
+    uploadCancelButton,
+    uploadModalClose,
+  ].forEach((element) => {
+    if (element) {
+      element.disabled = disabled;
+    }
+  });
+}
+
+function resetUploadForm() {
+  uploadForm?.reset();
+  updateUploadTypeFields();
+  updateUploadSubmitState();
+  setUploadModalStatus("Choose a ZIP file to start.");
+}
+
+function openUploadModal() {
+  resetUploadForm();
+  uploadModal?.classList.remove("hidden");
+  uploadCollectionName?.focus();
+}
+
+function closeUploadModal() {
+  uploadModal?.classList.add("hidden");
+}
+
+function inferCollectionNameFromZip(file) {
+  return file?.name?.replace(/\.zip$/i, "").trim() ?? "";
+}
+
+async function refreshDataAfterUpload() {
+  const { collections: loadedCollections, seriesData: loadedSeries } =
+    await loadMockData(apiBaseUrl);
+
+  collections = loadedCollections;
+  seriesData = loadedSeries;
+
+  selectedCollections = new Set(
+    collections.map((collection) => collection.id),
+  );
+
+  syncAvailableCollectionStatus();
+  resetAvailableCollectionsPage();
+  renderCollections();
+  renderModalityFilter();
+  renderSeries();
+  renderAvailableCollections();
+}
+
+function getUploadPayload() {
+  return {
+    datasetType: uploadDatasetType.value,
+    collectionName: uploadCollectionName.value.trim(),
+    description: uploadDescription.value.trim(),
+    zipFile: getUploadZipFile(),
+    metadataFile:
+      uploadDatasetType.value === "nifti"
+        ? uploadMetadataFile?.files?.[0] ?? null
+        : null,
+    allowDescriptionSeriesMatching:
+      uploadDatasetType.value === "nifti"
+        ? Boolean(uploadDescriptionSeriesMatching?.checked)
+        : false,
+    columnMapping:
+      uploadDatasetType.value === "nifti" ? uploadColumnMapping.value : "",
+  };
+}
+
+if (uploadButton && uploadModal && uploadForm) {
+  uploadButton.addEventListener("click", openUploadModal);
+  uploadModalClose?.addEventListener("click", closeUploadModal);
+  uploadCancelButton?.addEventListener("click", closeUploadModal);
+  uploadModal.addEventListener("click", (event) => {
+    if (event.target === uploadModal) {
+      closeUploadModal();
+    }
   });
 
-  uploadInput.addEventListener("change", async () => {
-    const file = uploadInput.files[0];
+  uploadDatasetType?.addEventListener("change", () => {
+    updateUploadTypeFields();
+    updateUploadSubmitState();
+  });
+  uploadCollectionName?.addEventListener("input", updateUploadSubmitState);
+  uploadInput?.addEventListener("change", () => {
+    const file = getUploadZipFile();
+    if (file && !uploadCollectionName.value.trim()) {
+      uploadCollectionName.value = inferCollectionNameFromZip(file);
+    }
+    setUploadModalStatus(file ? `Selected ${file.name}.` : "Choose a ZIP file to start.");
+    updateUploadSubmitState();
+  });
 
-    if (!file) {
+  uploadForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = getUploadPayload();
+
+    if (!payload.zipFile || !payload.collectionName) {
+      setUploadModalStatus("Choose a ZIP file and collection name.", "error");
+      updateUploadSubmitState();
       return;
     }
 
-    uploadStatus.textContent = `Selected: ${file.name}`;
-
     try {
-      if (typeof uploadDataset === "function") {
-        uploadStatus.textContent = `Uploading ${file.name}...`;
+      setUploadFormDisabled(true);
+      setUploadModalStatus(`Uploading ${payload.zipFile.name}...`);
+      uploadStatus.textContent = `Uploading ${payload.zipFile.name}...`;
 
-        await uploadDataset(apiBaseUrl, file);
+      await uploadDataset(apiBaseUrl, payload);
 
-        uploadStatus.textContent = "Upload complete. Refreshing data...";
+      setUploadModalStatus("Upload complete. Refreshing data...", "success");
+      uploadStatus.textContent = "Upload complete. Refreshing data...";
 
-        const { collections: loadedCollections, seriesData: loadedSeries } =
-          await loadMockData(apiBaseUrl);
+      await refreshDataAfterUpload();
 
-        collections = loadedCollections;
-        seriesData = loadedSeries;
-
-        selectedCollections = new Set(
-          collections.map((collection) => collection.id),
-        );
-
-        syncAvailableCollectionStatus();
-        resetAvailableCollectionsPage();
-        renderCollections();
-        renderModalityFilter();
-        renderSeries();
-        renderAvailableCollections();
-
-        uploadStatus.textContent = "Dataset loaded.";
-      } else {
-        uploadStatus.textContent =
-          "File selected. Upload endpoint not connected yet.";
-      }
+      uploadStatus.textContent = "Dataset loaded.";
+      closeUploadModal();
     } catch (error) {
       console.error("Upload failed", error);
-      uploadStatus.textContent = `Upload failed: ${error.message}`;
+      const message = `Upload failed: ${error.message}`;
+      setUploadModalStatus(message, "error");
+      uploadStatus.textContent = message;
+    } finally {
+      setUploadFormDisabled(false);
+      updateUploadSubmitState();
     }
   });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !uploadModal?.classList.contains("hidden")) {
+    closeUploadModal();
+  }
+});
+
+if (uploadForm) {
+  updateUploadTypeFields();
+  updateUploadSubmitState();
 }
 
 initializeData().catch((error) => {

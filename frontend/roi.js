@@ -17,15 +17,14 @@ const featureMenu = document.getElementById("featureMenu");
 const selectAllBtn = document.getElementById("selectAllBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
-const objectKeyInput = document.getElementById("objectKeyInput");
-const loadImageBtn = document.getElementById("loadImageBtn");
 const loadStatus = document.getElementById("loadStatus");
 const featuresStatus = document.getElementById("featuresStatus");
 const featuresList = document.getElementById("featuresList");
 
 const img = new Image();
 let objectUrl = null;
-let currentObjectKey = "";
+let currentRenderSource = null;
+let currentApiBaseUrl = "";
 
 /* =========================================
    ROI STATE
@@ -123,44 +122,50 @@ ro.observe(document.getElementById("canvasContainer"));
    IMAGE LOADING
 ========================================= */
 
-function encodeObjectKey(objectKey) {
-  return objectKey
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-}
+function getRenderSourceFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const imageUrl = params.get("image_url");
+  const objectName = params.get("object_name");
+  const source = params.get("source");
 
-function updateUrl(objectKey) {
-  const url = new URL(window.location.href);
-  if (objectKey) {
-    url.searchParams.set("object_key", objectKey);
+  if (!imageUrl || !objectName || !source) {
+    return null;
+  }
+
+  const renderSource = {
+    source,
+    object_name: objectName,
+  };
+
+  if (source === "NIfTI") {
+    renderSource.axis = params.get("axis") || "z";
+    renderSource.slice = Number(params.get("slice") || 0);
   } else {
-    url.searchParams.delete("object_key");
+    renderSource.frame = Number(params.get("frame") || 0);
   }
-  window.history.replaceState({}, "", url.toString());
+
+  return { imageUrl, renderSource };
 }
 
-async function loadImageForKey(objectKey) {
-  if (!objectKey) {
-    loadStatus.textContent = "Provide an object key";
-    return;
-  }
+async function loadRenderedImage(imageUrl, renderSource) {
   loadStatus.textContent = "Loading image…";
   featuresStatus.textContent = "No features computed yet.";
   featuresList.innerHTML = "";
+
   try {
-    const encodedKey = encodeObjectKey(objectKey);
-    const response = await fetch(`/api/object-storage/objects/${encodedKey}`);
+    currentApiBaseUrl = new URL(imageUrl, window.location.href).origin;
+    const response = await fetch(imageUrl);
     if (!response.ok) {
       throw new Error(`Request failed (${response.status})`);
     }
+
     const blob = await response.blob();
     if (objectUrl) {
       URL.revokeObjectURL(objectUrl);
     }
+
     objectUrl = URL.createObjectURL(blob);
-    currentObjectKey = objectKey;
-    updateUrl(objectKey);
+    currentRenderSource = renderSource;
     img.src = objectUrl;
   } catch (error) {
     loadStatus.textContent = "Failed to load image";
@@ -168,15 +173,11 @@ async function loadImageForKey(objectKey) {
   }
 }
 
-loadImageBtn.addEventListener("click", () => {
-  const key = objectKeyInput.value.trim();
-  loadImageForKey(key);
-});
-
-const initialObjectKey = new URLSearchParams(window.location.search).get("object_key");
-if (initialObjectKey) {
-  objectKeyInput.value = initialObjectKey;
-  loadImageForKey(initialObjectKey);
+const initialImage = getRenderSourceFromUrl();
+if (initialImage) {
+  loadRenderedImage(initialImage.imageUrl, initialImage.renderSource);
+} else {
+  loadStatus.textContent = "Open a viewer slice from the main page.";
 }
 
 /* =========================================
@@ -869,7 +870,7 @@ function renderFeatures(features) {
 yesBtn.onclick = async () => {
   dialog.style.display = "none";
 
-  if (!currentObjectKey) {
+  if (!currentRenderSource) {
     featuresStatus.textContent = "Load an image before extracting features.";
     return;
   }
@@ -884,11 +885,11 @@ yesBtn.onclick = async () => {
   featuresList.innerHTML = "";
 
   try {
-    const response = await fetch("/api/radiomics/extract", {
+    const response = await fetch(`${currentApiBaseUrl}/api/radiomics/extract`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        object_key: currentObjectKey,
+        render_source: currentRenderSource,
         points: roi,
       }),
     });

@@ -1,8 +1,6 @@
 import os
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
-from minio.error import S3Error
 
 from app.core.config import config
 from app.services.object_storage_service import ObjectStorageService
@@ -30,14 +28,6 @@ def _serialize_object(storage_object: object) -> dict[str, str | int | None]:
         "last_modified": last_modified.isoformat() if last_modified else None,
         "content_type": getattr(storage_object, "content_type", None),
     }
-
-
-def _stream_object(response):
-    try:
-        for chunk in response.stream(1024 * 1024):
-            yield chunk
-    finally:
-        response.release_conn()
 
 
 @router.get("/buckets")
@@ -86,29 +76,6 @@ def search_objects(
         "bucket": resolved_bucket,
         "objects": [_serialize_object(storage_object) for storage_object in filtered_objects],
     }
-
-
-@router.get("/objects/{object_name:path}")
-def download_object(object_name: str, bucket: str | None = None) -> StreamingResponse:
-    resolved_bucket = _resolve_bucket(bucket)
-    try:
-        stat = object_storage_service.stat_object(resolved_bucket, object_name)
-        response = object_storage_service.get_object(resolved_bucket, object_name)
-    except S3Error as exc:
-        if exc.code in {"NoSuchKey", "NoSuchBucket"}:
-            raise HTTPException(status_code=404, detail="Object not found") from exc
-        raise
-
-    filename = os.path.basename(object_name)
-    headers = {"Content-Length": str(stat.size)}
-    if filename:
-        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-
-    return StreamingResponse(
-        _stream_object(response),
-        media_type=stat.content_type or "application/octet-stream",
-        headers=headers,
-    )
 
 
 @router.post("/upload")

@@ -50,7 +50,11 @@ def ingest_zip_dataset(
     collection_name: str | None = None,
     description: str | None = None,
     column_mapping: str | dict[str, str] | None = None,
+<<<<<<< HEAD
     remote: bool,
+=======
+    allow_description_series_matching: bool = False,
+>>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
 ) -> dict[str, Any]:
     dataset_type = dataset_type.lower().strip()
     if dataset_type not in ALLOWED_DATASET_TYPES:
@@ -84,7 +88,11 @@ def ingest_zip_dataset(
                 description,
                 parsed_column_mapping,
                 metadata_path,
+<<<<<<< HEAD
                 remote,
+=======
+                allow_description_series_matching,
+>>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
             )
 
     return result
@@ -324,6 +332,7 @@ def match_nifti_rows_to_files(
     files: list[Path],
     column_mapping: dict[str, str],
     root: Path | None = None,
+    allow_description_series_matching: bool = False,
 ) -> tuple[dict[Path, dict[str, Any]], list[Path], list[str]]:
     warnings: list[str] = []
     if not rows:
@@ -345,9 +354,13 @@ def match_nifti_rows_to_files(
             )
             if patient_candidates:
                 series_candidates = _candidate_rows_for_nifti_series(
-                    patient_candidates, file_path
+                    patient_candidates,
+                    file_path,
+                    allow_description_series_matching,
                 )
-                if len(series_candidates) == 1:
+                if len(series_candidates) == 1 or (
+                    allow_description_series_matching and series_candidates
+                ):
                     matches[file_path] = _row_with_match_scope(
                         series_candidates[0], "series"
                     )
@@ -517,7 +530,11 @@ def _ingest_nifti_zip(
     description: str | None,
     column_mapping: dict[str, str],
     metadata_path: Path | None,
+<<<<<<< HEAD
     remote: bool,
+=======
+    allow_description_series_matching: bool,
+>>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
 ) -> dict[str, Any]:
     files = discover_nifti_files(root)
     if not files:
@@ -534,7 +551,11 @@ def _ingest_nifti_zip(
         unresolved = []
     else:
         row_matches, unresolved, match_warnings = match_nifti_rows_to_files(
-            metadata_rows, files, column_mapping, root
+            metadata_rows,
+            files,
+            column_mapping,
+            root,
+            allow_description_series_matching,
         )
         warnings.extend(match_warnings)
 
@@ -801,9 +822,51 @@ def _insert_records(
         session.close()
 
 
+MODEL_FIELD_ALIASES = {
+    Collection: {
+        "name": "collection_name",
+        "description_uri": "data_description_uri",
+    },
+    Patient: {
+        "id": "patient_id",
+        "sex": "patient_sex",
+        "age": "patient_age",
+    },
+    Study: {
+        "instance_uid": "study_instance_uid",
+        "collection": "collection_name_study",
+        "patient_id": "patient_id_study",
+        "date": "study_date",
+        "description": "study_description",
+    },
+    Series: {
+        "instance_uid": "series_instance_uid",
+        "study_instance_uid": "study_instance_uid_series",
+        "body_part": "body_part_examined",
+    },
+}
+
+
+def _to_model_fields(model, data: dict[str, Any]) -> dict[str, Any]:
+    aliases = MODEL_FIELD_ALIASES.get(model, {})
+    model_columns = set(model.__table__.columns.keys())
+    normalized: dict[str, Any] = {}
+
+    for key, value in data.items():
+        column = aliases.get(key, key)
+        if column in model_columns:
+            normalized[column] = value
+
+    return normalized
+
+
 def _add_if_missing(session, model, key: str, data: dict[str, Any]) -> bool:
-    if not session.query(model).filter(getattr(model, key) == data[key]).first():
-        session.add(model(**data))
+    model_data = _to_model_fields(model, data)
+    if key not in model_data:
+        raise KeyError(f"Missing key '{key}' for {model.__name__}")
+
+    if not session.query(model).filter(getattr(model, key) == model_data[key]).first():
+        session.add(model(**model_data))
         return True
     return False
 
@@ -1048,16 +1111,49 @@ def _candidate_rows_for_patient(
 
 
 def _candidate_rows_for_nifti_series(
-    rows: list[dict[str, Any]], file_path: Path
+    rows: list[dict[str, Any]],
+    file_path: Path,
+    allow_description_series_matching: bool = False,
 ) -> list[dict[str, Any]]:
     tokens = _text_tokens(_nifti_stem(file_path.name))
     if not tokens:
         return []
 
+    if allow_description_series_matching:
+        description_candidates = _candidate_rows_for_nifti_description(
+            rows,
+            tokens,
+        )
+        if description_candidates:
+            return description_candidates
+
     candidates = []
     best_score = 0
     for row in rows:
         score = _row_token_overlap_score(row, tokens)
+        if score > best_score:
+            best_score = score
+            candidates = [row]
+        elif score == best_score and score > 0:
+            candidates.append(row)
+    return candidates
+
+
+def _candidate_rows_for_nifti_description(
+    rows: list[dict[str, Any]],
+    tokens: set[str],
+) -> list[dict[str, Any]]:
+    candidates = []
+    best_score = 0
+    for row in rows:
+        description_values = [
+            _row_value(row, ["series description", "description"]),
+            _row_value(row, ["protocol name", "protocolname"]),
+        ]
+        score = max(
+            (len(tokens & _text_tokens(value)) for value in description_values if value),
+            default=0,
+        )
         if score > best_score:
             best_score = score
             candidates = [row]

@@ -51,7 +51,9 @@ def get_all_series(collectionName: Optional[str] = None):
 
 class CollectionsResponse(BaseModel):
     collection_name: str
-    description: str
+    description: str | None = None
+
+    model_config = {"from_attributes": True}
 
 
 # get collection available for download
