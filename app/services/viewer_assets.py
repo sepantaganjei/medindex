@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import io
+import re
 import tempfile
+import zipfile
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,12 +17,16 @@ from pydicom.multival import MultiValue
 from app.core.config import config
 from app.db.database import SessionLocal
 from app.db.models import Series, Study
+from app.etl import extract
 from app.services.object_storage_service import ObjectStorageService
 
 
 NIFTI_SUFFIXES = (".nii", ".nii.gz")
 MAX_NIFTI_VOLUME_CACHE_ITEMS = 3
 MAX_NIFTI_SLICE_CACHE_ITEMS = 512
+MAX_REMOTE_DICOM_ZIP_FILES = 20_000
+MAX_REMOTE_DICOM_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
+MAX_REMOTE_DICOM_SINGLE_FILE_BYTES = 2 * 1024 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -134,6 +140,107 @@ def _safe_int(value) -> int | None:
         return None
 
 
+def _safe_object_segment(value: str | None, fallback: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value or "").strip())
+    return cleaned.strip("._-") or fallback
+
+
+def _looks_like_dicom_dataset(dataset) -> bool:
+    return any(
+        hasattr(dataset, field)
+        for field in (
+            "SOPClassUID",
+            "SOPInstanceUID",
+            "PatientID",
+            "StudyInstanceUID",
+            "SeriesInstanceUID",
+        )
+    )
+
+
+def _is_zip_symlink(info: zipfile.ZipInfo) -> bool:
+    return (info.external_attr >> 16) & 0o170000 == 0o120000
+
+
+def _validate_remote_dicom_zip(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
+    members = [info for info in archive.infolist() if not info.is_dir()]
+    if len(members) > MAX_REMOTE_DICOM_ZIP_FILES:
+        raise ViewerAssetError("Remote DICOM ZIP contains too many files.")
+
+    total_size = 0
+    for info in members:
+        if _is_zip_symlink(info):
+            raise ViewerAssetError("Remote DICOM ZIP contains unsupported symlinks.")
+        if info.file_size > MAX_REMOTE_DICOM_SINGLE_FILE_BYTES:
+            raise ViewerAssetError("Remote DICOM ZIP contains a file that is too large.")
+        total_size += info.file_size
+        if total_size > MAX_REMOTE_DICOM_UNCOMPRESSED_BYTES:
+            raise ViewerAssetError("Remote DICOM ZIP is too large.")
+
+    return members
+
+
+def _upload_remote_dicom_series(context: ViewerSeriesContext) -> list[str]:
+    try:
+        response = extract.getZip(context.series_uid)
+    except Exception as exc:
+        raise ViewerAssetError("Remote DICOM series download failed.") from exc
+
+    uploaded_objects: list[str] = []
+    try:
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            for info in _validate_remote_dicom_zip(archive):
+                payload = archive.read(info)
+                try:
+                    dataset = pydicom.dcmread(
+                        io.BytesIO(payload),
+                        stop_before_pixels=True,
+                        force=True,
+                    )
+                except Exception:
+                    continue
+
+                if not _looks_like_dicom_dataset(dataset):
+                    continue
+                if str(getattr(dataset, "SeriesInstanceUID", "")).strip() != context.series_uid:
+                    continue
+
+                sop_uid = _safe_object_segment(
+                    str(getattr(dataset, "SOPInstanceUID", "") or ""),
+                    _safe_object_segment(Path(info.filename).stem, "instance"),
+                )
+                object_name = "/".join(
+                    [
+                        context.collection,
+                        context.patient_id,
+                        context.study_uid,
+                        context.series_uid,
+                        f"{sop_uid}.dcm",
+                    ]
+                )
+                object_storage_service.upload_bytes(
+                    config.object_storage_bucket,
+                    object_name,
+                    payload,
+                    "application/dicom",
+                )
+                uploaded_objects.append(object_name)
+    except zipfile.BadZipFile as exc:
+        raise ViewerAssetError("Remote DICOM response was not a valid ZIP file.") from exc
+    except Exception:
+        for object_name in uploaded_objects:
+            try:
+                object_storage_service.delete_object(config.object_storage_bucket, object_name)
+            except Exception:
+                pass
+        raise
+
+    if not uploaded_objects:
+        raise ViewerAssetError("Remote DICOM ZIP did not contain files for this series.")
+
+    return sorted(uploaded_objects)
+
+
 def _dicom_instance_sort_key(object_name: str) -> tuple[bool, int, str]:
     try:
         payload = object_storage_service.get_object_bytes(config.object_storage_bucket, object_name)
@@ -148,7 +255,9 @@ def build_series_viewer(series_uid: str, collection: str | None, base_url: str) 
     context = get_series_context(series_uid, collection)
     object_names = _list_series_object_names(context)
     if not object_names:
-        raise ViewerAssetError("No uploaded files found for this series.")
+        if str(context.modality or "").strip().upper() == "NIFTI":
+            raise ViewerAssetError("No uploaded files found for this NIfTI series.")
+        object_names = _upload_remote_dicom_series(context)
 
     nifti_objects = [object_name for object_name in object_names if _is_nifti_object(object_name)]
     dicom_objects = [object_name for object_name in object_names if _is_dicom_object(object_name)]

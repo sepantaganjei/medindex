@@ -475,24 +475,53 @@ async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   return result;
 }
 
-async function uploadDataset(apiBaseUrl, file) {
+async function uploadDataset(apiBaseUrl, dataset) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  const zipFile = dataset.zipFile;
 
-  if (!file.name.toLowerCase().endsWith(".zip")) {
-    throw new Error("Upload a .zip file for NIfTI datasets.");
+  if (!zipFile?.name?.toLowerCase().endsWith(".zip")) {
+    throw new Error("Upload a .zip file.");
   }
 
-  const collectionName = file.name.replace(/\.zip$/i, "");
-
   const formData = new FormData();
-  formData.append("collection_name", collectionName);
-  formData.append("description", `Uploaded NIfTI dataset: ${collectionName}`);
-  formData.append("zip_file", file);
+  formData.append("dataset_type", dataset.datasetType);
+  formData.append("collection_name", dataset.collectionName);
+  formData.append("description", dataset.description ?? "");
+  formData.append("zip_file", zipFile);
+  if (dataset.metadataFile) {
+    formData.append("metadata_file", dataset.metadataFile);
+  }
+  formData.append(
+    "allow_description_series_matching",
+    String(Boolean(dataset.allowDescriptionSeriesMatching)),
+  );
+  if (dataset.columnMapping?.trim()) {
+    formData.append("column_mapping", dataset.columnMapping.trim());
+  }
 
-  const result = await fetchJson(`${baseUrl}/api/addNIFTIdataset`, {
+  const response = await fetch(`${baseUrl}/api/addZipDataset`, {
     method: "POST",
     body: formData,
   });
+
+  let result = null;
+  try {
+    result = await response.json();
+  } catch {
+    result = null;
+  }
+
+  if (!response.ok) {
+    const detail = result?.detail;
+    const detailMessage = Array.isArray(detail)
+      ? detail.map((item) => item.msg ?? JSON.stringify(item)).join("; ")
+      : detail;
+    throw new Error(
+      typeof detailMessage === "string"
+        ? detailMessage
+        : result?.error ?? `Dataset upload failed (${response.status})`,
+    );
+  }
 
   if (result.status_operation !== "success") {
     throw new Error(result.error ?? "Dataset upload failed");

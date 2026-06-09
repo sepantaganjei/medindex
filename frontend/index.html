@@ -35,9 +35,7 @@
         <section class="upload-card">
           <p>Upload local dataset</p>
 
-          <input id="dataset-upload-input" type="file" accept=".zip" hidden />
-
-          <button id="dataset-upload-button" type="button">Choose file</button>
+          <button id="dataset-upload-button" type="button">Upload dataset</button>
           <p id="upload-status" class="upload-status"></p>
         </section>
 
@@ -273,6 +271,98 @@
     <button id="back-to-top-button" class="back-to-top-button" type="button">
       Back to top
     </button>
+
+    <div
+      id="upload-modal"
+      class="modal-overlay hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="upload-modal-title"
+    >
+      <form id="upload-form" class="upload-modal" enctype="multipart/form-data">
+        <div class="modal-header">
+          <div>
+            <h2 id="upload-modal-title">Upload ZIP dataset</h2>
+            <p>Import a local DICOM or NIfTI archive.</p>
+          </div>
+          <button
+            id="upload-modal-close"
+            class="modal-icon-button"
+            type="button"
+            aria-label="Close upload dialog"
+          >
+            x
+          </button>
+        </div>
+
+        <label class="form-field">
+          Dataset type
+          <select id="upload-dataset-type" name="dataset_type" required>
+            <option value="dicom">DICOM</option>
+            <option value="nifti">NIfTI</option>
+          </select>
+        </label>
+
+        <label class="form-field">
+          Collection name
+          <input
+            id="upload-collection-name"
+            name="collection_name"
+            type="text"
+            autocomplete="off"
+            required
+          />
+        </label>
+
+        <label class="form-field">
+          Description
+          <textarea id="upload-description" name="description" rows="3"></textarea>
+        </label>
+
+        <label class="form-field">
+          ZIP file
+          <input id="dataset-upload-input" name="zip_file" type="file" accept=".zip" required />
+        </label>
+
+        <div id="upload-nifti-fields" class="nifti-fields hidden">
+          <label class="form-field">
+            Metadata file
+            <input id="upload-metadata-file" name="metadata_file" type="file" accept=".csv,.xlsx" />
+          </label>
+
+          <label class="checkbox-field">
+            <input
+              id="upload-description-series-matching"
+              name="allow_description_series_matching"
+              type="checkbox"
+              checked
+            />
+            Use description matching for XLSX series IDs
+          </label>
+
+          <label class="form-field">
+            Column mapping JSON
+            <textarea
+              id="upload-column-mapping"
+              name="column_mapping"
+              rows="4"
+              placeholder='{"patient id": "PatientID"}'
+            ></textarea>
+          </label>
+        </div>
+
+        <p id="upload-modal-status" class="modal-status">
+          Choose a ZIP file to start.
+        </p>
+
+        <div class="modal-actions">
+          <button id="upload-cancel-button" type="button">Cancel</button>
+          <button id="upload-submit-button" type="submit" disabled>
+            Import dataset
+          </button>
+        </div>
+      </form>
+    </div>
 
     <script src="api.js"></script>
     <script src="app.js"></script>

@@ -39,6 +39,7 @@ def add_zip_dataset(
     collection_name: str | None = Form(None),
     description: str | None = Form(None),
     column_mapping: str | None = Form(None),
+    allow_description_series_matching: bool = Form(False),
 ):
     try:
         return ingest_zip_dataset(
@@ -48,6 +49,7 @@ def add_zip_dataset(
             collection_name=collection_name,
             description=description,
             column_mapping=column_mapping,
+            allow_description_series_matching=allow_description_series_matching,
         )
     except ZipIngestionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

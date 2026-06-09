@@ -852,6 +852,150 @@ tr:hover {
   word-break: break-word;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.upload-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  padding: 22px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--text);
+}
+
+.modal-header p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.modal-icon-button {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.form-field {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px;
+  font: inherit;
+}
+
+.form-field textarea {
+  resize: vertical;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.checkbox-field input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.nifti-fields {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.modal-status {
+  min-height: 18px;
+  margin: 6px 0 18px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.modal-status.error {
+  color: #b91c1c;
+}
+
+.modal-status.success {
+  color: #047857;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-actions button {
+  border: 1px solid var(--primary);
+  background: var(--surface);
+  color: var(--primary);
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.modal-actions button[type="submit"] {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.modal-actions button:disabled {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .sidebar-loading {
   margin: 8px 0;
   color: var(--text-muted);
