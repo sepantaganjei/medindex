@@ -9,7 +9,7 @@ import zipfile
 import os
 import re
 import html
-
+from app.api.add_data import ExtractionInput
 # ==========
 # Insertions
 # ==========
@@ -133,20 +133,26 @@ def _process_and_store_series(session, raw_data, dataset_type):
 
 
 # add new feature extraction
-def add_extraction(image_number, series_uid, feature_name, value):
+def add_extraction(extraction: ExtractionInput):
     session = SessionLocal()
     try:
-        data = {
-            "image_number": image_number,
-            "series_instance_uid_extraction": series_uid,
-            "feature_name": feature_name,
-            "value": value,
-        }
-        obj = repo.create_extraction(session, data)
+        roi_data = {"roi_coordinates": extraction.model_dump()["roi_coordinates"]}
+        roi_id = repo.create_roi(session, roi_data)
 
-        return {"status_operation": "success", "id": obj.id, "error": None}
+        for feature_extracted in extraction.features_extracted:
+            extraction_data = {
+                "roi_id": roi_id,
+                "image_number": extraction.image_number,
+                "series_instance_uid_extraction": extraction.series_instance_uid,
+                "feature_name": feature_extracted.feature_name,
+                "value": feature_extracted.value,
+            }
+
+            repo.create_extraction(session, extraction_data)
+
+        return {"status_operation": "success", "error": None}
     except Exception as e:
-        return {"status_operation": "fail", "id": None, "error": str(e)}
+        return {"status_operation": "fail", "error": str(e)}
     finally:
         session.close()
 

@@ -6,6 +6,7 @@ from app.db.models import Study
 from app.db.models import Patient
 from app.db.models import Series
 from app.db.models import Extraction
+from app.db.models import Roi
 from app.db.models import FieldMapping
 from app.db.models import ValueMapping
 from sqlalchemy.orm import joinedload
@@ -127,7 +128,14 @@ def create_extraction(session, data: dict):
     return obj
 
 
-# GET OPRATIONS
+def create_roi(session, data: dict):
+    obj = Roi(**data)
+    session.add(obj)
+    session.commit()
+    return obj.id
+
+
+# GET OPERATIONS
 def get_all_studies(session):
     return session.query(Study).all()
 

@@ -92,14 +92,13 @@ class ROI(BaseModel):
 
 class ExtractionInput(BaseModel):
     image_number: str
-    series_uid: str
+    series_instance_uid: str
     features_extracted: list[FeatureInput]
     roi_coordinates: list[ROI]
 
 
 class ExtractionInsertionResponse(BaseModel):
     status_operation: str
-    id: int | None = None
     error: str | None = None
 
 
