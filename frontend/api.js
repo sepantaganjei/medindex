@@ -629,3 +629,8 @@ function buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName) {
 async function fetchSeriesViewer(apiBaseUrl, seriesUid, collectionName) {
   return fetchJson(buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName));
 }
+
+async function loadExtractions(apiBaseUrl) {
+  const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  return fetchJson(`${baseUrl}/api/getExtractions`);
+}

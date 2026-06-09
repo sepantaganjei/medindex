@@ -73,6 +73,9 @@
             <button id="dicom-view-button" type="button">
               Explore DICOM dataset
             </button>
+            <button id="extractions-view-button" type="button">
+              Stored extractions
+            </button>
           </div>
 
           <section id="series-browser-section">
@@ -187,6 +190,28 @@
 
             <div id="dicom-results"></div>
             <div id="dicom-pagination" class="pagination"></div>
+          </section>
+
+          <section id="extractions-section" class="extractions-section hidden">
+            <div class="available-header">
+              <div>
+                <h2>Stored Extractions</h2>
+                <p>
+                  Review saved feature extractions and the ROI used to compute them.
+                </p>
+              </div>
+
+              <p id="extractions-result-count">0 extractions</p>
+            </div>
+
+            <div class="extractions-toolbar">
+              <button id="refresh-extractions-button" type="button">
+                Refresh extractions
+              </button>
+            </div>
+
+            <p id="extractions-status" class="dicom-status"></p>
+            <div id="extractions-list" class="extractions-list"></div>
           </section>
         </section>
 

@@ -30,11 +30,13 @@ const openRoiButton = document.getElementById("open-roi-button");
 const seriesViewButton = document.getElementById("series-view-button");
 const availableViewButton = document.getElementById("available-view-button");
 const dicomViewButton = document.getElementById("dicom-view-button");
+const extractionsViewButton = document.getElementById("extractions-view-button");
 const seriesBrowserSection = document.getElementById("series-browser-section");
 const availableCollectionsSection = document.getElementById(
   "available-collections-section",
 );
 const dicomExplorerSection = document.getElementById("dicom-explorer-section");
+const extractionsSection = document.getElementById("extractions-section");
 const availableSearchInput = document.getElementById("available-search-input");
 const availableCollectionsList = document.getElementById(
   "available-collections-list",
@@ -56,6 +58,12 @@ const dicomStatus = document.getElementById("dicom-status");
 const dicomResultCount = document.getElementById("dicom-result-count");
 const dicomResultsContainer = document.getElementById("dicom-results");
 const dicomPagination = document.getElementById("dicom-pagination");
+const extractionsResultCount = document.getElementById("extractions-result-count");
+const refreshExtractionsButton = document.getElementById(
+  "refresh-extractions-button",
+);
+const extractionsStatus = document.getElementById("extractions-status");
+const extractionsList = document.getElementById("extractions-list");
 
 const uploadInput = document.getElementById("dataset-upload-input");
 const uploadButton = document.getElementById("dataset-upload-button");
@@ -90,6 +98,10 @@ let dicomFieldMappings = { series: {}, studies: {}, patients: {} };
 let dicomFieldMappingsPromise = null;
 let activeDicomSearchType = "series";
 let dicomResults = [];
+let extractionsData = [];
+let extractionsLoaded = false;
+let isExtractionsLoading = false;
+let extractionsError = "";
 let lastDicomCollectionName = "";
 let dicomIsLoading = false;
 let dicomError = "";
@@ -351,10 +363,17 @@ function openSelectedImageInRoi() {
     return;
   }
 
+  const selectedIndex = imageSlider ? Number(imageSlider.value) - 1 : 0;
+  const imageNumber = Math.max(
+    1,
+    Math.min(activeImageObjects.length, selectedIndex + 1),
+  );
   const url = new URL("roi.html", window.location.href);
   url.searchParams.set("image_url", object.url);
   url.searchParams.set("source", activeViewerInfo.source);
   url.searchParams.set("object_name", object.object_name);
+  url.searchParams.set("series_uid", activeViewerInfo.series_uid);
+  url.searchParams.set("image_number", String(imageNumber));
 
   if (activeViewerInfo.source === "NIfTI") {
     url.searchParams.set("axis", object.axis ?? activeViewerInfo.axis ?? "z");
@@ -609,14 +628,17 @@ function setMainView(view) {
   const showingSeries = view === "series";
   const showingAvailable = view === "available";
   const showingDicom = view === "dicom";
+  const showingExtractions = view === "extractions";
 
   seriesBrowserSection.classList.toggle("hidden", !showingSeries);
   availableCollectionsSection.classList.toggle("hidden", !showingAvailable);
   dicomExplorerSection.classList.toggle("hidden", !showingDicom);
+  extractionsSection.classList.toggle("hidden", !showingExtractions);
 
   seriesViewButton.classList.toggle("active", showingSeries);
   availableViewButton.classList.toggle("active", showingAvailable);
   dicomViewButton.classList.toggle("active", showingDicom);
+  extractionsViewButton.classList.toggle("active", showingExtractions);
 }
 
 function renderModalityFilter() {
@@ -1037,6 +1059,231 @@ function renderAvailableCollectionsPagination(totalResults) {
   });
 }
 
+function getExtractionFeatureLabel(feature) {
+  return (
+    feature.standardized_feature_name ||
+    feature.feature_name ||
+    `Feature ${feature.id}`
+  );
+}
+
+function formatFeatureValue(value) {
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : value.toFixed(4);
+  }
+
+  return getDisplayValue(value);
+}
+
+function formatExtractionCount(count) {
+  return `${count} ${count === 1 ? "extraction" : "extractions"}`;
+}
+
+function getExtractionImageIndex(extraction, objectCount) {
+  const imageNumber = Number(extraction.image_number);
+
+  if (!Number.isFinite(imageNumber)) {
+    return 0;
+  }
+
+  const zeroBasedIndex = imageNumber > 0 ? imageNumber - 1 : imageNumber;
+  return Math.max(0, Math.min(objectCount - 1, zeroBasedIndex));
+}
+
+function drawStoredRoiOverlay(ctx, points, scale, offsetX, offsetY) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return;
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    const x = offsetX + Number(point.x) * scale;
+    const y = offsetY + Number(point.y) * scale;
+
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.closePath();
+  ctx.fillStyle = "rgba(14, 165, 164, 0.18)";
+  ctx.strokeStyle = "#0ea5a4";
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawStoredRoiOnly(canvas, points) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (!Array.isArray(points) || points.length < 2) {
+    ctx.fillStyle = "#64748b";
+    ctx.font = "13px Inter, Arial, sans-serif";
+    ctx.fillText("No ROI coordinates", 18, 28);
+    return;
+  }
+
+  const xs = points.map((point) => Number(point.x));
+  const ys = points.map((point) => Number(point.y));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const roiWidth = Math.max(1, maxX - minX);
+  const roiHeight = Math.max(1, maxY - minY);
+  const scale = Math.min(
+    (canvas.width - 32) / roiWidth,
+    (canvas.height - 32) / roiHeight,
+  );
+  const offsetX = (canvas.width - roiWidth * scale) / 2 - minX * scale;
+  const offsetY = (canvas.height - roiHeight * scale) / 2 - minY * scale;
+
+  drawStoredRoiOverlay(ctx, points, scale, offsetX, offsetY);
+}
+
+async function drawExtractionPreview(extraction) {
+  const canvas = document.querySelector(
+    `[data-extraction-preview="${extraction.roi_id}"]`,
+  );
+
+  if (!canvas) {
+    return;
+  }
+
+  canvas.width = 280;
+  canvas.height = 190;
+  drawStoredRoiOnly(canvas, extraction.roi_coordinates);
+
+  try {
+    const viewerInfo = await fetchSeriesViewer(
+      apiBaseUrl,
+      extraction.series_instance_uid_roi,
+    );
+    const objects = viewerInfo.objects ?? [];
+
+    if (objects.length === 0) {
+      return;
+    }
+
+    const imageObject = objects[getExtractionImageIndex(extraction, objects.length)];
+    const image = new Image();
+    image.onload = () => {
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const scale = Math.min(
+        canvas.width / image.naturalWidth,
+        canvas.height / image.naturalHeight,
+      );
+      const dw = image.naturalWidth * scale;
+      const dh = image.naturalHeight * scale;
+      const dx = (canvas.width - dw) / 2;
+      const dy = (canvas.height - dh) / 2;
+
+      ctx.drawImage(image, dx, dy, dw, dh);
+      drawStoredRoiOverlay(ctx, extraction.roi_coordinates, scale, dx, dy);
+    };
+    image.onerror = () => drawStoredRoiOnly(canvas, extraction.roi_coordinates);
+    image.src = imageObject.url;
+  } catch (error) {
+    console.warn("Could not render extraction image preview.", error);
+  }
+}
+
+function renderExtractions() {
+  extractionsResultCount.textContent = formatExtractionCount(
+    extractionsData.length,
+  );
+
+  if (isExtractionsLoading) {
+    extractionsStatus.textContent = "Loading stored extractions...";
+    extractionsStatus.className = "dicom-status loading";
+    extractionsList.innerHTML = `
+      <p class="empty-state">Loading stored extractions...</p>
+    `;
+    return;
+  }
+
+  if (extractionsError) {
+    extractionsStatus.textContent = extractionsError;
+    extractionsStatus.className = "dicom-status error";
+  } else {
+    extractionsStatus.textContent = extractionsLoaded
+      ? "Showing stored feature extractions."
+      : "Open this page to load saved extractions.";
+    extractionsStatus.className = "dicom-status";
+  }
+
+  if (extractionsData.length === 0) {
+    extractionsList.innerHTML = `
+      <p class="empty-state">
+        No stored extractions yet. Compute and save an ROI extraction first.
+      </p>
+    `;
+    return;
+  }
+
+  extractionsList.innerHTML = extractionsData
+    .map((extraction) => {
+      const features = extraction.features_extracted ?? [];
+      return `
+        <article class="extraction-card">
+          <div class="extraction-preview">
+            <canvas data-extraction-preview="${escapeHtml(extraction.roi_id)}"></canvas>
+          </div>
+          <div class="extraction-details">
+            <div class="extraction-card-header">
+              <div>
+                <h3>ROI ${escapeHtml(extraction.roi_id)}</h3>
+                <p>${escapeHtml(extraction.series_instance_uid_roi)}</p>
+              </div>
+              <span>Image ${escapeHtml(extraction.image_number)}</span>
+            </div>
+            <div class="extraction-features">
+              ${features
+                .map(
+                  (feature) => `
+                    <div class="extraction-feature-row">
+                      <span>${escapeHtml(getExtractionFeatureLabel(feature))}</span>
+                      <span>${escapeHtml(formatFeatureValue(feature.value))}</span>
+                    </div>
+                  `,
+                )
+                .join("")}
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  extractionsData.forEach(drawExtractionPreview);
+}
+
+async function refreshExtractions() {
+  isExtractionsLoading = true;
+  extractionsError = "";
+  renderExtractions();
+
+  try {
+    extractionsData = await loadExtractions(apiBaseUrl);
+    extractionsLoaded = true;
+  } catch (error) {
+    console.error("Could not load stored extractions.", error);
+    extractionsData = [];
+    extractionsError = `Failed to load stored extractions: ${error.message}`;
+  } finally {
+    isExtractionsLoading = false;
+    renderExtractions();
+  }
+}
+
 function renderMetadataRows(rows) {
   metadataContent.innerHTML = rows
     .map(
@@ -1331,6 +1578,17 @@ dicomViewButton.addEventListener("click", () => {
   setMainView("dicom");
   renderDicomExplorer();
 });
+
+extractionsViewButton.addEventListener("click", () => {
+  setMainView("extractions");
+  if (!extractionsLoaded && !isExtractionsLoading) {
+    refreshExtractions();
+  } else {
+    renderExtractions();
+  }
+});
+
+refreshExtractionsButton.addEventListener("click", refreshExtractions);
 
 dicomSeriesModeButton.addEventListener("click", () => {
   setDicomSearchType("series");

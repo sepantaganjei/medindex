@@ -25,6 +25,8 @@ const img = new Image();
 let objectUrl = null;
 let currentRenderSource = null;
 let currentApiBaseUrl = "";
+let currentSeriesUid = "";
+let currentImageNumber = "1";
 
 /* =========================================
    ROI STATE
@@ -127,6 +129,8 @@ function getRenderSourceFromUrl() {
   const imageUrl = params.get("image_url");
   const objectName = params.get("object_name");
   const source = params.get("source");
+  const seriesUid = params.get("series_uid") || "";
+  const imageNumber = params.get("image_number") || "1";
 
   if (!imageUrl || !objectName || !source) {
     return null;
@@ -144,10 +148,15 @@ function getRenderSourceFromUrl() {
     renderSource.frame = Number(params.get("frame") || 0);
   }
 
-  return { imageUrl, renderSource };
+  return { imageUrl, renderSource, seriesUid, imageNumber };
 }
 
-async function loadRenderedImage(imageUrl, renderSource) {
+async function loadRenderedImage(
+  imageUrl,
+  renderSource,
+  seriesUid = "",
+  imageNumber = "1",
+) {
   loadStatus.textContent = "Loading image…";
   featuresStatus.textContent = "No features computed yet.";
   featuresList.innerHTML = "";
@@ -166,6 +175,8 @@ async function loadRenderedImage(imageUrl, renderSource) {
 
     objectUrl = URL.createObjectURL(blob);
     currentRenderSource = renderSource;
+    currentSeriesUid = seriesUid;
+    currentImageNumber = imageNumber;
     img.src = objectUrl;
   } catch (error) {
     loadStatus.textContent = "Failed to load image";
@@ -175,7 +186,12 @@ async function loadRenderedImage(imageUrl, renderSource) {
 
 const initialImage = getRenderSourceFromUrl();
 if (initialImage) {
-  loadRenderedImage(initialImage.imageUrl, initialImage.renderSource);
+  loadRenderedImage(
+    initialImage.imageUrl,
+    initialImage.renderSource,
+    initialImage.seriesUid,
+    initialImage.imageNumber,
+  );
 } else {
   loadStatus.textContent = "Open a viewer slice from the main page.";
 }
@@ -863,6 +879,49 @@ function renderFeatures(features) {
     .join("");
 }
 
+function buildStoredFeaturePayload(features) {
+  return Object.entries(features ?? {})
+    .map(([featureName, value]) => ({
+      feature_name: featureName,
+      value: Number(value),
+    }))
+    .filter((feature) => Number.isFinite(feature.value));
+}
+
+async function saveExtraction(roi, features) {
+  if (!currentSeriesUid) {
+    throw new Error("Missing series UID for saved extraction.");
+  }
+
+  const storedFeatures = buildStoredFeaturePayload(features);
+  if (storedFeatures.length === 0) {
+    throw new Error("No numeric features were returned for saving.");
+  }
+
+  const response = await fetch(`${currentApiBaseUrl}/api/addExtraction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image_number: String(currentImageNumber),
+      series_instance_uid: currentSeriesUid,
+      features_extracted: storedFeatures,
+      roi_coordinates: roi,
+    }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Save failed (${response.status})`);
+  }
+
+  const payload = await response.json();
+  if (payload.status_operation !== "success") {
+    throw new Error(payload.error || "Save failed.");
+  }
+
+  return storedFeatures.length;
+}
+
 /* =========================================
    DIALOG
 ========================================= */
@@ -901,6 +960,14 @@ yesBtn.onclick = async () => {
 
     const payload = await response.json();
     renderFeatures(payload.features);
+
+    try {
+      const savedCount = await saveExtraction(roi, payload.features);
+      featuresStatus.textContent = `Features (${savedCount}) saved`;
+    } catch (saveError) {
+      featuresStatus.textContent = "Features computed, but saving failed.";
+      console.error("Feature save failed", saveError);
+    }
   } catch (error) {
     featuresStatus.textContent = "Failed to extract features.";
     console.error("Feature extraction failed", error);

@@ -27,6 +27,15 @@ def get_json_or_empty(response):
     return response.json()
 
 
+def value_mappings_available(session):
+    global _VALUE_MAPPINGS_AVAILABLE
+
+    if _VALUE_MAPPINGS_AVAILABLE is None:
+        _VALUE_MAPPINGS_AVAILABLE = inspect(session.bind).has_table("value_mappings")
+
+    return _VALUE_MAPPINGS_AVAILABLE
+
+
 # SET OPERATIONS
 
 
@@ -168,14 +177,35 @@ def get_patient_on_id(session, id):
 
 
 def get_all_extractions(session):
-    rows = (
+    global _VALUE_MAPPINGS_AVAILABLE
+
+    base_query = (
         session
-        .query(Roi, Extraction, ValueMapping.standardized_value)
+        .query(Roi, Extraction)
         .join(Extraction, Extraction.roi_id == Roi.id)
-        .outerjoin(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
-        .all()
     )
-    return rows
+
+    if not value_mappings_available(session):
+        return [
+            (roi, extraction, extraction.feature_name)
+            for roi, extraction in base_query.all()
+        ]
+
+    try:
+        return (
+            session
+            .query(Roi, Extraction, ValueMapping.standardized_value)
+            .join(Extraction, Extraction.roi_id == Roi.id)
+            .outerjoin(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
+            .all()
+        )
+    except ProgrammingError:
+        session.rollback()
+        _VALUE_MAPPINGS_AVAILABLE = False
+        return [
+            (roi, extraction, extraction.feature_name)
+            for roi, extraction in base_query.all()
+        ]
 
 
 def get_series_on_demand(collectionName):
@@ -368,10 +398,7 @@ def SNOMED_value_mapping(session, original_value):
     if _VALUE_MAPPINGS_AVAILABLE is False:
         return None
 
-    if _VALUE_MAPPINGS_AVAILABLE is None:
-        _VALUE_MAPPINGS_AVAILABLE = inspect(session.bind).has_table("value_mappings")
-
-    if not _VALUE_MAPPINGS_AVAILABLE:
+    if not value_mappings_available(session):
         return None
 
     try:
