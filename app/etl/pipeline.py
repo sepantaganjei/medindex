@@ -269,7 +269,6 @@ def get_all_extractions():
 
         for roi, extraction, std_name in rows:
             new_roi_id = getattr(roi, "id")
-            feature_display_name = std_name or extraction.feature_name
 
             if current_roi_id is None:
                 current_roi_id = new_roi_id
@@ -277,7 +276,7 @@ def get_all_extractions():
                 feature_extracted = {
                     "id": extraction.id,
                     "feature_name": extraction.feature_name,
-                    "standardized_feature_name": feature_display_name,
+                    "standardized_feature_name": std_name,
                     "value": extraction.value,
                 }
                 extracted_features.append(feature_extracted)
@@ -299,7 +298,7 @@ def get_all_extractions():
                 feature_extracted = {
                     "id": extraction.id,
                     "feature_name": extraction.feature_name,
-                    "standardized_feature_name": feature_display_name,
+                    "standardized_feature_name": std_name,
                     "value": extraction.value,
                 }
                 extracted_features.append(feature_extracted)
@@ -314,7 +313,7 @@ def get_all_extractions():
                 feature_extracted = {
                     "id": extraction.id,
                     "feature_name": extraction.feature_name,
-                    "standardized_feature_name": feature_display_name,
+                    "standardized_feature_name": std_name,
                     "value": extraction.value,
                 }
                 extracted_features.append(feature_extracted)

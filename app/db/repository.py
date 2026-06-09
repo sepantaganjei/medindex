@@ -187,7 +187,7 @@ def get_all_extractions(session):
 
     if not value_mappings_available(session):
         return [
-            (roi, extraction, extraction.feature_name)
+            (roi, extraction, None)
             for roi, extraction in base_query.all()
         ]
 
@@ -203,7 +203,7 @@ def get_all_extractions(session):
         session.rollback()
         _VALUE_MAPPINGS_AVAILABLE = False
         return [
-            (roi, extraction, extraction.feature_name)
+            (roi, extraction, None)
             for roi, extraction in base_query.all()
         ]
 

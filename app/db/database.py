@@ -24,16 +24,6 @@ def _rename_column_if_needed(connection, table_columns, table_name, old_name, ne
         connection.execute(
             text(f"ALTER TABLE {table_name} RENAME COLUMN {old_name} TO {new_name}")
         )
-        table_columns.remove(old_name)
-        table_columns.add(new_name)
-
-
-def _add_column_if_needed(connection, table_columns, table_name, column_name, column_type):
-    if column_name not in table_columns:
-        connection.execute(
-            text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
-        )
-        table_columns.add(column_name)
 
 
 def ensure_schema_compatibility():
@@ -93,30 +83,4 @@ def ensure_schema_compatibility():
         }.items():
             _rename_column_if_needed(
                 connection, series_columns, "series", old_name, new_name
-            )
-
-        roi_columns = column_names_by_table.get("rois", set())
-        if roi_columns:
-            for old_name, new_name in {
-                "image": "image_number",
-                "image_id": "image_number",
-                "series_instance_uid": "series_instance_uid_roi",
-                "coordinates": "roi_coordinates",
-            }.items():
-                _rename_column_if_needed(
-                    connection, roi_columns, "rois", old_name, new_name
-                )
-
-            _add_column_if_needed(
-                connection, roi_columns, "rois", "image_number", "VARCHAR"
-            )
-            _add_column_if_needed(
-                connection,
-                roi_columns,
-                "rois",
-                "series_instance_uid_roi",
-                "VARCHAR",
-            )
-            _add_column_if_needed(
-                connection, roi_columns, "rois", "roi_coordinates", "JSON"
             )

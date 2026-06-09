@@ -91,7 +91,7 @@ class ROI_coordinates(BaseModel):
 class FeatureOutput(BaseModel):
     id: int
     feature_name: str
-    standardized_feature_name: str
+    standardized_feature_name: str | None
     value: float
 
 
