@@ -33,42 +33,64 @@ function mapSeries(seriesDetail) {
 
   return {
     seriesUid: firstDefined(seriesDetail, [
-      "series_instance_uid",
       "instance_uid",
+      "series_instance_uid",
       "seriesUid",
       "SeriesInstanceUID",
     ]),
     studyUid: firstDefined(seriesDetail, [
-      "study_instance_uid_series",
       "study_instance_uid",
+      "study_instance_uid_series",
       "studyUid",
       "StudyInstanceUID",
+      "StudyInstanceUID_series",
     ]),
-    patientId,
-    modality: seriesDetail.modality ?? "Unknown",
+    patientId: firstDefined(
+      study,
+      ["patient_id", "patient_id_study", "patientId", "PatientID", "PatientID_study"],
+      firstDefined(patient, ["id", "patient_id", "patientId", "PatientID", "PatientId"], "Unknown"),
+    ),
+    modality: firstDefined(seriesDetail, ["modality", "Modality"], "Unknown"),
     bodyPart: firstDefined(seriesDetail, [
-      "body_part_examined",
       "body_part",
+      "body_part_examined",
       "bodyPart",
       "BodyPartExamined",
     ], "Unknown"),
-    protocolName: seriesDetail.protocol_name ?? "",
-    seriesDate: seriesDetail.series_date ?? null,
-    description: seriesDetail.series_description ?? "",
-    numImages: seriesDetail.image_count ?? 0,
+    protocolName: firstDefined(seriesDetail, ["protocol_name", "protocolName", "ProtocolName"]),
+    seriesDate: firstDefined(seriesDetail, ["series_date", "seriesDate", "SeriesDate"]),
+    description: firstDefined(seriesDetail, [
+      "series_description",
+      "description",
+      "seriesDescription",
+      "SeriesDescription",
+    ]),
+    numImages: firstDefined(seriesDetail, ["image_count", "imageCount", "numImages", "ImageCount"], 0),
     collection: firstDefined(
       study,
-      ["collection_name_study", "collection", "collection_name", "Collection"],
-      firstDefined(seriesDetail, ["collection", "collection_name", "Collection"], "Unknown"),
+      ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"],
+      firstDefined(seriesDetail, ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"], "Unknown"),
     ),
 
-    site: seriesDetail.site ?? null,
-    manufacturer: seriesDetail.manufacturer ?? null,
-    manufacturerModelName: seriesDetail.manufacturer_model_name ?? null,
-    softwareVersions: seriesDetail.software_versions ?? null,
-    maxSubmissionTimestamp: seriesDetail.max_submission_timestamp ?? null,
-    fileSize: seriesDetail.file_size ?? null,
-    thirdPartyAnalysis: seriesDetail.third_party_analysis ?? null,
+    site: firstDefined(seriesDetail, ["site", "Site"], null),
+    manufacturer: firstDefined(seriesDetail, ["manufacturer", "Manufacturer"], null),
+    manufacturerModelName: firstDefined(seriesDetail, [
+      "manufacturer_model_name",
+      "manufacturerModelName",
+      "ManufacturerModelName",
+    ], null),
+    softwareVersions: firstDefined(seriesDetail, ["software_versions", "softwareVersions", "SoftwareVersions"], null),
+    maxSubmissionTimestamp: firstDefined(seriesDetail, [
+      "max_submission_timestamp",
+      "maxSubmissionTimestamp",
+      "MaxSubmissionTimestamp",
+    ], null),
+    fileSize: firstDefined(seriesDetail, ["file_size", "fileSize", "FileSize"], null),
+    thirdPartyAnalysis: firstDefined(seriesDetail, [
+      "third_party_analysis",
+      "thirdPartyAnalysis",
+      "ThirdPartyAnalysis",
+    ], null),
 
     patientSex: patient.sex ?? patient.patient_sex ?? study.patient_sex ?? seriesDetail.patient_sex ?? null,
     patientAge: patient.age ?? patient.patient_age ?? study.patient_age ?? seriesDetail.patient_age ?? null,
@@ -84,6 +106,18 @@ function firstDefined(source, keys, fallback = "") {
   for (const key of keys) {
     if (source?.[key] !== undefined && source[key] !== null) {
       return source[key];
+    }
+  }
+
+  return fallback;
+}
+
+function fieldLabel(fieldMappings, keys, fallback) {
+  for (const key of keys) {
+    const label = fieldMappings?.[key];
+
+    if (label) {
+      return label;
     }
   }
 
@@ -122,22 +156,33 @@ function mapDicomSeries(seriesDetail) {
     ]),
     study_instance_uid: firstDefined(seriesDetail, [
       "study_instance_uid",
+      "study_instance_uid_series",
       "studyUid",
       "StudyInstanceUID",
+      "StudyInstanceUID_series",
     ]),
     patient_id: firstDefined(
       seriesDetail,
-      ["patient_id", "patientId", "PatientID"],
-      firstDefined(study, ["patient_id", "patientId", "PatientID"], "Unknown"),
+      ["patient_id", "patient_id_study", "patientId", "PatientID", "PatientID_study"],
+      firstDefined(
+        study,
+        ["patient_id", "patient_id_study", "patientId", "PatientID", "PatientID_study"],
+        "Unknown",
+      ),
     ),
     collection: firstDefined(
       seriesDetail,
-      ["collection", "collection_name", "Collection"],
-      firstDefined(study, ["collection", "collection_name", "Collection"], "Unknown"),
+      ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"],
+      firstDefined(
+        study,
+        ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"],
+        "Unknown",
+      ),
     ),
     modality: firstDefined(seriesDetail, ["modality", "Modality"], "Unknown"),
     body_part: firstDefined(seriesDetail, [
       "body_part",
+      "body_part_examined",
       "bodyPart",
       "BodyPartExamined",
     ]),
@@ -150,6 +195,7 @@ function mapDicomSeries(seriesDetail) {
       "series_date",
       "seriesDate",
       "SeriesDate",
+      "StudyDate",
     ]),
     series_description: firstDefined(seriesDetail, [
       "series_description",
@@ -184,7 +230,9 @@ function mapDicomStudy(studyDetail) {
     collection: firstDefined(studyDetail, [
       "collection",
       "collection_name",
+      "collection_name_study",
       "Collection",
+      "CollectionName_study",
     ], "Unknown"),
     date: firstDefined(studyDetail, ["date", "study_date", "studyDate", "StudyDate"]),
     date_released: firstDefined(studyDetail, [
@@ -205,8 +253,10 @@ function mapDicomStudy(studyDetail) {
     ], 0),
     patient_id: firstDefined(studyDetail, [
       "patient_id",
+      "patient_id_study",
       "patientId",
       "PatientID",
+      "PatientID_study",
     ], "Unknown"),
     longitudinal_temporal_event_type: firstDefined(studyDetail, [
       "longitudinal_temporal_event_type",
@@ -221,7 +271,7 @@ function mapDicomStudy(studyDetail) {
 
 function mapDicomPatient(patientDetail) {
   return {
-    id: firstDefined(patientDetail, ["id", "patient_id", "patientId", "PatientID"]),
+    id: firstDefined(patientDetail, ["id", "patient_id", "patientId", "PatientID", "PatientId"]),
     sex: firstDefined(patientDetail, ["sex", "patient_sex", "patientSex", "PatientSex"]),
     age: firstDefined(patientDetail, ["age", "patient_age", "patientAge", "PatientAge"]),
     ethnic_group: firstDefined(patientDetail, [
@@ -304,7 +354,13 @@ function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
   const collectionMap = new Map();
   const savedCollectionMap = new Map(
     savedCollections.map((collection) => [
-      firstDefined(collection, ["name", "collection_name", "Collection"]),
+      firstDefined(collection, [
+        "name",
+        "collection_name",
+        "collectionName",
+        "Collection",
+        "CollectionName",
+      ]),
       collection,
     ]),
   );
@@ -330,7 +386,13 @@ function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
 }
 
 function mapAvailableCollection(collection) {
-  const name = firstDefined(collection, ["name", "collection_name", "Collection"]);
+  const name = firstDefined(collection, [
+    "name",
+    "collection_name",
+    "collectionName",
+    "Collection",
+    "CollectionName",
+  ]);
 
   return {
     name,
@@ -385,6 +447,17 @@ async function loadPatient(apiBaseUrl, patientId) {
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+async function loadSnomedFieldMappings(apiBaseUrl) {
+  const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  const [series, studies, patients] = await Promise.all([
+    fetchJson(`${baseUrl}/api/getSeriesSNOMEDFields`).catch(() => ({})),
+    fetchJson(`${baseUrl}/api/getStudySNOMEDFields`).catch(() => ({})),
+    fetchJson(`${baseUrl}/api/getPatientSNOMEDFields`).catch(() => ({})),
+  ]);
+
+  return { series, studies, patients };
 }
 
 async function searchDicomSeries(apiBaseUrl, collectionName) {

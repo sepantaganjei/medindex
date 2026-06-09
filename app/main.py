@@ -8,8 +8,16 @@ from app.api.viewer import router as viewer_router
 from app.api.get_data import router as get_router
 from app.api.add_data import router as add_router
 from app.core.config import config
+from app.db.database import ensure_schema_compatibility
 
 app = FastAPI(title="2026-bioimages API")
+
+
+@app.on_event("startup")
+def migrate_legacy_schema():
+    ensure_schema_compatibility()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(config.cors_allow_origins),
