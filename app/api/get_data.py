@@ -83,13 +83,14 @@ def get_patient_on_id(id: str):
     return pipe.get_patient_on_id(id)
 
 
+class ROI(BaseModel):
+    x: float
+    y: float
+
+
 class ExtractionResponse(BaseModel):
-    id: int
-    image_number: str
-    series_instance_uid_extraction: str
-    feature_name: str
-    value: float
-    standardized_feature_name: str
+    roi_id: int
+    roi_coordinates: list[ROI]
 
     class Config:
         from_attributes = True

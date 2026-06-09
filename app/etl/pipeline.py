@@ -136,14 +136,16 @@ def _process_and_store_series(session, raw_data, dataset_type):
 def add_extraction(extraction: ExtractionInput):
     session = SessionLocal()
     try:
-        roi_data = {"roi_coordinates": extraction.model_dump()["roi_coordinates"]}
+        roi_data = {
+            "roi_coordinates": extraction.model_dump()["roi_coordinates"],
+            "image_number": extraction.image_number,
+            "series_instance_uid_roi": extraction.series_instance_uid,
+        }
         roi_id = repo.create_roi(session, roi_data)
 
         for feature_extracted in extraction.features_extracted:
             extraction_data = {
                 "roi_id": roi_id,
-                "image_number": extraction.image_number,
-                "series_instance_uid_extraction": extraction.series_instance_uid,
                 "feature_name": feature_extracted.feature_name,
                 "value": feature_extracted.value,
             }

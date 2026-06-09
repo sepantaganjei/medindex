@@ -93,7 +93,7 @@ class Series(Base):
     third_party_analysis = Column(Boolean)
 
     study = relationship("Study", back_populates="series")
-    extractions = relationship("Extraction", back_populates="series")
+    rois = relationship("Roi", back_populates="series")
 
 
 # =========================
@@ -104,14 +104,9 @@ class Extraction(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     roi_id = Column(Integer, ForeignKey("rois.id"))
-    image_number = Column(String)
-    series_instance_uid_extraction = Column(
-        String, ForeignKey("series.series_instance_uid")
-    )
     feature_name = Column(String)
     value = Column(Float)
 
-    series = relationship("Series", back_populates="extractions")
     roi = relationship("Roi", back_populates="extractions")
 
 
@@ -122,8 +117,11 @@ class Roi(Base):
     __tablename__ = "rois"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    image_number = Column(String)
+    series_instance_uid_roi = Column(String, ForeignKey("series.series_instance_uid"))
     roi_coordinates = Column(JSON)
 
+    series = relationship("Series", back_populates="rois")
     extractions = relationship("Extraction", back_populates="roi")
 
 

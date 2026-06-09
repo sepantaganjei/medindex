@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS series (
 -- regions of interest
 CREATE TABLE IF NOT EXISTS rois (
     id SERIAL PRIMARY KEY,
+    image_number VARCHAR,
+    series_instance_uid_roi VARCHAR REFERENCES series(series_instance_uid),
     roi_coordinates JSON
 );
 
@@ -59,8 +61,6 @@ CREATE TABLE IF NOT EXISTS rois (
 CREATE TABLE IF NOT EXISTS extractions (
     id SERIAL PRIMARY KEY,
     roi_id INTEGER REFERENCES rois(id),
-    image_number VARCHAR,
-    series_instance_uid_extraction VARCHAR REFERENCES series(series_instance_uid),
     feature_name VARCHAR,
     value FLOAT
 );
