@@ -2,9 +2,11 @@
 CREATE TABLE IF NOT EXISTS collections (
     collection_name VARCHAR PRIMARY KEY,
     description VARCHAR,
+    type VARCHAR,
     license_name VARCHAR,
     license_uri VARCHAR,
-    data_description_uri VARCHAR
+    data_description_uri VARCHAR,
+    remote BOOLEAN
 );
 
 -- patients
@@ -47,14 +49,22 @@ CREATE TABLE IF NOT EXISTS series (
     third_party_analysis BOOLEAN
 );
 
+-- regions of interest
+CREATE TABLE IF NOT EXISTS rois (
+    id SERIAL PRIMARY KEY,
+    roi_coordinates JSON
+);
+
 -- extractions
 CREATE TABLE IF NOT EXISTS extractions (
     id SERIAL PRIMARY KEY,
+    roi_id INTEGER REFERENCES rois(id),
     image_number VARCHAR,
     series_instance_uid_extraction VARCHAR REFERENCES series(series_instance_uid),
     feature_name VARCHAR,
     value FLOAT
 );
+
 
 -- field mappings
 CREATE TABLE IF NOT EXISTS field_mappings (

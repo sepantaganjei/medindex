@@ -84,17 +84,19 @@ def _clean_text(text: str) -> str:
 # - Raw data
 # Output
 # - data of the collection in dictionary format
-def prepare_collection_data(raw_json_dict_data, _):
+def prepare_collection_data(raw_json_dict_data, _, remote):
     collection_json = raw_json_dict_data["collection"][0]
     series_json = raw_json_dict_data["series"]
     print(f"Name is ok: {collection_json.get('collectionName')}")
 
     clean_collection_data = {
         "collection_name": safe_str(collection_json.get("collectionName")),
+        "type": "dicom",
         "description": _clean_text(safe_str(collection_json.get("description"))),
         "license_name": safe_str(series_json[0]["LicenseName"]),
         "license_uri": safe_str(series_json[0]["LicenseURI"]),
         "data_description_uri": safe_str(series_json[0]["DataDescriptionURI"]),
+        "remote": remote,
     }
     print("Collection data has been cleaned")
     return clean_collection_data

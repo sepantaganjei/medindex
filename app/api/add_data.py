@@ -48,6 +48,7 @@ def add_zip_dataset(
             collection_name=collection_name,
             description=description,
             column_mapping=column_mapping,
+            remote=False,
         )
     except ZipIngestionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
@@ -56,7 +57,9 @@ def add_zip_dataset(
 # add dicom dataset
 @router.post("/addDICOMdataset", response_model=NewDatasetAdditionResponse)
 def add_new_DICOM_dataset(collection_name: str):
-    return pipe.add_new_dataset(collection_name=collection_name, dataset_type="dicom")
+    return pipe.add_new_dataset(
+        collection_name=collection_name, dataset_type="dicom", remote=True
+    )
 
 
 # add nifti dataset
@@ -71,7 +74,25 @@ def add_new_NIFTI_dataset(
         dataset_type="nifti",
         description=description,
         zip_file=zip_file,
+        remote=False,
     )
+
+
+class FeatureInput(BaseModel):
+    feature_name: str
+    value: float
+
+
+class ROI(BaseModel):
+    x: float
+    y: float
+
+
+class ExtractionInput(BaseModel):
+    image_number: str
+    series_uid: str
+    features_extracted: list[FeatureInput]
+    roi_coordinates: list[ROI]
 
 
 class ExtractionInsertionResponse(BaseModel):
@@ -82,5 +103,5 @@ class ExtractionInsertionResponse(BaseModel):
 
 # add feature extraction
 @router.post("/addExtraction", response_model=ExtractionInsertionResponse)
-def add_extraction(image_number: str, series_uid: str, feature_name: str, value: str):
-    return pipe.add_extraction(image_number, series_uid, feature_name, value)
+def add_extraction(input_model: ExtractionInput):
+    return pipe.add_extraction(input_model)

@@ -57,10 +57,12 @@ nifti_volume_cache: OrderedDict[str, CachedNiftiVolume] = OrderedDict()
 nifti_slice_png_cache: OrderedDict[tuple[str, str, int], bytes] = OrderedDict()
 
 
-def get_series_context(series_uid: str, collection: str | None = None) -> ViewerSeriesContext:
+def get_series_context(
+    series_uid: str, collection: str | None = None
+) -> ViewerSeriesContext:
     session = SessionLocal()
     try:
-        query = session.query(Series).filter(Series.instance_uid == series_uid)
+        query = session.query(Series).filter(Series.series_instance_uid == series_uid)
         if collection:
             query = query.join(Series.study).filter(Study.collection == collection)
         series = query.first()
@@ -84,15 +86,13 @@ def get_series_context(series_uid: str, collection: str | None = None) -> Viewer
 
 
 def series_object_prefix(context: ViewerSeriesContext) -> str:
-    return "/".join(
-        [
-            context.collection,
-            context.patient_id,
-            context.study_uid,
-            context.series_uid,
-            "",
-        ]
-    )
+    return "/".join([
+        context.collection,
+        context.patient_id,
+        context.study_uid,
+        context.series_uid,
+        "",
+    ])
 
 
 def _list_series_object_names(context: ViewerSeriesContext) -> list[str]:
@@ -136,8 +136,12 @@ def _safe_int(value) -> int | None:
 
 def _dicom_instance_sort_key(object_name: str) -> tuple[bool, int, str]:
     try:
-        payload = object_storage_service.get_object_bytes(config.object_storage_bucket, object_name)
-        dataset = pydicom.dcmread(io.BytesIO(payload), stop_before_pixels=True, force=True)
+        payload = object_storage_service.get_object_bytes(
+            config.object_storage_bucket, object_name
+        )
+        dataset = pydicom.dcmread(
+            io.BytesIO(payload), stop_before_pixels=True, force=True
+        )
         instance_number = _safe_int(getattr(dataset, "InstanceNumber", None))
     except Exception:
         instance_number = None
@@ -150,12 +154,18 @@ def build_series_viewer(series_uid: str, collection: str | None, base_url: str) 
     if not object_names:
         raise ViewerAssetError("No uploaded files found for this series.")
 
-    nifti_objects = [object_name for object_name in object_names if _is_nifti_object(object_name)]
-    dicom_objects = [object_name for object_name in object_names if _is_dicom_object(object_name)]
+    nifti_objects = [
+        object_name for object_name in object_names if _is_nifti_object(object_name)
+    ]
+    dicom_objects = [
+        object_name for object_name in object_names if _is_dicom_object(object_name)
+    ]
 
     if str(context.modality or "").strip().upper() == "NIFTI" or nifti_objects:
         if not nifti_objects:
-            raise ViewerAssetError("Series is marked as NIfTI but no NIfTI file was found.")
+            raise ViewerAssetError(
+                "Series is marked as NIfTI but no NIfTI file was found."
+            )
         object_name = sorted(nifti_objects)[0]
         slice_count = get_nifti_slice_count(object_name)
         return {
@@ -311,7 +321,9 @@ def _load_nifti_volume(object_name: str) -> CachedNiftiVolume:
     except ImportError as exc:
         raise ViewerAssetError("SimpleITK is not installed.") from exc
 
-    payload = object_storage_service.get_object_bytes(config.object_storage_bucket, object_name)
+    payload = object_storage_service.get_object_bytes(
+        config.object_storage_bucket, object_name
+    )
     with tempfile.NamedTemporaryFile(suffix=_object_suffix(object_name)) as temp_file:
         temp_file.write(payload)
         temp_file.flush()
@@ -352,7 +364,9 @@ def render_nifti_png(object_name: str, axis: str = "z", slice_index: int = 0) ->
     return payload
 
 
-def _slice_nifti_array(volume: CachedNiftiVolume, axis: str, slice_index: int) -> np.ndarray:
+def _slice_nifti_array(
+    volume: CachedNiftiVolume, axis: str, slice_index: int
+) -> np.ndarray:
     axis_index = _axis_index(axis)
     safe_slice = _safe_nifti_slice_index(volume, axis, slice_index)
     if axis_index == 0:
@@ -382,11 +396,17 @@ def _axis_index(axis: str) -> int:
 
 
 def _object_suffix(object_name: str) -> str:
-    return ".nii.gz" if object_name.lower().endswith(".nii.gz") else Path(object_name).suffix
+    return (
+        ".nii.gz"
+        if object_name.lower().endswith(".nii.gz")
+        else Path(object_name).suffix
+    )
 
 
 def render_dicom_png(object_name: str, frame: int = 0) -> bytes:
-    payload = object_storage_service.get_object_bytes(config.object_storage_bucket, object_name)
+    payload = object_storage_service.get_object_bytes(
+        config.object_storage_bucket, object_name
+    )
 
     try:
         image = _render_dicom_with_pydicom(payload, frame)

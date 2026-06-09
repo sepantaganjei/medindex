@@ -92,14 +92,16 @@ collection_mappings = {
 }
 
 
-def prepare_collection_data(tabular_file, description):
+def prepare_collection_data(tabular_file, description, remote):
 
     clean_collection_data = {
         "collection_name": None,
+        "type": "nifti",
         "description": description,
         "license_name": None,
         "license_uri": None,
         "data_description_uri": None,
+        "remote": remote,
     }
 
     try:
@@ -224,7 +226,7 @@ study_mappings = {
     "collection_name_study": ["project", "collection", "study project"],
     "study_date": ["study date", "date"],
     "date_released": ["date released", "release date"],
-    "study_description": ["study description", "description"],
+    "study_description": ["study description", "description", "studydescription"],
     "series_count": ["series number", "series count"],
     "patient_id_study": ["patient id", "patient"],
     "longitudinal_temporal_event_type": ["longitudinal temporal event type"],

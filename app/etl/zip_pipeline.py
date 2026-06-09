@@ -50,6 +50,7 @@ def ingest_zip_dataset(
     collection_name: str | None = None,
     description: str | None = None,
     column_mapping: str | dict[str, str] | None = None,
+    remote: bool,
 ) -> dict[str, Any]:
     dataset_type = dataset_type.lower().strip()
     if dataset_type not in ALLOWED_DATASET_TYPES:
@@ -74,6 +75,7 @@ def ingest_zip_dataset(
                 extract_root,
                 resolved_collection,
                 description,
+                remote,
             )
         else:
             result = _ingest_nifti_zip(
@@ -82,6 +84,7 @@ def ingest_zip_dataset(
                 description,
                 parsed_column_mapping,
                 metadata_path,
+                remote,
             )
 
     return result
@@ -116,7 +119,9 @@ def discover_dicom_files(root: Path) -> tuple[list[tuple[Path, Any]], dict[str, 
     try:
         import pydicom
     except ImportError as exc:
-        raise ZipIngestionError("pydicom is required for DICOM ZIP ingestion", 500) from exc
+        raise ZipIngestionError(
+            "pydicom is required for DICOM ZIP ingestion", 500
+        ) from exc
 
     valid_files: list[tuple[Path, Any]] = []
     skipped = {"non_dicom": 0, "missing_required_ids": 0}
@@ -132,7 +137,10 @@ def discover_dicom_files(root: Path) -> tuple[list[tuple[Path, Any]], dict[str, 
             skipped["non_dicom"] += 1
             continue
 
-        if not all(_dicom_str(dataset, field, "") for field in ("PatientID", "StudyInstanceUID", "SeriesInstanceUID")):
+        if not all(
+            _dicom_str(dataset, field, "")
+            for field in ("PatientID", "StudyInstanceUID", "SeriesInstanceUID")
+        ):
             skipped["missing_required_ids"] += 1
             continue
 
@@ -142,8 +150,17 @@ def discover_dicom_files(root: Path) -> tuple[list[tuple[Path, Any]], dict[str, 
 
 
 def build_dicom_records_from_files(
-    files: list[tuple[Path, Any]], collection_name: str, description: str | None
-) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[FileIdentity]]:
+    files: list[tuple[Path, Any]],
+    collection_name: str,
+    description: str | None,
+    remote: bool,
+) -> tuple[
+    dict[str, Any],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[FileIdentity],
+]:
     patients: dict[str, dict[str, Any]] = {}
     studies: dict[str, dict[str, Any]] = {}
     series: dict[str, dict[str, Any]] = {}
@@ -157,7 +174,11 @@ def build_dicom_records_from_files(
         study_uid = sanitize_path_segment(_dicom_str(dataset, "StudyInstanceUID"))
         series_uid = sanitize_path_segment(_dicom_str(dataset, "SeriesInstanceUID"))
         sop_uid_raw = _dicom_str(dataset, "SOPInstanceUID", "")
-        sop_uid = sanitize_path_segment(sop_uid_raw) if sop_uid_raw else _fallback_sop_name(path)
+        sop_uid = (
+            sanitize_path_segment(sop_uid_raw)
+            if sop_uid_raw
+            else _fallback_sop_name(path)
+        )
         file_size = path.stat().st_size
 
         patients.setdefault(
@@ -212,7 +233,13 @@ def build_dicom_records_from_files(
         identities.append(
             FileIdentity(
                 source_path=path,
-                object_name="/".join([collection_name, patient_id, study_uid, series_uid, f"{sop_uid}.dcm"]),
+                object_name="/".join([
+                    collection_name,
+                    patient_id,
+                    study_uid,
+                    series_uid,
+                    f"{sop_uid}.dcm",
+                ]),
                 patient_id=patient_id,
                 study_uid=study_uid,
                 series_uid=series_uid,
@@ -228,12 +255,20 @@ def build_dicom_records_from_files(
 
     collection = {
         "collection_name": collection_name,
+        "type": "dicom",
         "description": description,
         "license_name": None,
         "license_uri": None,
         "data_description_uri": None,
+        "remote": remote,
     }
-    return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
+    return (
+        collection,
+        list(patients.values()),
+        list(studies.values()),
+        list(series.values()),
+        identities,
+    )
 
 
 def discover_nifti_files(root: Path) -> list[Path]:
@@ -295,8 +330,7 @@ def match_nifti_rows_to_files(
         return {}, files, warnings
 
     normalized_rows = [
-        _apply_column_mapping(_normalize_row(row), column_mapping)
-        for row in rows
+        _apply_column_mapping(_normalize_row(row), column_mapping) for row in rows
     ]
     matches: dict[Path, dict[str, Any]] = {}
     unresolved: list[Path] = []
@@ -338,8 +372,14 @@ def match_nifti_rows_to_files(
     return matches, unresolved, warnings
 
 
-def derive_nifti_identity_from_path(file: Path, collection_name: str, root: Path | None = None) -> tuple[str, str, str]:
-    relative = file.relative_to(root) if root and file.is_relative_to(root) else Path(file.name)
+def derive_nifti_identity_from_path(
+    file: Path, collection_name: str, root: Path | None = None
+) -> tuple[str, str, str]:
+    relative = (
+        file.relative_to(root)
+        if root and file.is_relative_to(root)
+        else Path(file.name)
+    )
     parts = list(relative.parts[:-1])
     if parts and sanitize_path_segment(parts[0]).lower() == collection_name.lower():
         parts = parts[1:]
@@ -349,7 +389,11 @@ def derive_nifti_identity_from_path(file: Path, collection_name: str, root: Path
     patient_id = _collection_scoped_id(collection_name, patient_source)
     study_source = sanitize_path_segment(parts[1]) if len(parts) >= 2 else "study"
     study_uid = _collection_scoped_id(collection_name, study_source)
-    series_source = sanitize_path_segment(parts[2]) if len(parts) >= 3 else sanitize_path_segment(stem)
+    series_source = (
+        sanitize_path_segment(parts[2])
+        if len(parts) >= 3
+        else sanitize_path_segment(stem)
+    )
     series_uid = _collection_scoped_id(collection_name, series_source)
     return patient_id, study_uid, series_uid
 
@@ -365,7 +409,10 @@ def upload_dataset_files_to_minio(files: list[FileIdentity]) -> list[str]:
     for item in files:
         try:
             size = item.source_path.stat().st_size
-            content_type = mimetypes.guess_type(item.source_path.name)[0] or "application/octet-stream"
+            content_type = (
+                mimetypes.guess_type(item.source_path.name)[0]
+                or "application/octet-stream"
+            )
             with item.source_path.open("rb") as handle:
                 storage.upload_file(
                     config.object_storage_bucket,
@@ -425,7 +472,9 @@ def _collection_scoped_id(collection_name: str, value: Any) -> str:
     return f"{sanitize_path_segment(collection_name)}__{sanitize_path_segment(value)}"
 
 
-def _ingest_dicom_zip(root: Path, collection_name: str, description: str | None) -> dict[str, Any]:
+def _ingest_dicom_zip(
+    root: Path, collection_name: str, description: str | None, remote: bool
+) -> dict[str, Any]:
     valid_files, skipped = discover_dicom_files(root)
     warnings = []
     if skipped["non_dicom"]:
@@ -435,7 +484,9 @@ def _ingest_dicom_zip(root: Path, collection_name: str, description: str | None)
             f"Skipped {skipped['missing_required_ids']} DICOM file(s) missing PatientID, StudyInstanceUID, or SeriesInstanceUID."
         )
     if not valid_files:
-        raise ZipIngestionError("No valid DICOM files with required identifiers found.", 422)
+        raise ZipIngestionError(
+            "No valid DICOM files with required identifiers found.", 422
+        )
 
     collection, patients, studies, series, identities = build_dicom_records_from_files(
         valid_files, collection_name, description
@@ -466,6 +517,7 @@ def _ingest_nifti_zip(
     description: str | None,
     column_mapping: dict[str, str],
     metadata_path: Path | None,
+    remote: bool,
 ) -> dict[str, Any]:
     files = discover_nifti_files(root)
     if not files:
@@ -497,6 +549,7 @@ def _ingest_nifti_zip(
         row_matches,
         collection_name,
         description,
+        remote,
     )
     uploaded, inserted_counts = persist_uploaded_dataset(
         collection,
@@ -524,7 +577,14 @@ def _build_nifti_records(
     row_matches: dict[Path, dict[str, Any]],
     collection_name: str,
     description: str | None,
-) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[FileIdentity]]:
+    remote: bool,
+) -> tuple[
+    dict[str, Any],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[FileIdentity],
+]:
     patients: dict[str, dict[str, Any]] = {}
     studies: dict[str, dict[str, Any]] = {}
     series: dict[str, dict[str, Any]] = {}
@@ -532,20 +592,50 @@ def _build_nifti_records(
     identities: list[FileIdentity] = []
     for file_path in files:
         row = row_matches.get(file_path)
-        fallback_patient, fallback_study, fallback_series = derive_nifti_identity_from_path(
-            file_path, collection_name, root
+        fallback_patient, fallback_study, fallback_series = (
+            derive_nifti_identity_from_path(file_path, collection_name, root)
         )
         if row:
             use_series_metadata = row.get("__match_scope") in {"file", "series"}
-            patient_id = sanitize_path_segment(_present_or_fallback(_row_value(row, ["patient id", "patient", "patientid", "patient_id"]), fallback_patient))
-            study_uid = sanitize_path_segment(_present_or_fallback(_row_value(row, ["study instance uid", "study uid", "studyinstanceuid"]), fallback_study))
+            patient_id = sanitize_path_segment(
+                _present_or_fallback(
+                    _row_value(
+                        row, ["patient id", "patient", "patientid", "patient_id"]
+                    ),
+                    fallback_patient,
+                )
+            )
+            study_uid = sanitize_path_segment(
+                _present_or_fallback(
+                    _row_value(
+                        row, ["study instance uid", "study uid", "studyinstanceuid"]
+                    ),
+                    fallback_study,
+                )
+            )
             if use_series_metadata:
-                series_uid = sanitize_path_segment(_present_or_fallback(_row_value(row, ["series instance uid", "series uid", "seriesinstanceuid"]), fallback_series))
+                series_uid = sanitize_path_segment(
+                    _present_or_fallback(
+                        _row_value(
+                            row,
+                            ["series instance uid", "series uid", "seriesinstanceuid"],
+                        ),
+                        fallback_series,
+                    )
+                )
             else:
                 series_uid = fallback_series
-            image_count = _safe_int(_row_value(row, ["image count", "images"])) if use_series_metadata else None
+            image_count = (
+                _safe_int(_row_value(row, ["image count", "images"]))
+                if use_series_metadata
+                else None
+            )
         else:
-            patient_id, study_uid, series_uid = fallback_patient, fallback_study, fallback_series
+            patient_id, study_uid, series_uid = (
+                fallback_patient,
+                fallback_study,
+                fallback_series,
+            )
             image_count = None
             use_series_metadata = False
 
@@ -556,9 +646,19 @@ def _build_nifti_records(
             patient_id,
             {
                 "patient_id": patient_id,
-                "patient_sex": _row_value(row, ["patient sex", "patient_sex", "sex", "gender"]) if row else None,
-                "patient_age": _extract_age(_row_value(row, ["patient age", "age", "patient_age"]) if row else None),
-                "ethnic_group": _row_value(row, ["ethnic group", "ethnicity", "race"]) if row else None,
+                "patient_sex": _row_value(
+                    row, ["patient sex", "patient_sex", "sex", "gender"]
+                )
+                if row
+                else None,
+                "patient_age": _extract_age(
+                    _row_value(row, ["patient age", "age", "patient_age"])
+                    if row
+                    else None
+                ),
+                "ethnic_group": _row_value(row, ["ethnic group", "ethnicity", "race"])
+                if row
+                else None,
             },
         )
         studies.setdefault(
@@ -567,12 +667,28 @@ def _build_nifti_records(
                 "study_instance_uid": study_uid,
                 "collection_name_study": collection_name,
                 "patient_id_study": patient_id,
-                "study_date": _parse_date(_row_value(row, ["study date", "date"]) if row else None),
-                "date_released": _parse_date(_row_value(row, ["date released", "release date"]) if row else None),
-                "study_description": _row_value(row, ["study description", "description"]) if row else None,
+                "study_date": _parse_date(
+                    _row_value(row, ["study date", "date"]) if row else None
+                ),
+                "date_released": _parse_date(
+                    _row_value(row, ["date released", "release date"]) if row else None
+                ),
+                "study_description": _row_value(
+                    row, ["study description", "description"]
+                )
+                if row
+                else None,
                 "series_count": 0,
-                "longitudinal_temporal_event_type": _row_value(row, ["longitudinal temporal event type"]) if row else None,
-                "longitudinal_temporal_offset_from_event": _row_value(row, ["longitudinal temporal offset from event"]) if row else None,
+                "longitudinal_temporal_event_type": _row_value(
+                    row, ["longitudinal temporal event type"]
+                )
+                if row
+                else None,
+                "longitudinal_temporal_offset_from_event": _row_value(
+                    row, ["longitudinal temporal offset from event"]
+                )
+                if row
+                else None,
             },
         )
         series.setdefault(
@@ -581,14 +697,32 @@ def _build_nifti_records(
                 "series_instance_uid": series_uid,
                 "study_instance_uid_series": study_uid,
                 "modality": _row_value(row, ["modality"]) if row else "NIFTI",
-                "body_part_examined": _row_value(row, ["body part examined", "bodypartexamined", "body part"]) if row else None,
-                "protocol_name": _row_value(row, ["protocol name", "protocolname"]) if use_series_metadata else None,
-                "series_date": _parse_date(_row_value(row, ["series date"]) if use_series_metadata else None),
-                "series_description": _row_value(row, ["series description", "description"]) if use_series_metadata else fallback_series,
+                "body_part_examined": _row_value(
+                    row, ["body part examined", "bodypartexamined", "body part"]
+                )
+                if row
+                else None,
+                "protocol_name": _row_value(row, ["protocol name", "protocolname"])
+                if use_series_metadata
+                else None,
+                "series_date": _parse_date(
+                    _row_value(row, ["series date"]) if use_series_metadata else None
+                ),
+                "series_description": _row_value(
+                    row, ["series description", "description"]
+                )
+                if use_series_metadata
+                else fallback_series,
                 "site": _row_value(row, ["site"]) if row else None,
-                "manufacturer": _row_value(row, ["manufacturer"]) if use_series_metadata else None,
-                "manufacturer_model_name": _row_value(row, ["manufacturer model name"]) if use_series_metadata else None,
-                "software_versions": _row_value(row, ["software versions"]) if use_series_metadata else None,
+                "manufacturer": _row_value(row, ["manufacturer"])
+                if use_series_metadata
+                else None,
+                "manufacturer_model_name": _row_value(row, ["manufacturer model name"])
+                if use_series_metadata
+                else None,
+                "software_versions": _row_value(row, ["software versions"])
+                if use_series_metadata
+                else None,
                 "image_count": image_count,
                 "max_submission_timestamp": None,
                 "file_size": file_path.stat().st_size,
@@ -599,7 +733,13 @@ def _build_nifti_records(
         identities.append(
             FileIdentity(
                 source_path=file_path,
-                object_name="/".join([collection_name, patient_id, study_uid, series_uid, sanitize_path_segment(file_path.name)]),
+                object_name="/".join([
+                    collection_name,
+                    patient_id,
+                    study_uid,
+                    series_uid,
+                    sanitize_path_segment(file_path.name),
+                ]),
                 patient_id=patient_id,
                 study_uid=study_uid,
                 series_uid=series_uid,
@@ -611,12 +751,23 @@ def _build_nifti_records(
 
     collection = {
         "collection_name": collection_name,
-        "description": description or _first_row_value(row_matches, ["description", "study description"]),
+        "type": "nifti",
+        "description": description
+        or _first_row_value(row_matches, ["description", "study description"]),
         "license_name": _first_row_value(row_matches, ["license name", "license_name"]),
         "license_uri": _first_row_value(row_matches, ["license uri", "license_uri"]),
-        "data_description_uri": _first_row_value(row_matches, ["description uri", "collection uri", "collection_uri"]),
+        "data_description_uri": _first_row_value(
+            row_matches, ["description uri", "collection uri", "collection_uri"]
+        ),
+        "remote": remote,
     }
-    return collection, list(patients.values()), list(studies.values()), list(series.values()), identities
+    return (
+        collection,
+        list(patients.values()),
+        list(studies.values()),
+        list(series.values()),
+        identities,
+    )
 
 
 def _insert_records(
@@ -630,11 +781,17 @@ def _insert_records(
         _add_if_missing(session, Collection, "collection_name", collection)
         counts = {"patients": 0, "studies": 0, "series": 0}
         for patient in patients:
-            counts["patients"] += int(_add_if_missing(session, Patient, "patient_id", patient))
+            counts["patients"] += int(
+                _add_if_missing(session, Patient, "patient_id", patient)
+            )
         for study in studies:
-            counts["studies"] += int(_add_if_missing(session, Study, "study_instance_uid", study))
+            counts["studies"] += int(
+                _add_if_missing(session, Study, "study_instance_uid", study)
+            )
         for item in series:
-            counts["series"] += int(_add_if_missing(session, Series, "series_instance_uid", item))
+            counts["series"] += int(
+                _add_if_missing(session, Series, "series_instance_uid", item)
+            )
         session.commit()
         return counts
     except Exception:
@@ -738,7 +895,9 @@ def _save_external_metadata_file(metadata_file, temp_root: Path) -> Path | None:
     return metadata_path
 
 
-def _parse_column_mapping(column_mapping: str | dict[str, str] | None) -> dict[str, str]:
+def _parse_column_mapping(
+    column_mapping: str | dict[str, str] | None,
+) -> dict[str, str]:
     if not column_mapping:
         return {}
     if isinstance(column_mapping, dict):
@@ -753,15 +912,20 @@ def _parse_column_mapping(column_mapping: str | dict[str, str] | None) -> dict[s
     if not isinstance(parsed, dict):
         raise ZipIngestionError("column_mapping must be a JSON object.", 400)
     return {
-        _normalize_column_name(k): _normalize_column_name(v)
-        for k, v in parsed.items()
+        _normalize_column_name(k): _normalize_column_name(v) for k, v in parsed.items()
     }
 
 
 def _looks_like_dicom(dataset: Any) -> bool:
     return any(
         hasattr(dataset, field)
-        for field in ("SOPClassUID", "SOPInstanceUID", "PatientID", "StudyInstanceUID", "SeriesInstanceUID")
+        for field in (
+            "SOPClassUID",
+            "SOPInstanceUID",
+            "PatientID",
+            "StudyInstanceUID",
+            "SeriesInstanceUID",
+        )
     )
 
 
@@ -777,7 +941,7 @@ def _fallback_sop_name(path: Path) -> str:
     return f"{sanitize_path_segment(path.stem)}_{digest}"
 
 
-def  _extract_age(value: Any) -> int:
+def _extract_age(value: Any) -> int:
     match = re.search(r"\d+", str(value or ""))
     return int(match.group(0)) if match else -1
 
@@ -804,7 +968,9 @@ def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
     return {_normalize_column_name(key): value for key, value in row.items()}
 
 
-def _apply_column_mapping(row: dict[str, Any], column_mapping: dict[str, str]) -> dict[str, Any]:
+def _apply_column_mapping(
+    row: dict[str, Any], column_mapping: dict[str, str]
+) -> dict[str, Any]:
     if not column_mapping:
         return row
     mapped = dict(row)
@@ -821,9 +987,13 @@ def _normalize_column_name(value: Any) -> str:
     return re.sub(r"\s+", " ", text)
 
 
-def _candidate_rows_for_file(rows: list[dict[str, Any]], file_path: Path, root: Path | None) -> list[dict[str, Any]]:
+def _candidate_rows_for_file(
+    rows: list[dict[str, Any]], file_path: Path, root: Path | None
+) -> list[dict[str, Any]]:
     targets = {
-        _normalized_path(file_path.relative_to(root)) if root and file_path.is_relative_to(root) else "",
+        _normalized_path(file_path.relative_to(root))
+        if root and file_path.is_relative_to(root)
+        else "",
         _normalized_path(file_path.name),
         _normalized_path(_nifti_stem(file_path.name)),
         _normalize_text(file_path.name),
@@ -903,14 +1073,20 @@ def _row_with_match_scope(row: dict[str, Any], scope: str) -> dict[str, Any]:
 
 
 def _patient_id_from_nifti_path(file_path: Path, root: Path | None) -> str | None:
-    relative = file_path.relative_to(root) if root and file_path.is_relative_to(root) else file_path
+    relative = (
+        file_path.relative_to(root)
+        if root and file_path.is_relative_to(root)
+        else file_path
+    )
     parts = relative.parts
     if len(parts) >= 3 and str(parts[-2]).lower().endswith(NIFTI_SUFFIXES):
         return parts[-3]
     if len(parts) >= 2:
         return parts[-2]
 
-    match = re.match(r"((?:TCGA|BraTS|BRATS)[A-Za-z0-9-]*)[_-]", file_path.name, flags=re.IGNORECASE)
+    match = re.match(
+        r"((?:TCGA|BraTS|BRATS)[A-Za-z0-9-]*)[_-]", file_path.name, flags=re.IGNORECASE
+    )
     if match:
         return match.group(1)
     return None
@@ -944,7 +1120,9 @@ def _normalized_identifier(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
-def _first_row_value(row_matches: dict[Path, dict[str, Any]], aliases: list[str]) -> Any:
+def _first_row_value(
+    row_matches: dict[Path, dict[str, Any]], aliases: list[str]
+) -> Any:
     for row in row_matches.values():
         value = _row_value(row, aliases)
         if value is not None:

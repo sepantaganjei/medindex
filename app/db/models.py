@@ -6,7 +6,15 @@
 # 3. Relationships (foreign keys)
 
 from app.db.database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Time, Boolean, Date, Float
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import ForeignKey
+from sqlalchemy import Time
+from sqlalchemy import Boolean
+from sqlalchemy import Date
+from sqlalchemy import Float
+from sqlalchemy import JSON
 from sqlalchemy.orm import relationship
 
 
@@ -18,9 +26,11 @@ class Collection(Base):
 
     collection_name = Column(String, primary_key=True)
     description = Column(String)
+    type = Column(String)
     license_name = Column(String)
     license_uri = Column(String)
     data_description_uri = Column(String)
+    remote = Column(Boolean)
 
     studies = relationship("Study", back_populates="collection")
 
@@ -93,6 +103,7 @@ class Extraction(Base):
     __tablename__ = "extractions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    roi_id = Column(Integer, ForeignKey("rois.id"))
     image_number = Column(String)
     series_instance_uid_extraction = Column(
         String, ForeignKey("series.series_instance_uid")
@@ -101,6 +112,19 @@ class Extraction(Base):
     value = Column(Float)
 
     series = relationship("Series", back_populates="extractions")
+    roi = relationship("Roi", back_populates="extractions")
+
+
+# =========================
+# REGIONS OF INTEREST
+# =========================
+class Roi(Base):
+    __tablename__ = "rois"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    roi_coordinates = Column(JSON)
+
+    extractions = relationship("Extraction", back_populates="roi")
 
 
 # =========================

@@ -22,7 +22,9 @@ def extract_zip(upload_file, target_folder: str):
         zip_ref.extractall(target_folder)
 
 
-def add_new_dataset(collection_name, dataset_type, description=None, zip_file=None):
+def add_new_dataset(
+    collection_name, dataset_type, description=None, zip_file=None, remote=None
+):
     dataset_type = dataset_type.upper()
 
     if zip_file:
@@ -37,7 +39,9 @@ def add_new_dataset(collection_name, dataset_type, description=None, zip_file=No
 
     try:
         print("Starting collection info imputation")
-        _process_and_store_collection(session, raw_data, dataset_type, description)
+        _process_and_store_collection(
+            session, raw_data, dataset_type, description, remote
+        )
         print("Finished collection info imputation")
 
         print("Starting patients info imputation")
@@ -81,9 +85,11 @@ series_data_transformers = {
 
 
 # Insertion of new collection
-def _process_and_store_collection(session, raw_data, dataset_type, description=None):
+def _process_and_store_collection(
+    session, raw_data, dataset_type, description=None, remote=None
+):
     transform = collection_data_transformers[dataset_type]
-    clean_collection_data = transform(raw_data, description)
+    clean_collection_data = transform(raw_data, description, remote)
     return repo.create_collection(session, clean_collection_data)
 
 
@@ -712,6 +718,7 @@ PATIENT_DICOM_FIELD_LABELS = {
     "PatientAge": "Age",
     "EthnicGroup": "Ethnic group",
 }
+
 
 def _get_dicom_field_mappings(field_aliases, fallback_labels):
     session = SessionLocal()
