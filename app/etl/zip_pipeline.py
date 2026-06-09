@@ -50,11 +50,8 @@ def ingest_zip_dataset(
     collection_name: str | None = None,
     description: str | None = None,
     column_mapping: str | dict[str, str] | None = None,
-<<<<<<< HEAD
     remote: bool,
-=======
     allow_description_series_matching: bool = False,
->>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
 ) -> dict[str, Any]:
     dataset_type = dataset_type.lower().strip()
     if dataset_type not in ALLOWED_DATASET_TYPES:
@@ -88,11 +85,8 @@ def ingest_zip_dataset(
                 description,
                 parsed_column_mapping,
                 metadata_path,
-<<<<<<< HEAD
                 remote,
-=======
                 allow_description_series_matching,
->>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
             )
 
     return result
@@ -530,11 +524,8 @@ def _ingest_nifti_zip(
     description: str | None,
     column_mapping: dict[str, str],
     metadata_path: Path | None,
-<<<<<<< HEAD
     remote: bool,
-=======
     allow_description_series_matching: bool,
->>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
 ) -> dict[str, Any]:
     files = discover_nifti_files(root)
     if not files:
@@ -1151,7 +1142,11 @@ def _candidate_rows_for_nifti_description(
             _row_value(row, ["protocol name", "protocolname"]),
         ]
         score = max(
-            (len(tokens & _text_tokens(value)) for value in description_values if value),
+            (
+                len(tokens & _text_tokens(value))
+                for value in description_values
+                if value
+            ),
             default=0,
         )
         if score > best_score:

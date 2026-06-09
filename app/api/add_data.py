@@ -49,11 +49,8 @@ def add_zip_dataset(
             collection_name=collection_name,
             description=description,
             column_mapping=column_mapping,
-<<<<<<< HEAD
             remote=False,
-=======
             allow_description_series_matching=allow_description_series_matching,
->>>>>>> 99e30145e94da514db13e92472dc3f464f3a276e
         )
     except ZipIngestionError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
