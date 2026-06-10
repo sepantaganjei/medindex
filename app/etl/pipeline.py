@@ -697,123 +697,77 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
 # SNOMED mapped fields retrieval
 
 
-SERIES_DICOM_FIELD_ALIASES = {
-    "SeriesInstanceUID": "series_instance_uid",
-    "StudyInstanceUID_series": "study_instance_uid_series",
-    "Modality": "modality",
-    "BodyPartExamined": "body_part_examined",
-    "ProtocolName": "protocol_name",
-    "SeriesDate": "series_date",
-    "SeriesDescription": "series_description",
-    "Site": "site",
-    "Manufacturer": "manufacturer",
-    "ManufacturerModelName": "manufacturer_model_name",
-    "SoftwareVersions": "software_versions",
-    "ImageCount": "image_count",
-    "MaxSubmissionTimestamp": "max_submission_timestamp",
-    "FileSize": "file_size",
-    "ThirdPartyAnalysis": "third_party_analysis",
-    "CollectionName_study": "collection_name_study",
-    "PatientID_study": "patient_id_study",
-}
+def get_series_SNOMED_fields():
+    to_select = [
+        "series_instance_uid",
+        "study_instance_uid_series",
+        "modality",
+        "body_part_examined",
+        "protocol_name",
+        "series_date",
+        "series_description",
+        "site",
+        "manufacturer",
+        "manufacturer_model_name",
+        "software_versions",
+        "image_count",
+        "max_submission_timestamp",
+        "file_size",
+        "third_party_analysis",
+        "collection_name_study",
+        "patient_id_study",
+    ]
 
-SERIES_DICOM_FIELD_LABELS = {
-    "SeriesInstanceUID": "Identifier",
-    "StudyInstanceUID_series": "Identifier of study",
-    "Modality": "Imaging modality",
-    "BodyPartExamined": "Body part",
-    "ProtocolName": "Protocols",
-    "SeriesDate": "Date",
-    "SeriesDescription": "Description in dialect",
-    "Site": "Healthcare facility",
-    "Manufacturer": "Manufacturer",
-    "ManufacturerModelName": "Device",
-    "SoftwareVersions": "Software",
-    "ImageCount": "Count of images",
-    "MaxSubmissionTimestamp": "Timestamp",
-    "FileSize": "File size bytes",
-    "ThirdPartyAnalysis": "Third party analysis",
-    "CollectionName_study": "Collection",
-    "PatientID_study": "Patient",
-}
-
-STUDY_DICOM_FIELD_ALIASES = {
-    "StudyInstanceUID": "study_instance_uid",
-    "CollectionName_study": "collection_name_study",
-    "StudyDate": "study_date",
-    "DateReleased": "date_released",
-    "StudyDescription": "study_description",
-    "SeriesCount": "series_count",
-    "PatientID_study": "patient_id_study",
-    "LongitudinalTemporalEventType": "longitudinal_temporal_event_type",
-    "LongitudinalTemporalOffsetFromEvent": "longitudinal_temporal_offset_from_event",
-}
-
-STUDY_DICOM_FIELD_LABELS = {
-    "StudyInstanceUID": "Identifier",
-    "CollectionName_study": "Collection",
-    "StudyDate": "Date",
-    "DateReleased": "Date of release",
-    "StudyDescription": "Description in dialect",
-    "SeriesCount": "Count of series",
-    "PatientID_study": "Patient",
-    "LongitudinalTemporalEventType": "Event",
-    "LongitudinalTemporalOffsetFromEvent": "Relative time",
-}
-
-PATIENT_DICOM_FIELD_ALIASES = {
-    "PatientID": "patient_id",
-    "PatientId": "patient_id",
-    "PatientSex": "patient_sex",
-    "PatientAge": "patient_age",
-    "EthnicGroup": "ethnic_group",
-}
-
-PATIENT_DICOM_FIELD_LABELS = {
-    "PatientID": "Identifier",
-    "PatientId": "Identifier",
-    "PatientSex": "Gender",
-    "PatientAge": "Age",
-    "EthnicGroup": "Ethnic group",
-}
-
-
-def _get_dicom_field_mappings(field_aliases, fallback_labels):
     session = SessionLocal()
-    field_mappings = {}
+    series_field_mappings = {}
     try:
         mappings = dict(repo.get_SNOMED_fields(session))
-        for dicom_field, database_field in field_aliases.items():
-            field_mappings[dicom_field] = (
-                mappings.get(database_field)
-                or fallback_labels.get(dicom_field)
-                or dicom_field
-            )
+        for field in to_select:
+            series_field_mappings[field] = mappings[field]
 
-        return field_mappings
-    except Exception:
-        return fallback_labels
+        return series_field_mappings
 
     finally:
         session.close()
 
 
-def get_series_SNOMED_fields():
-    return _get_dicom_field_mappings(
-        SERIES_DICOM_FIELD_ALIASES,
-        SERIES_DICOM_FIELD_LABELS,
-    )
-
-
 def get_study_SNOMED_fields():
-    return _get_dicom_field_mappings(
-        STUDY_DICOM_FIELD_ALIASES,
-        STUDY_DICOM_FIELD_LABELS,
-    )
+    to_select = [
+        "study_instance_uid",
+        "collection_name_study",
+        "study_date",
+        "date_released",
+        "study_description",
+        "series_count",
+        "patient_id_study",
+        "longitudinal_temporal_event_type",
+        "longitudinal_temporal_offset_from_event",
+    ]
+
+    session = SessionLocal()
+    study_field_mappings = {}
+    try:
+        mappings = dict(repo.get_SNOMED_fields(session))
+        for field in to_select:
+            study_field_mappings[field] = mappings[field]
+
+        return study_field_mappings
+
+    finally:
+        session.close()
 
 
 def get_patient_SNOMED_fields():
-    return _get_dicom_field_mappings(
-        PATIENT_DICOM_FIELD_ALIASES,
-        PATIENT_DICOM_FIELD_LABELS,
-    )
+    to_select = ["patient_id", "patient_sex", "patient_age", "ethnic_group"]
+
+    session = SessionLocal()
+    patient_field_mappings = {}
+    try:
+        mappings = dict(repo.get_SNOMED_fields(session))
+        for field in to_select:
+            patient_field_mappings[field] = mappings[field]
+
+        return patient_field_mappings
+
+    finally:
+        session.close()
