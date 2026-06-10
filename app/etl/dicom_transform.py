@@ -223,7 +223,7 @@ def prepare_series_data(raw_json_dict_data):
                     series.get("BodyPartExamined", "Missing")
                 ),
                 "protocol_name": safe_str(series.get("ProtocolName", "Missing")),
-                "series_date": safe_date(series.get("StudyDate")),
+                "series_date": safe_date(series.get("SeriesDate")),
                 "series_description": safe_str(
                     series.get("SeriesDescription", "Missing")
                 ),
