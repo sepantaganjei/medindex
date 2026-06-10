@@ -802,12 +802,13 @@ function renderDicomSeriesTable(results) {
             <th>${escapeHtml(getSeriesFieldLabel(["SeriesDescription", "series_description"], "Description"))}</th>
             <th>${escapeHtml(getSeriesFieldLabel(["ImageCount", "image_count"], "Images"))}</th>
             <th>${escapeHtml(getSeriesFieldLabel(["Collection", "CollectionName_study", "collection_name_study"], "Collection"))}</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           ${results
             .map(
-              (series) => `
+              (series, index) => `
                 <tr>
                   <td>${escapeHtml(series.instance_uid)}</td>
                   <td>${escapeHtml(series.patient_id)}</td>
@@ -820,6 +821,11 @@ function renderDicomSeriesTable(results) {
                   )}</td>
                   <td>${escapeHtml(series.image_count)}</td>
                   <td>${escapeHtml(series.collection)}</td>
+                  <td>
+                    <button class="view-button" data-dicom-series-index="${index}">
+                      View
+                    </button>
+                  </td>
                 </tr>
               `,
             )
@@ -828,6 +834,17 @@ function renderDicomSeriesTable(results) {
       </table>
     </section>
   `;
+
+  dicomResultsContainer
+    .querySelectorAll(".view-button[data-dicom-series-index]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const series = results[Number(button.dataset.dicomSeriesIndex)];
+        if (series) {
+          openViewer(series);
+        }
+      });
+    });
 }
 
 function renderDicomStudiesTable(results) {
@@ -1059,12 +1076,12 @@ function renderAvailableCollectionsPagination(totalResults) {
   });
 }
 
-function getExtractionFeatureLabel(feature) {
-  return (
-    feature.standardized_feature_name ||
-    feature.feature_name ||
-    `Feature ${feature.id}`
-  );
+function getExtractionFeatureName(feature) {
+  return feature.feature_name || `Feature ${feature.id}`;
+}
+
+function getExtractionSnomedTerm(feature) {
+  return feature.standardized_feature_name || "Missing SNOMED CT term";
 }
 
 function formatFeatureValue(value) {
@@ -1250,8 +1267,17 @@ function renderExtractions() {
                 .map(
                   (feature) => `
                     <div class="extraction-feature-row">
-                      <span>${escapeHtml(getExtractionFeatureLabel(feature))}</span>
-                      <span>${escapeHtml(formatFeatureValue(feature.value))}</span>
+                      <span class="extraction-feature-labels">
+                        <span class="extraction-feature-name">
+                          ${escapeHtml(getExtractionFeatureName(feature))}
+                        </span>
+                        <span class="extraction-feature-snomed">
+                          SNOMED CT: ${escapeHtml(getExtractionSnomedTerm(feature))}
+                        </span>
+                      </span>
+                      <span class="extraction-feature-value">
+                        ${escapeHtml(formatFeatureValue(feature.value))}
+                      </span>
                     </div>
                   `,
                 )

@@ -17,6 +17,18 @@ import re
 
 _VALUE_MAPPINGS_AVAILABLE = None
 
+RADIOMICS_FEATURE_MAPPING_KEYS = {
+    "original_ngtdm_Busyness": "NGTDM Busyness",
+    "original_ngtdm_Contrast": "NGTDM Contrast",
+    "original_ngtdm_Coarseness": "NGTDM Coarseness",
+    "original_glszm_ZoneEntropy": "GLSZM Zone Entropy",
+    "original_glrlm_ShortRunEmphasis": "GLRLM Short Run Emphasis",
+    "original_glcm_Correlation": "GLCM Correlation",
+    "original_glcm_Idm": "GLCM Homogeneity",
+    "original_firstorder_Mean": "ROI Mean",
+    "original_firstorder_StandardDeviation": "ROI Standard Deviation",
+}
+
 
 def get_json_or_empty(response):
     response.raise_for_status()
@@ -34,6 +46,10 @@ def value_mappings_available(session):
         _VALUE_MAPPINGS_AVAILABLE = inspect(session.bind).has_table("value_mappings")
 
     return _VALUE_MAPPINGS_AVAILABLE
+
+
+def get_radiomics_feature_mapping_key(feature_name):
+    return RADIOMICS_FEATURE_MAPPING_KEYS.get(feature_name, feature_name)
 
 
 # SET OPERATIONS
@@ -177,35 +193,22 @@ def get_patient_on_id(session, id):
 
 
 def get_all_extractions(session):
-    global _VALUE_MAPPINGS_AVAILABLE
-
-    base_query = (
+    rows = (
         session
         .query(Roi, Extraction)
         .join(Extraction, Extraction.roi_id == Roi.id)
+        .all()
     )
 
-    if not value_mappings_available(session):
-        return [
-            (roi, extraction, None)
-            for roi, extraction in base_query.all()
-        ]
+    mapped_rows = []
+    for roi, extraction in rows:
+        mapping_key = get_radiomics_feature_mapping_key(extraction.feature_name)
+        standardized_value = SNOMED_value_mapping(session, mapping_key)
+        if not standardized_value:
+            raise ValueError(f"Missing SNOMED mapping for feature '{mapping_key}'")
+        mapped_rows.append((roi, extraction, standardized_value))
 
-    try:
-        return (
-            session
-            .query(Roi, Extraction, ValueMapping.standardized_value)
-            .join(Extraction, Extraction.roi_id == Roi.id)
-            .outerjoin(ValueMapping, ValueMapping.original_value == Extraction.feature_name)
-            .all()
-        )
-    except ProgrammingError:
-        session.rollback()
-        _VALUE_MAPPINGS_AVAILABLE = False
-        return [
-            (roi, extraction, None)
-            for roi, extraction in base_query.all()
-        ]
+    return mapped_rows
 
 
 def get_series_on_demand(collectionName):

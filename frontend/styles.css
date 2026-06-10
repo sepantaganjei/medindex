@@ -938,6 +938,7 @@ tr:hover {
 .extraction-feature-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 14px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -946,12 +947,25 @@ tr:hover {
   font-size: 13px;
 }
 
-.extraction-feature-row span:first-child {
+.extraction-feature-labels {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.extraction-feature-name {
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
-.extraction-feature-row span:last-child {
+.extraction-feature-snomed {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.extraction-feature-value {
   color: var(--text);
   font-weight: 700;
   white-space: nowrap;
