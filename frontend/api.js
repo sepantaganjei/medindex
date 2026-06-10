@@ -537,7 +537,7 @@ async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collection_name: collectionName });
 
-  const result = await fetchJson(`${baseUrl}/api/addDICOMdataset?${params}`, {
+  const result = await fetchJson(`${baseUrl}/api/addTCIAdataset?${params}`, {
     method: "POST",
   });
 

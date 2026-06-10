@@ -57,26 +57,10 @@ def add_zip_dataset(
 
 
 # add dicom dataset
-@router.post("/addDICOMdataset", response_model=NewDatasetAdditionResponse)
+@router.post("/addTCIAdataset", response_model=NewDatasetAdditionResponse)
 def add_new_DICOM_dataset(collection_name: str):
     return pipe.add_new_dataset(
         collection_name=collection_name, dataset_type="dicom", remote=True
-    )
-
-
-# add nifti dataset
-@router.post("/addNIFTIdataset", response_model=NewDatasetAdditionResponse)
-def add_new_NIFTI_dataset(
-    collection_name: str = Form(...),
-    description: str = Form(...),
-    zip_file: UploadFile = File(...),
-):
-    return pipe.add_new_dataset(
-        collection_name=collection_name,
-        dataset_type="nifti",
-        description=description,
-        zip_file=zip_file,
-        remote=False,
     )
 
 
@@ -106,3 +90,22 @@ class ExtractionInsertionResponse(BaseModel):
 @router.post("/addExtraction", response_model=ExtractionInsertionResponse)
 def add_extraction(input_model: ExtractionInput):
     return pipe.add_extraction(input_model)
+
+
+# ==============
+# Obsolete code
+# ==============
+# add nifti dataset
+@router.post("/addNIFTIdataset", response_model=NewDatasetAdditionResponse)
+def add_new_NIFTI_dataset(
+    collection_name: str = Form(...),
+    description: str = Form(...),
+    zip_file: UploadFile = File(...),
+):
+    return pipe.add_new_dataset(
+        collection_name=collection_name,
+        dataset_type="nifti",
+        description=description,
+        zip_file=zip_file,
+        remote=False,
+    )
