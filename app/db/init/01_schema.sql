@@ -129,7 +129,7 @@ VALUES
 ('patient_id', 'Identifier', 118522005, 'SNOMED'),
 ('patient_sex', 'Gender', 263495000, 'SNOMED'),
 ('patient_age', 'Age', 397669002, 'SNOMED'),
-('ethnic_group', 'Ethnic group', 372148003, 'SNOMED'),
+('ethnic_group', 'Ethnic group', 372148003, 'SNOMED');
 
 -- value mappings
 CREATE TABLE IF NOT EXISTS value_mappings (
