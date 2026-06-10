@@ -131,15 +131,6 @@ VALUES
 ('patient_age', 'Age', 397669002, 'SNOMED'),
 ('ethnic_group', 'Ethnic group', 372148003, 'SNOMED'),
 
--- =========================
--- EXTRACTION
--- =========================
-('id', 'identifier', 118522005, 'SNOMED'),
-('image_number', 'Image', 900000000000520007, 'SNOMED'),
-('series_instance_uid_extraction', 'Series', 13039001, 'SNOMED'),
-('feature_name', 'Name', 734841007, 'SNOMED'),
-('value', 'Quantitative value', 30766002, 'SNOMED');
-
 -- value mappings
 CREATE TABLE IF NOT EXISTS value_mappings (
     original_value VARCHAR PRIMARY KEY,
