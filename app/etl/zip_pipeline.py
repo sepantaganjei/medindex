@@ -352,11 +352,13 @@ def match_nifti_rows_to_files(
                     file_path,
                     allow_description_series_matching,
                 )
-                if len(series_candidates) == 1 or (
-                    allow_description_series_matching and series_candidates
-                ):
+                if len(series_candidates) == 1:
                     matches[file_path] = _row_with_match_scope(
                         series_candidates[0], "series"
+                    )
+                elif allow_description_series_matching and series_candidates:
+                    matches[file_path] = _row_with_match_scope(
+                        series_candidates[0], "patient"
                     )
                 else:
                     matches[file_path] = _row_with_match_scope(

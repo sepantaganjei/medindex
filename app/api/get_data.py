@@ -52,6 +52,8 @@ def get_all_series(collectionName: Optional[str] = None):
 class CollectionsResponse(BaseModel):
     collection_name: str
     description: str | None = None
+    type: str | None = None
+    remote: bool | None = None
 
     model_config = {"from_attributes": True}
 

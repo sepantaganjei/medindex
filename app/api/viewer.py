@@ -12,6 +12,10 @@ def get_series_viewer(
     request: Request,
     collection: str | None = None,
     base_url: str | None = None,
+    patient_id: str | None = None,
+    study_uid: str | None = None,
+    collection_type: str | None = None,
+    remote: bool = False,
 ) -> dict:
     resolved_base_url = (base_url or str(request.base_url)).rstrip("/")
     try:
@@ -19,6 +23,10 @@ def get_series_viewer(
             series_uid,
             collection,
             resolved_base_url,
+            patient_id,
+            study_uid,
+            collection_type,
+            remote,
         )
     except viewer_assets.ViewerSeriesNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

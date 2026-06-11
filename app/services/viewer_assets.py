@@ -16,7 +16,7 @@ from pydicom.multival import MultiValue
 
 from app.core.config import config
 from app.db.database import SessionLocal
-from app.db.models import Series, Study
+from app.db.models import Collection, Series, Study
 from app.etl import extract
 from app.services.object_storage_service import ObjectStorageService
 
@@ -36,6 +36,8 @@ class ViewerSeriesContext:
     study_uid: str
     series_uid: str
     modality: str | None
+    collection_type: str | None = None
+    remote: bool = False
 
 
 @dataclass(frozen=True)
@@ -64,7 +66,12 @@ nifti_slice_png_cache: OrderedDict[tuple[str, str, int], bytes] = OrderedDict()
 
 
 def get_series_context(
-    series_uid: str, collection: str | None = None
+    series_uid: str,
+    collection: str | None = None,
+    patient_id: str | None = None,
+    study_uid: str | None = None,
+    collection_type: str | None = None,
+    remote: bool = False,
 ) -> ViewerSeriesContext:
     session = SessionLocal()
     try:
@@ -73,6 +80,17 @@ def get_series_context(
             query = query.join(Series.study).filter(Study.collection_name_study == collection)
         series = query.first()
 
+        if not series and remote and collection and patient_id and study_uid:
+            return ViewerSeriesContext(
+                collection=collection,
+                patient_id=patient_id,
+                study_uid=study_uid,
+                series_uid=series_uid,
+                modality="DICOM",
+                collection_type=collection_type or "dicom",
+                remote=True,
+            )
+
         if not series or not series.study:
             raise ViewerSeriesNotFound("Series not found in the local database.")
         if not series.study.collection_name_study:
@@ -80,12 +98,21 @@ def get_series_context(
         if not series.study.patient_id_study:
             raise ViewerSeriesNotFound("Series patient is missing.")
 
+        collection_record = (
+            session
+            .query(Collection)
+            .filter(Collection.collection_name == series.study.collection_name_study)
+            .first()
+        )
+
         return ViewerSeriesContext(
             collection=series.study.collection_name_study,
             patient_id=series.study.patient_id_study,
             study_uid=series.study_instance_uid_series,
             series_uid=series.series_instance_uid,
             modality=series.modality,
+            collection_type=collection_record.type if collection_record else collection_type,
+            remote=bool(collection_record.remote) if collection_record else remote,
         )
     finally:
         session.close()
@@ -255,13 +282,31 @@ def _dicom_instance_sort_key(object_name: str) -> tuple[bool, int, str]:
     return (instance_number is None, instance_number or 0, object_name)
 
 
-def build_series_viewer(series_uid: str, collection: str | None, base_url: str) -> dict:
-    context = get_series_context(series_uid, collection)
-    object_names = _list_series_object_names(context)
-    if not object_names:
-        if str(context.modality or "").strip().upper() == "NIFTI":
-            raise ViewerAssetError("No uploaded files found for this NIfTI series.")
+def build_series_viewer(
+    series_uid: str,
+    collection: str | None,
+    base_url: str,
+    patient_id: str | None = None,
+    study_uid: str | None = None,
+    collection_type: str | None = None,
+    remote: bool = False,
+) -> dict:
+    context = get_series_context(
+        series_uid,
+        collection,
+        patient_id,
+        study_uid,
+        collection_type,
+        remote,
+    )
+    if context.remote and str(context.collection_type or "").strip().lower() == "dicom":
         object_names = _upload_remote_dicom_series(context)
+    else:
+        object_names = _list_series_object_names(context)
+        if not object_names:
+            if str(context.modality or "").strip().upper() == "NIFTI":
+                raise ViewerAssetError("No uploaded files found for this NIfTI series.")
+            object_names = _upload_remote_dicom_series(context)
 
     nifti_objects = [
         object_name for object_name in object_names if _is_nifti_object(object_name)

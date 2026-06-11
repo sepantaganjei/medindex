@@ -225,6 +225,13 @@ function getSeriesSource(series) {
     return series.source;
   }
 
+  if (String(series?.collectionType ?? "").trim().toLowerCase() === "nifti") {
+    return "NIfTI";
+  }
+  if (String(series?.collectionType ?? "").trim().toLowerCase() === "dicom") {
+    return "DICOM";
+  }
+
   if (String(series?.modality ?? "").trim().toUpperCase() === "NIFTI") {
     return "NIfTI";
   }
@@ -233,6 +240,12 @@ function getSeriesSource(series) {
     (collection) => collection.id === series.collection,
   );
 
+  if (String(collectionMeta?.type ?? "").trim().toLowerCase() === "nifti") {
+    return "NIfTI";
+  }
+  if (String(collectionMeta?.type ?? "").trim().toLowerCase() === "dicom") {
+    return "DICOM";
+  }
   if (collectionMeta?.source) {
     return collectionMeta.source;
   }
@@ -242,15 +255,25 @@ function getSeriesSource(series) {
 
 function normalizeViewerSeries(series) {
   if (series?.seriesUid) {
+    const collectionMeta = collections.find(
+      (collection) => collection.id === series.collection,
+    );
     return {
       ...series,
+      collectionType: series.collectionType ?? collectionMeta?.type ?? null,
+      remote: Boolean(series.remote ?? collectionMeta?.remote),
       source: getSeriesSource(series),
     };
   }
 
+  const collectionName = series.collection ?? series.collection_name ?? "";
+  const collectionMeta = collections.find(
+    (collection) => collection.id === collectionName,
+  );
+
   return {
     seriesUid: series.instance_uid ?? series.seriesUid ?? "",
-    studyUid: series.study_instance_uid ?? "",
+    studyUid: series.study_instance_uid ?? series.study_instance_uid_series ?? "",
     patientId: series.patient_id ?? "Unknown",
     modality: series.modality ?? "Unknown",
     bodyPart: series.body_part ?? "",
@@ -258,7 +281,9 @@ function normalizeViewerSeries(series) {
     seriesDate: series.series_date ?? "",
     description: series.series_description ?? "",
     numImages: series.image_count ?? 0,
-    collection: series.collection ?? "",
+    collection: collectionName,
+    collectionType: series.collectionType ?? series.type ?? collectionMeta?.type ?? null,
+    remote: Boolean(series.remote ?? collectionMeta?.remote),
     manufacturer: series.manufacturer ?? "",
     manufacturerModelName: series.manufacturer_model_name ?? "",
     source: "DICOM",
@@ -393,7 +418,13 @@ async function loadViewerForSeries(series) {
     const viewerInfo = await fetchSeriesViewer(
       apiBaseUrl,
       series.seriesUid,
-      series.collection,
+      {
+        collection: series.collection,
+        patientId: series.patientId,
+        studyUid: series.studyUid,
+        collectionType: series.collectionType,
+        remote: series.remote,
+      },
     );
     loadImageSliceViewer(viewerInfo);
   } catch (error) {
@@ -841,7 +872,12 @@ function renderDicomSeriesTable(results) {
       button.addEventListener("click", () => {
         const series = results[Number(button.dataset.dicomSeriesIndex)];
         if (series) {
-          openViewer(series);
+          openViewer({
+            ...series,
+            source: "DICOM",
+            collectionType: "dicom",
+            remote: true,
+          });
         }
       });
     });

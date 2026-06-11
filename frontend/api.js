@@ -71,6 +71,8 @@ function mapSeries(seriesDetail) {
       ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"],
       firstDefined(seriesDetail, ["collection", "collection_name", "collection_name_study", "Collection", "CollectionName_study"], "Unknown"),
     ),
+    collectionType: firstDefined(seriesDetail, ["collection_type", "type"], null),
+    remote: Boolean(firstDefined(seriesDetail, ["remote"], false)),
 
     site: firstDefined(seriesDetail, ["site", "Site"], null),
     manufacturer: firstDefined(seriesDetail, ["manufacturer", "Manufacturer"], null),
@@ -341,6 +343,15 @@ function deriveDicomPatientsFromSeries(seriesRows) {
 
 function getCollectionSource(collectionName, savedCollectionMap) {
   const savedCollection = savedCollectionMap.get(collectionName);
+  const type = String(savedCollection?.type ?? "").trim().toLowerCase();
+
+  if (type === "nifti") {
+    return "NIfTI";
+  }
+  if (type === "dicom") {
+    return "DICOM";
+  }
+
   const description = savedCollection?.description ?? "";
 
   if (description.toLowerCase().includes("nifti")) {
@@ -371,10 +382,13 @@ function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
     }
 
     if (!collectionMap.has(series.collection)) {
+      const savedCollection = savedCollectionMap.get(series.collection);
       collectionMap.set(series.collection, {
         id: series.collection,
         name: series.collection,
         source: getCollectionSource(series.collection, savedCollectionMap),
+        type: savedCollection?.type ?? series.collectionType ?? null,
+        remote: Boolean(savedCollection?.remote ?? series.remote),
         seriesCount: 0,
       });
     }
@@ -397,8 +411,10 @@ function mapAvailableCollection(collection) {
   return {
     name,
     description: collection.description ?? "",
-    source: "TCIA",
+    source: String(collection.type ?? "dicom").toLowerCase() === "nifti" ? "NIfTI" : "DICOM",
     licenseName: "DICOM",
+    type: collection.type ?? "dicom",
+    remote: Boolean(collection.remote),
     downloaded: false,
   };
 }
@@ -603,10 +619,27 @@ async function uploadDataset(apiBaseUrl, dataset) {
   return result;
 }
 
-function buildViewerParams(baseUrl, collectionName) {
+function buildViewerParams(baseUrl, viewerContext = {}) {
   const params = new URLSearchParams();
+  const context =
+    typeof viewerContext === "string"
+      ? { collectionName: viewerContext }
+      : viewerContext;
+  const collectionName = context.collectionName ?? context.collection;
   if (collectionName) {
     params.set("collection", collectionName);
+  }
+  if (context.patientId) {
+    params.set("patient_id", context.patientId);
+  }
+  if (context.studyUid) {
+    params.set("study_uid", context.studyUid);
+  }
+  if (context.collectionType) {
+    params.set("collection_type", context.collectionType);
+  }
+  if (context.remote) {
+    params.set("remote", "true");
   }
   if (baseUrl) {
     params.set("base_url", baseUrl);
@@ -619,15 +652,15 @@ function withQuery(url, params) {
   return query ? `${url}?${query}` : url;
 }
 
-function buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName) {
+function buildSeriesViewerUrl(apiBaseUrl, seriesUid, viewerContext = {}) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
-  const params = buildViewerParams(baseUrl, collectionName);
+  const params = buildViewerParams(baseUrl, viewerContext);
   const url = `${baseUrl}/api/viewer/series/${encodeURIComponent(seriesUid)}`;
   return withQuery(url, params);
 }
 
-async function fetchSeriesViewer(apiBaseUrl, seriesUid, collectionName) {
-  return fetchJson(buildSeriesViewerUrl(apiBaseUrl, seriesUid, collectionName));
+async function fetchSeriesViewer(apiBaseUrl, seriesUid, viewerContext = {}) {
+  return fetchJson(buildSeriesViewerUrl(apiBaseUrl, seriesUid, viewerContext));
 }
 
 async function loadExtractions(apiBaseUrl) {
