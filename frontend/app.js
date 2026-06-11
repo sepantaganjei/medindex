@@ -1414,7 +1414,11 @@ async function showPatientMetadata() {
   renderPatientMetadataLoading(activeViewerSeries);
 
   try {
-    const patient = await loadPatient(apiBaseUrl, activeViewerSeries.patientId);
+    const patient = await loadPatient(
+      apiBaseUrl,
+      activeViewerSeries.patientId,
+      activeViewerSeries.collection,
+    );
     renderPatientMetadata(activeViewerSeries, patient);
   } catch (error) {
     console.warn("Could not load patient metadata. Showing series fallback.", error);
