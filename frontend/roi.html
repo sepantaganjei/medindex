@@ -9,13 +9,6 @@
   </head>
   <body class="roi-page">
 
-    <!-- HEADER -->
-    <header class="roi-topbar">
-      <div class="roi-header-controls">
-        <span id="loadStatus" class="roi-status">Awaiting image</span>
-      </div>
-    </header>
-
     <!-- MAIN LAYOUT -->
     <div id="container" class="roi-container">
 
@@ -30,7 +23,10 @@
             </div>
           </div>
 
-          <a class="roi-back-link" href="index.html">← Back</a>
+          <button id="viewerBackBtn" class="roi-viewer-back-button" type="button">
+            ← Back to viewer
+          </button>
+          <a class="roi-back-link" href="index.html">← Back to the dataset</a>
           
           <!-- ROI DECISION -->
           <div id="roiToolbar" class="toolbar-group">

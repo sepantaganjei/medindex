@@ -85,8 +85,24 @@ body.roi-page {
   white-space: nowrap;
 }
 
-.roi-back-link {
+.roi-viewer-back-button {
   margin-top: 2em;
+  margin-right: auto;
+  border: 1px solid var(--primary);
+  background: var(--surface);
+  color: var(--primary);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.roi-viewer-back-button:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.roi-back-link {
+  margin-top: 0.75em;
   margin-right: auto;
   font-size: 13px;
   font-weight: 600;

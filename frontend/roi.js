@@ -17,6 +17,7 @@ const featureMenu = document.getElementById("featureMenu");
 const selectAllBtn = document.getElementById("selectAllBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
+const viewerBackBtn = document.getElementById("viewerBackBtn");
 const loadStatus = document.getElementById("loadStatus");
 const featuresStatus = document.getElementById("featuresStatus");
 const featuresList = document.getElementById("featuresList");
@@ -74,12 +75,28 @@ img.onload = () => {
   previewCanvas.height = 400;
   initCanvas();
   resetAllROI();
-  loadStatus.textContent = `Loaded ${img.width}×${img.height}`;
+  setLoadStatus(`Loaded ${img.width}×${img.height}`);
 };
 
 img.onerror = () => {
-  loadStatus.textContent = "Failed to load image";
+  setLoadStatus("Failed to load image");
 };
+
+function setLoadStatus(message) {
+  if (loadStatus) {
+    loadStatus.textContent = message;
+  }
+}
+
+if (viewerBackBtn) {
+  viewerBackBtn.addEventListener("click", () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.href = "index.html";
+  });
+}
 
 function initCanvas() {
   if (!img.naturalWidth) {
@@ -157,7 +174,7 @@ async function loadRenderedImage(
   seriesUid = "",
   imageNumber = "1",
 ) {
-  loadStatus.textContent = "Loading image…";
+  setLoadStatus("Loading image…");
   featuresStatus.textContent = "No features computed yet.";
   featuresList.innerHTML = "";
 
@@ -179,7 +196,7 @@ async function loadRenderedImage(
     currentImageNumber = imageNumber;
     img.src = objectUrl;
   } catch (error) {
-    loadStatus.textContent = "Failed to load image";
+    setLoadStatus("Failed to load image");
     console.error("Failed to load image", error);
   }
 }
@@ -193,7 +210,7 @@ if (initialImage) {
     initialImage.imageNumber,
   );
 } else {
-  loadStatus.textContent = "Open a viewer slice from the main page.";
+  setLoadStatus("Open a viewer slice from the main page.");
 }
 
 /* =========================================
