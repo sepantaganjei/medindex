@@ -498,7 +498,10 @@ def _ingest_dicom_zip(
         )
 
     collection, patients, studies, series, identities = build_dicom_records_from_files(
-        valid_files, collection_name, description
+        valid_files,
+        collection_name,
+        description,
+        remote,
     )
     uploaded, inserted_counts = persist_uploaded_dataset(
         collection,

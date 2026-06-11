@@ -493,6 +493,17 @@ function updateFeatureBtn() {
   featureBtn.innerText = n === 0 ? "Feature Extraction ▾" : `Feature Extraction (${n}) ▾`;
 }
 
+function selectDefaultFeatures() {
+  selectedFeatures.clear();
+  featureMenu.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+    cb.checked = true;
+    selectedFeatures.add(cb.value);
+  });
+  updateFeatureBtn();
+}
+
+selectDefaultFeatures();
+
 /* =========================================
    CHIUDI MENU SU CLICK ESTERNO
 ========================================= */
@@ -940,6 +951,12 @@ yesBtn.onclick = async () => {
     return;
   }
 
+  const selectedFeatureList = Array.from(selectedFeatures);
+  if (selectedFeatureList.length === 0) {
+    featuresStatus.textContent = "Select at least one feature before extracting.";
+    return;
+  }
+
   featuresStatus.textContent = "Computing features…";
   featuresList.innerHTML = "";
 
@@ -950,6 +967,7 @@ yesBtn.onclick = async () => {
       body: JSON.stringify({
         render_source: currentRenderSource,
         points: roi,
+        selected_features: selectedFeatureList,
       }),
     });
 

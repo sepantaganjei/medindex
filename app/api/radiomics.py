@@ -26,6 +26,8 @@ class RadiomicsRequest(BaseModel):
     render_source: RenderSource
     points: list[Point] = Field(..., min_length=3)
 
+    selected_features: list[str] | None = None
+
 
 class RadiomicsResponse(BaseModel):
     source: str
@@ -70,7 +72,7 @@ def extract_features(payload: RadiomicsRequest) -> RadiomicsResponse:
     mask = create_mask(points, image.shape)
 
     try:
-        features = extract_pyradiomics_features(image, mask)
+        features = extract_pyradiomics_features(image, mask, payload.selected_features)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
