@@ -9,6 +9,7 @@ from app.db.models import Extraction
 from app.db.models import Roi
 from app.db.models import FieldMapping
 from app.db.models import ValueMapping
+from app.db.database import SessionLocal
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy import inspect
@@ -16,6 +17,30 @@ import requests
 import re
 
 _VALUE_MAPPINGS_AVAILABLE = None
+
+MODEL_FIELD_ALIASES = {
+    Collection: {
+        "name": "collection_name",
+        "description_uri": "data_description_uri",
+    },
+    Patient: {
+        "id": "patient_id",
+        "sex": "patient_sex",
+        "age": "patient_age",
+    },
+    Study: {
+        "instance_uid": "study_instance_uid",
+        "collection": "collection_name_study",
+        "patient_id": "patient_id_study",
+        "date": "study_date",
+        "description": "study_description",
+    },
+    Series: {
+        "instance_uid": "series_instance_uid",
+        "study_instance_uid": "study_instance_uid_series",
+        "body_part": "body_part_examined",
+    },
+}
 
 RADIOMICS_FEATURE_MAPPING_KEYS = {
     "original_ngtdm_Busyness": "NGTDM Busyness",
@@ -50,6 +75,88 @@ def value_mappings_available(session):
 
 def get_radiomics_feature_mapping_key(feature_name):
     return RADIOMICS_FEATURE_MAPPING_KEYS.get(feature_name, feature_name)
+
+
+def _to_model_fields(model, data: dict) -> dict:
+    aliases = MODEL_FIELD_ALIASES.get(model, {})
+    model_columns = set(model.__table__.columns.keys())
+    normalized = {}
+
+    for key, value in data.items():
+        column = aliases.get(key, key)
+        if column in model_columns:
+            normalized[column] = value
+
+    return normalized
+
+
+def _add_if_missing(session, model, key: str, data: dict) -> bool:
+    model_data = _to_model_fields(model, data)
+    if key not in model_data:
+        raise KeyError(f"Missing key '{key}' for {model.__name__}")
+
+    if not session.query(model).filter(getattr(model, key) == model_data[key]).first():
+        session.add(model(**model_data))
+        return True
+    return False
+
+
+def collection_exists(collection_name: str) -> bool:
+    session = SessionLocal()
+    try:
+        return (
+            session
+            .query(Collection)
+            .filter(Collection.collection_name == collection_name)
+            .first()
+            is not None
+        )
+    finally:
+        session.close()
+
+
+def _insert_dataset_records(
+    session,
+    collection: dict,
+    patients: list[dict],
+    studies: list[dict],
+    series: list[dict],
+) -> dict[str, int]:
+    _add_if_missing(session, Collection, "collection_name", collection)
+    counts = {"patients": 0, "studies": 0, "series": 0}
+
+    for patient in patients:
+        counts["patients"] += int(
+            _add_if_missing(session, Patient, "patient_id", patient)
+        )
+    for study in studies:
+        counts["studies"] += int(
+            _add_if_missing(session, Study, "study_instance_uid", study)
+        )
+    for item in series:
+        counts["series"] += int(
+            _add_if_missing(session, Series, "series_instance_uid", item)
+        )
+
+    return counts
+
+
+def insert_dataset_records(
+    collection: dict,
+    patients: list[dict],
+    studies: list[dict],
+    series: list[dict],
+) -> dict[str, int]:
+    session = SessionLocal()
+    try:
+        counts = _insert_dataset_records(session, collection, patients, studies, series)
+        session.commit()
+        return counts
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 # SET OPERATIONS
