@@ -288,6 +288,10 @@ function normalizePatient(patientDetail) {
   return mapDicomPatient(patientDetail ?? {});
 }
 
+function hasPatientDetails(patient) {
+  return Boolean(patient?.sex || patient?.age || patient?.ethnic_group);
+}
+
 function deriveDicomStudiesFromSeries(seriesRows) {
   const studies = new Map();
 
@@ -448,17 +452,47 @@ async function loadAvailableCollections(apiBaseUrl) {
   return collectionsResponse.map(mapAvailableCollection);
 }
 
-async function loadPatient(apiBaseUrl, patientId) {
+async function loadPatientOnDemand(apiBaseUrl, collectionName, patientId, signal) {
+  const baseUrl = normalizeBaseUrl(apiBaseUrl);
+  const params = new URLSearchParams({
+    collectionName,
+    patient_id: patientId,
+  });
+  const response = await fetchJson(
+    `${baseUrl}/api/patientsOnDemandOnUid?${params}`,
+    { signal },
+  );
+
+  return normalizePatient(Array.isArray(response) ? response[0] : response);
+}
+
+async function loadPatient(apiBaseUrl, patientId, collectionName = "") {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ id: patientId });
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 8000);
 
   try {
+    if (collectionName) {
+      try {
+        const remotePatient = await loadPatientOnDemand(
+          apiBaseUrl,
+          collectionName,
+          patientId,
+          controller.signal,
+        );
+
+        if (hasPatientDetails(remotePatient)) {
+          return remotePatient;
+        }
+      } catch (error) {
+        console.warn("Could not load on-demand patient metadata.", error);
+      }
+    }
+
     const response = await fetchJson(`${baseUrl}/api/patientOnId?${params}`, {
       signal: controller.signal,
     });
-
     return normalizePatient(Array.isArray(response) ? response[0] : response);
   } finally {
     window.clearTimeout(timeout);

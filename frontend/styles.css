@@ -104,15 +104,21 @@ select {
 }
 
 .brand-icon {
-  width: 36px;
-  height: 36px;
-  border: 2px solid var(--primary);
-  color: var(--primary);
-  background: #eff6ff;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  font-weight: 700;
-  border-radius: 10px;
+  flex: 0 0 auto;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(145deg, #ffffff 0%, #ecfeff 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(14, 165, 164, 0.12);
+}
+
+.brand-icon img {
+  width: 34px;
+  height: 34px;
+  display: block;
 }
 
 .brand h1 {
