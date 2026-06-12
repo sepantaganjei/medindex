@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">MedIndex logo</title>
+  <desc id="desc">Stacked medical image cards with a magnifying glass.</desc>
+  <rect width="64" height="64" rx="18" fill="#eff6ff"/>
+  <rect x="15" y="13" width="28" height="34" rx="7" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+  <rect x="20" y="9" width="28" height="34" rx="7" fill="#ffffff" stroke="#2563eb" stroke-width="2.5"/>
+  <path d="M27 18h14M27 25h10M27 32h12" stroke="#93c5fd" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="37.5" cy="37.5" r="10.5" fill="#ecfeff" stroke="#0ea5a4" stroke-width="3.5"/>
+  <path d="M45.5 45.5 53 53" stroke="#0f766e" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="37.5" cy="37.5" r="5" fill="#bae6fd" opacity="0.55"/>
+</svg>
