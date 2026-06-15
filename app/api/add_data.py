@@ -1,3 +1,5 @@
+# This is the set of 'add' REST APIs
+# They are used to add data to the platform archive (relational DB or MinIO storage bucket)
 from enum import Enum
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, Form
@@ -8,11 +10,13 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/api", tags=["ADD DATA"])
 
 
+# Response to the addtion of a new dataset from TCIA archive
 class NewDatasetAdditionResponse(BaseModel):
     status_operation: str
     error: str | None = None
 
 
+# Response to the addtion of a new dataset from local file system
 class ZipDatasetAdditionResponse(BaseModel):
     status_operation: str
     collection_name: str | None = None
@@ -26,11 +30,13 @@ class ZipDatasetAdditionResponse(BaseModel):
     error: str | None = None
 
 
+# Definition of the dataset type
 class DatasetType(str, Enum):
     DICOM = "dicom"
     NIFTI = "nifti"
 
 
+# Addition of a dataset in Zip form from local file system
 @router.post("/addZipDataset", response_model=ZipDatasetAdditionResponse)
 def add_zip_dataset(
     dataset_type: DatasetType = Form(...),
@@ -64,16 +70,19 @@ def add_new_DICOM_dataset(collection_name: str):
     )
 
 
+# An extracted feature is composed of: name and value
 class FeatureInput(BaseModel):
     feature_name: str
     value: float
 
 
+# Definition of the coordinates of a region of interest
 class ROI_coordinates(BaseModel):
     x: float
     y: float
 
 
+# Input to the add API in the case of a feature extraction
 class ExtractionInput(BaseModel):
     image_number: str
     series_instance_uid: str
@@ -81,6 +90,7 @@ class ExtractionInput(BaseModel):
     roi_coordinates: list[ROI_coordinates]
 
 
+# Repsonse after the storage of a feature extraction
 class ExtractionInsertionResponse(BaseModel):
     status_operation: str
     error: str | None = None
