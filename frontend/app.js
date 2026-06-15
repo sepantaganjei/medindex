@@ -120,18 +120,22 @@ const seriesPageSize = 100;
 const availableCollectionsPageSize = 25;
 const dicomPageSize = 100;
 
+// Returns the display label for a series metadata field.
 function getSeriesFieldLabel(keys, fallback) {
   return fieldLabel(dicomFieldMappings.series, keys, fallback);
 }
 
+// Returns the display label for a study metadata field.
 function getStudyFieldLabel(keys, fallback) {
   return fieldLabel(dicomFieldMappings.studies, keys, fallback);
 }
 
+// Returns the display label for a patient metadata field.
 function getPatientFieldLabel(keys, fallback) {
   return fieldLabel(dicomFieldMappings.patients, keys, fallback);
 }
 
+// Renders the series table headers with mapped field labels.
 function renderSeriesTableHeaders() {
   if (!seriesTableHead) {
     return;
@@ -149,6 +153,7 @@ function renderSeriesTableHeaders() {
   `;
 }
 
+// Loads DICOM field mappings once and refreshes dependent views.
 async function ensureDicomFieldMappings() {
   if (!dicomFieldMappingsPromise) {
     dicomFieldMappingsPromise = loadSnomedFieldMappings(apiBaseUrl)
@@ -174,6 +179,7 @@ const modalityFilterGroups = [
   ["PT", "PET", "Positron emission tomography"],
 ];
 
+// Normalizes modality aliases into readable names.
 function normalizeModality(value) {
   const rawValue = String(value ?? "").trim();
 
@@ -189,6 +195,7 @@ function normalizeModality(value) {
   return group ? group.at(-1) : rawValue;
 }
 
+// Creates the grouped modality label used by the filter.
 function getModalityFilterKey(value) {
   const rawValue = String(value ?? "").trim();
 
@@ -204,6 +211,7 @@ function getModalityFilterKey(value) {
   return group ? group.join(" / ") : rawValue;
 }
 
+// Formats blank values as Missing for display.
 function getDisplayValue(value) {
   if (value === undefined || value === null || value === "") {
     return "Missing";
@@ -212,6 +220,7 @@ function getDisplayValue(value) {
   return value;
 }
 
+// Formats unavailable patient age values for display.
 function getPatientAgeDisplayValue(value) {
   if (value === -1 || value === "-1") {
     return "Missing";
@@ -220,6 +229,7 @@ function getPatientAgeDisplayValue(value) {
   return getDisplayValue(value);
 }
 
+// Determines the source type for a series.
 function getSeriesSource(series) {
   if (series?.source) {
     return series.source;
@@ -253,6 +263,7 @@ function getSeriesSource(series) {
   return "DICOM";
 }
 
+// Normalizes a series row before opening it in the viewer.
 function normalizeViewerSeries(series) {
   if (series?.seriesUid) {
     const collectionMeta = collections.find(
@@ -290,6 +301,7 @@ function normalizeViewerSeries(series) {
   };
 }
 
+// Clears image viewer state and hides viewer-specific UI.
 function resetViewerState() {
   viewerLoading?.classList.add("hidden");
   viewerError?.classList.add("hidden");
@@ -307,6 +319,7 @@ function resetViewerState() {
   }
 }
 
+// Shows a loading message in the image viewer.
 function setViewerLoading(message) {
   if (viewerLoading) {
     viewerLoading.textContent = message;
@@ -316,6 +329,7 @@ function setViewerLoading(message) {
   viewerPlaceholder?.classList.add("hidden");
 }
 
+// Shows an error message in the image viewer.
 function setViewerError(message) {
   if (viewerError) {
     viewerError.textContent = message;
@@ -325,6 +339,7 @@ function setViewerError(message) {
   dicomViewer?.classList.add("hidden");
 }
 
+// Displays the selected image object in the viewer.
 function showImageSlice(index) {
   if (!dicomImage || activeImageObjects.length === 0) {
     return;
@@ -344,6 +359,7 @@ function showImageSlice(index) {
   dicomImage.src = object.url;
 }
 
+// Initializes the viewer controls for a loaded image series.
 function loadImageSliceViewer(viewerInfo) {
   activeImageObjects = viewerInfo.objects ?? [];
   activeViewerInfo = viewerInfo;
@@ -373,6 +389,7 @@ function loadImageSliceViewer(viewerInfo) {
   showImageSlice(0);
 }
 
+// Returns the currently selected image object from the viewer.
 function getSelectedImageObject() {
   if (activeImageObjects.length === 0) {
     return null;
@@ -382,6 +399,7 @@ function getSelectedImageObject() {
   return activeImageObjects[clampedIndex];
 }
 
+// Opens the selected viewer image in the ROI selector page.
 function openSelectedImageInRoi() {
   const object = getSelectedImageObject();
   if (!object || !activeViewerInfo) {
@@ -410,6 +428,7 @@ function openSelectedImageInRoi() {
   window.location.href = url.toString();
 }
 
+// Fetches and displays viewer data for a selected series.
 async function loadViewerForSeries(series) {
   resetViewerState();
   setViewerLoading("Loading image series...");
@@ -433,6 +452,7 @@ async function loadViewerForSeries(series) {
   }
 }
 
+// Renders the sidebar collection filter cards.
 function renderCollections() {
   collectionsList.innerHTML = "";
 
@@ -483,6 +503,7 @@ function renderCollections() {
   });
 }
 
+// Filters series by selected collections, modality, and search text.
 function getFilteredSeries() {
   const searchTerm = searchInput.value.toLowerCase();
   const selectedModality = modalityFilter.value;
@@ -502,18 +523,22 @@ function getFilteredSeries() {
   });
 }
 
+// Resets the series results to the first page.
 function resetSeriesPage() {
   seriesPage = 1;
 }
 
+// Resets available collections to the first page.
 function resetAvailableCollectionsPage() {
   availableCollectionsPage = 1;
 }
 
+// Resets DICOM results to the first page.
 function resetDicomPage() {
   dicomPage = 1;
 }
 
+// Renders reusable pagination controls and wires page changes.
 function renderPagination({
   container,
   currentPage,
@@ -561,6 +586,7 @@ function renderPagination({
   return safePage;
 }
 
+// Renders pagination for the series table.
 function renderSeriesPagination(totalResults) {
   if (isSeriesLoading) {
     seriesPagination.innerHTML = "";
@@ -580,6 +606,7 @@ function renderSeriesPagination(totalResults) {
   });
 }
 
+// Renders the filtered and paginated series table.
 function renderSeries() {
   renderSeriesTableHeaders();
 
@@ -646,6 +673,7 @@ function renderSeries() {
   });
 }
 
+// Escapes dynamic values before inserting them into HTML strings.
 function escapeHtml(value) {
   return String(value ?? "—")
     .replaceAll("&", "&amp;")
@@ -655,6 +683,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+// Switches between the main application views.
 function setMainView(view) {
   const showingSeries = view === "series";
   const showingAvailable = view === "available";
@@ -672,6 +701,7 @@ function setMainView(view) {
   extractionsViewButton.classList.toggle("active", showingExtractions);
 }
 
+// Renders modality filter options for the current collection selection.
 function renderModalityFilter() {
   const currentValue = modalityFilter.value || "all";
   const visibleSeries = seriesData.filter((series) =>
@@ -698,6 +728,7 @@ function renderModalityFilter() {
     : "all";
 }
 
+// Updates the active DICOM search mode.
 function setDicomSearchType(searchType) {
   activeDicomSearchType = searchType;
   dicomResults = [];
@@ -708,6 +739,7 @@ function setDicomSearchType(searchType) {
   renderDicomExplorer();
 }
 
+// Renders DICOM explorer controls and status.
 function renderDicomExplorer() {
   dicomSeriesModeButton.classList.toggle(
     "active",
@@ -742,6 +774,7 @@ function renderDicomExplorer() {
   renderDicomResults();
 }
 
+// Renders DICOM results for the active search mode.
 function renderDicomResults() {
   dicomResultCount.textContent = `${dicomResults.length} results`;
 
@@ -801,6 +834,7 @@ function renderDicomResults() {
   renderDicomPagination(dicomResults.length);
 }
 
+// Renders pagination for DICOM search results.
 function renderDicomPagination(totalResults) {
   dicomPage = renderPagination({
     container: dicomPagination,
@@ -815,6 +849,7 @@ function renderDicomPagination(totalResults) {
   });
 }
 
+// Renders DICOM series search results.
 function renderDicomSeriesTable(results) {
   dicomResultsContainer.innerHTML = `
     <section class="table-card">
@@ -883,6 +918,7 @@ function renderDicomSeriesTable(results) {
     });
 }
 
+// Renders DICOM study search results.
 function renderDicomStudiesTable(results) {
   dicomResultsContainer.innerHTML = `
     <section class="table-card">
@@ -923,6 +959,7 @@ function renderDicomStudiesTable(results) {
   `;
 }
 
+// Renders DICOM patient search results.
 function renderDicomPatientsTable(results) {
   dicomResultsContainer.innerHTML = `
     <section class="table-card">
@@ -959,6 +996,7 @@ function renderDicomPatientsTable(results) {
   `;
 }
 
+// Runs the active DICOM search and updates the results view.
 async function handleDicomSearch() {
   const collectionName = dicomCollectionInput.value.trim();
 
@@ -996,6 +1034,7 @@ async function handleDicomSearch() {
   }
 }
 
+// Marks downloadable collections that are already present locally.
 function syncAvailableCollectionStatus() {
   const downloadedNames = new Set(
     collections.map((collection) => collection.id),
@@ -1007,6 +1046,7 @@ function syncAvailableCollectionStatus() {
   }));
 }
 
+// Renders downloadable collection cards.
 function renderAvailableCollections() {
   const searchTerm = availableSearchInput.value.trim().toLowerCase();
 
@@ -1098,6 +1138,7 @@ function renderAvailableCollections() {
     });
 }
 
+// Renders pagination for downloadable collections.
 function renderAvailableCollectionsPagination(totalResults) {
   availableCollectionsPage = renderPagination({
     container: availablePagination,
@@ -1112,14 +1153,17 @@ function renderAvailableCollectionsPagination(totalResults) {
   });
 }
 
+// Returns the feature name from a stored extraction feature row.
 function getExtractionFeatureName(feature) {
   return feature.feature_name || `Feature ${feature.id}`;
 }
 
+// Returns the SNOMED term from a stored extraction feature row.
 function getExtractionSnomedTerm(feature) {
   return feature.standardized_feature_name || "Missing SNOMED CT term";
 }
 
+// Formats extracted feature values for display.
 function formatFeatureValue(value) {
   if (typeof value === "number") {
     return Number.isInteger(value) ? String(value) : value.toFixed(4);
@@ -1128,10 +1172,12 @@ function formatFeatureValue(value) {
   return getDisplayValue(value);
 }
 
+// Formats the stored extraction count label.
 function formatExtractionCount(count) {
   return `${count} ${count === 1 ? "extraction" : "extractions"}`;
 }
 
+// Converts an extraction image number into a zero-based image index.
 function getExtractionImageIndex(extraction, objectCount) {
   const imageNumber = Number(extraction.image_number);
 
@@ -1143,6 +1189,7 @@ function getExtractionImageIndex(extraction, objectCount) {
   return Math.max(0, Math.min(objectCount - 1, zeroBasedIndex));
 }
 
+// Draws a stored ROI outline onto a canvas context.
 function drawStoredRoiOverlay(ctx, points, scale, offsetX, offsetY) {
   if (!Array.isArray(points) || points.length < 2) {
     return;
@@ -1169,6 +1216,7 @@ function drawStoredRoiOverlay(ctx, points, scale, offsetX, offsetY) {
   ctx.restore();
 }
 
+// Draws a stored ROI preview when the source image is unavailable.
 function drawStoredRoiOnly(canvas, points) {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1200,6 +1248,7 @@ function drawStoredRoiOnly(canvas, points) {
   drawStoredRoiOverlay(ctx, points, scale, offsetX, offsetY);
 }
 
+// Draws the image and ROI preview for a stored extraction.
 async function drawExtractionPreview(extraction) {
   const canvas = document.querySelector(
     `[data-extraction-preview="${extraction.roi_id}"]`,
@@ -1249,6 +1298,7 @@ async function drawExtractionPreview(extraction) {
   }
 }
 
+// Renders stored ROI extraction cards.
 function renderExtractions() {
   extractionsResultCount.textContent = formatExtractionCount(
     extractionsData.length,
@@ -1328,6 +1378,7 @@ function renderExtractions() {
   extractionsData.forEach(drawExtractionPreview);
 }
 
+// Reloads stored ROI extractions from the backend.
 async function refreshExtractions() {
   isExtractionsLoading = true;
   extractionsError = "";
@@ -1346,6 +1397,7 @@ async function refreshExtractions() {
   }
 }
 
+// Renders key-value metadata rows in the viewer panel.
 function renderMetadataRows(rows) {
   metadataContent.innerHTML = rows
     .map(
@@ -1359,6 +1411,7 @@ function renderMetadataRows(rows) {
     .join("");
 }
 
+// Switches the active viewer metadata tab.
 function setMetadataTab(tab) {
   activeMetadataTab = tab;
 
@@ -1366,6 +1419,7 @@ function setMetadataTab(tab) {
   metadataPatientTab.classList.toggle("active", tab === "patient");
 }
 
+// Renders series metadata for the active viewer series.
 function renderSeriesMetadata(series) {
   setMetadataTab("series");
   renderMetadataRows([
@@ -1384,6 +1438,7 @@ function renderSeriesMetadata(series) {
   ]);
 }
 
+// Renders patient metadata for the active viewer series.
 function renderPatientMetadata(series, patient = null) {
   setMetadataTab("patient");
   renderMetadataRows([
@@ -1395,6 +1450,7 @@ function renderPatientMetadata(series, patient = null) {
   ]);
 }
 
+// Shows loading placeholders for patient metadata.
 function renderPatientMetadataLoading(series) {
   setMetadataTab("patient");
   renderMetadataRows([
@@ -1406,6 +1462,7 @@ function renderPatientMetadataLoading(series) {
   ]);
 }
 
+// Loads and displays patient metadata for the active viewer series.
 async function showPatientMetadata() {
   if (!activeViewerSeries) {
     return;
@@ -1426,6 +1483,7 @@ async function showPatientMetadata() {
   }
 }
 
+// Downloads a collection and refreshes local data afterward.
 async function handleCollectionDownload(collectionName, button) {
   try {
     button.disabled = true;
@@ -1462,6 +1520,7 @@ async function handleCollectionDownload(collectionName, button) {
   }
 }
 
+// Opens the image viewer for a selected series.
 function openViewer(series) {
   activeViewerSeries = normalizeViewerSeries(series);
   lastSearchScrollY = window.scrollY;
@@ -1495,6 +1554,7 @@ function openViewer(series) {
   loadViewerForSeries(activeViewerSeries);
 }
 
+// Closes the image viewer and restores the previous scroll position.
 function closeViewer() {
   activeViewerSeries = null;
   appShell.classList.remove("viewer-mode");
@@ -1513,10 +1573,12 @@ function closeViewer() {
   });
 }
 
+// Toggles the back-to-top button based on scroll position.
 function updateBackToTopButton() {
   backToTopButton.classList.toggle("visible", window.scrollY > 650);
 }
 
+// Scrolls the current page back to the top.
 function scrollToTop() {
   window.scrollTo({
     top: 0,
@@ -1571,6 +1633,7 @@ clearCollectionsButton.addEventListener("click", () => {
 const queryParams = new URLSearchParams(window.location.search);
 const apiBaseUrl = queryParams.get("apiBaseUrl") ?? window.location.origin;
 
+// Loads initial app data and renders the starting views.
 async function initializeData() {
   collections = [];
   seriesData = [];
@@ -1681,6 +1744,7 @@ availableSearchInput.addEventListener("input", () => {
   renderAvailableCollections();
 });
 
+// Updates the upload modal status message and state.
 function setUploadModalStatus(message, type = "") {
   if (!uploadModalStatus) {
     return;
@@ -1690,10 +1754,12 @@ function setUploadModalStatus(message, type = "") {
   uploadModalStatus.classList.toggle("success", type === "success");
 }
 
+// Returns the selected upload ZIP file.
 function getUploadZipFile() {
   return uploadInput?.files?.[0] ?? null;
 }
 
+// Shows upload fields that apply to the selected dataset type.
 function updateUploadTypeFields() {
   const isNifti = uploadDatasetType?.value === "nifti";
   uploadNiftiFields?.classList.toggle("hidden", !isNifti);
@@ -1707,6 +1773,7 @@ function updateUploadTypeFields() {
   }
 }
 
+// Enables upload submit only when required fields are present.
 function updateUploadSubmitState() {
   const hasZip = Boolean(getUploadZipFile());
   const hasCollection = Boolean(uploadCollectionName?.value.trim());
@@ -1717,6 +1784,7 @@ function updateUploadSubmitState() {
   }
 }
 
+// Disables or enables every upload form control.
 function setUploadFormDisabled(disabled) {
   [
     uploadDatasetType,
@@ -1736,6 +1804,7 @@ function setUploadFormDisabled(disabled) {
   });
 }
 
+// Clears the upload form and restores its default state.
 function resetUploadForm() {
   uploadForm?.reset();
   updateUploadTypeFields();
@@ -1743,20 +1812,24 @@ function resetUploadForm() {
   setUploadModalStatus("Choose a ZIP file to start.");
 }
 
+// Opens the dataset upload modal.
 function openUploadModal() {
   resetUploadForm();
   uploadModal?.classList.remove("hidden");
   uploadCollectionName?.focus();
 }
 
+// Closes the dataset upload modal.
 function closeUploadModal() {
   uploadModal?.classList.add("hidden");
 }
 
+// Infers a collection name from the selected ZIP filename.
 function inferCollectionNameFromZip(file) {
   return file?.name?.replace(/\.zip$/i, "").trim() ?? "";
 }
 
+// Reloads local collection and series data after an upload.
 async function refreshDataAfterUpload() {
   const { collections: loadedCollections, seriesData: loadedSeries } =
     await loadMockData(apiBaseUrl);
@@ -1776,6 +1849,7 @@ async function refreshDataAfterUpload() {
   renderAvailableCollections();
 }
 
+// Builds the upload payload from the modal fields.
 function getUploadPayload() {
   return {
     datasetType: uploadDatasetType.value,

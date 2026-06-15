@@ -1,6 +1,7 @@
 let collections = [];
 let seriesData = [];
 
+// Normalizes an optional API base URL by removing a trailing slash.
 function normalizeBaseUrl(apiBaseUrl) {
   if (!apiBaseUrl) {
     return "";
@@ -9,6 +10,7 @@ function normalizeBaseUrl(apiBaseUrl) {
   return apiBaseUrl.endsWith("/") ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
 }
 
+// Fetches JSON and throws a detailed error for unsuccessful responses.
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
 
@@ -22,6 +24,7 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+// Maps raw series details into the UI series model.
 function mapSeries(seriesDetail) {
   const study = seriesDetail.study ?? {};
   const patient = study.patient ?? seriesDetail.patient ?? {};
@@ -104,6 +107,7 @@ function mapSeries(seriesDetail) {
   };
 }
 
+// Returns the first present value from a list of possible field names.
 function firstDefined(source, keys, fallback = "") {
   for (const key of keys) {
     if (source?.[key] !== undefined && source[key] !== null) {
@@ -114,6 +118,7 @@ function firstDefined(source, keys, fallback = "") {
   return fallback;
 }
 
+// Looks up a SNOMED field label and falls back to a default label.
 function fieldLabel(fieldMappings, keys, fallback) {
   for (const key of keys) {
     const label = fieldMappings?.[key];
@@ -126,6 +131,7 @@ function fieldLabel(fieldMappings, keys, fallback) {
   return fallback;
 }
 
+// Normalizes API response shapes into an array.
 function asArrayResponse(response) {
   if (Array.isArray(response)) {
     return response;
@@ -146,6 +152,7 @@ function asArrayResponse(response) {
   return response ? [response] : [];
 }
 
+// Maps raw DICOM series details into table-friendly fields.
 function mapDicomSeries(seriesDetail) {
   const study = seriesDetail.study ?? {};
 
@@ -221,6 +228,7 @@ function mapDicomSeries(seriesDetail) {
   };
 }
 
+// Maps raw DICOM study details into table-friendly fields.
 function mapDicomStudy(studyDetail) {
   return {
     instance_uid: firstDefined(studyDetail, [
@@ -271,6 +279,7 @@ function mapDicomStudy(studyDetail) {
   };
 }
 
+// Maps raw DICOM patient details into table-friendly fields.
 function mapDicomPatient(patientDetail) {
   return {
     id: firstDefined(patientDetail, ["id", "patient_id", "patientId", "PatientID", "PatientId"]),
@@ -284,14 +293,17 @@ function mapDicomPatient(patientDetail) {
   };
 }
 
+// Normalizes missing patient data before mapping it.
 function normalizePatient(patientDetail) {
   return mapDicomPatient(patientDetail ?? {});
 }
 
+// Checks whether patient metadata contains useful detail fields.
 function hasPatientDetails(patient) {
   return Boolean(patient?.sex || patient?.age || patient?.ethnic_group);
 }
 
+// Builds study rows from series rows when the study endpoint is unavailable.
 function deriveDicomStudiesFromSeries(seriesRows) {
   const studies = new Map();
 
@@ -322,6 +334,7 @@ function deriveDicomStudiesFromSeries(seriesRows) {
   return Array.from(studies.values());
 }
 
+// Builds patient rows from series rows when the patient endpoint is unavailable.
 function deriveDicomPatientsFromSeries(seriesRows) {
   const patients = new Map();
 
@@ -345,6 +358,7 @@ function deriveDicomPatientsFromSeries(seriesRows) {
   return Array.from(patients.values());
 }
 
+// Determines whether a saved collection should be treated as DICOM or NIfTI.
 function getCollectionSource(collectionName, savedCollectionMap) {
   const savedCollection = savedCollectionMap.get(collectionName);
   const type = String(savedCollection?.type ?? "").trim().toLowerCase();
@@ -365,6 +379,7 @@ function getCollectionSource(collectionName, savedCollectionMap) {
   return "DICOM";
 }
 
+// Aggregates series rows into collection summaries.
 function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
   const collectionMap = new Map();
   const savedCollectionMap = new Map(
@@ -403,6 +418,7 @@ function buildCollectionsFromSeries(seriesRows, savedCollections = []) {
   return Array.from(collectionMap.values());
 }
 
+// Maps downloadable collection metadata into the UI model.
 function mapAvailableCollection(collection) {
   const name = firstDefined(collection, [
     "name",
@@ -423,6 +439,7 @@ function mapAvailableCollection(collection) {
   };
 }
 
+// Loads saved collections and series from the backend.
 async function loadMockData(apiBaseUrl) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
 
@@ -442,6 +459,7 @@ async function loadMockData(apiBaseUrl) {
   };
 }
 
+// Loads collections that can be downloaded from the backend.
 async function loadAvailableCollections(apiBaseUrl) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
 
@@ -452,6 +470,7 @@ async function loadAvailableCollections(apiBaseUrl) {
   return collectionsResponse.map(mapAvailableCollection);
 }
 
+// Loads patient metadata for a specific remote collection and patient ID.
 async function loadPatientOnDemand(apiBaseUrl, collectionName, patientId, signal) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({
@@ -466,6 +485,7 @@ async function loadPatientOnDemand(apiBaseUrl, collectionName, patientId, signal
   return normalizePatient(Array.isArray(response) ? response[0] : response);
 }
 
+// Loads patient metadata with an on-demand fallback path.
 async function loadPatient(apiBaseUrl, patientId, collectionName = "") {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ id: patientId });
@@ -499,6 +519,7 @@ async function loadPatient(apiBaseUrl, patientId, collectionName = "") {
   }
 }
 
+// Loads SNOMED labels for series, study, and patient fields.
 async function loadSnomedFieldMappings(apiBaseUrl) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const [series, studies, patients] = await Promise.all([
@@ -510,6 +531,7 @@ async function loadSnomedFieldMappings(apiBaseUrl) {
   return { series, studies, patients };
 }
 
+// Searches DICOM series for a selected collection.
 async function searchDicomSeries(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collectionName });
@@ -518,6 +540,7 @@ async function searchDicomSeries(apiBaseUrl, collectionName) {
   return asArrayResponse(response).map(mapDicomSeries);
 }
 
+// Searches DICOM studies and derives them from series if needed.
 async function searchDicomStudies(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collectionName });
@@ -535,6 +558,7 @@ async function searchDicomStudies(apiBaseUrl, collectionName) {
   }
 }
 
+// Searches DICOM patients and derives them from series if needed.
 async function searchDicomPatients(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collectionName });
@@ -552,6 +576,7 @@ async function searchDicomPatients(apiBaseUrl, collectionName) {
   }
 }
 
+// Finds DICOM series by series UID.
 async function searchDicomSeriesOnUid(apiBaseUrl, uid) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ uid });
@@ -560,6 +585,7 @@ async function searchDicomSeriesOnUid(apiBaseUrl, uid) {
   return asArrayResponse(response).map(mapDicomSeries);
 }
 
+// Finds DICOM series that belong to a study UID.
 async function searchDicomSeriesOnStudyUid(apiBaseUrl, studyUid) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ study_uid: studyUid });
@@ -570,6 +596,7 @@ async function searchDicomSeriesOnStudyUid(apiBaseUrl, studyUid) {
   return asArrayResponse(response).map(mapDicomSeries);
 }
 
+// Finds DICOM patients by collection and patient ID.
 async function searchDicomPatientsOnUid(apiBaseUrl, collectionName, patientId) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({
@@ -583,6 +610,7 @@ async function searchDicomPatientsOnUid(apiBaseUrl, collectionName, patientId) {
   return asArrayResponse(response).map(mapDicomPatient);
 }
 
+// Starts a backend import for an available collection.
 async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = new URLSearchParams({ collection_name: collectionName });
@@ -598,6 +626,7 @@ async function downloadAvailableCollection(apiBaseUrl, collectionName) {
   return result;
 }
 
+// Uploads a ZIP dataset and optional metadata to the backend.
 async function uploadDataset(apiBaseUrl, dataset) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const zipFile = dataset.zipFile;
@@ -653,6 +682,7 @@ async function uploadDataset(apiBaseUrl, dataset) {
   return result;
 }
 
+// Builds query parameters needed by the series viewer endpoint.
 function buildViewerParams(baseUrl, viewerContext = {}) {
   const params = new URLSearchParams();
   const context =
@@ -681,11 +711,13 @@ function buildViewerParams(baseUrl, viewerContext = {}) {
   return params;
 }
 
+// Adds query parameters to a URL when any are present.
 function withQuery(url, params) {
   const query = params.toString();
   return query ? `${url}?${query}` : url;
 }
 
+// Builds the backend URL for loading a series viewer payload.
 function buildSeriesViewerUrl(apiBaseUrl, seriesUid, viewerContext = {}) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   const params = buildViewerParams(baseUrl, viewerContext);
@@ -693,10 +725,12 @@ function buildSeriesViewerUrl(apiBaseUrl, seriesUid, viewerContext = {}) {
   return withQuery(url, params);
 }
 
+// Loads viewer image objects for a series.
 async function fetchSeriesViewer(apiBaseUrl, seriesUid, viewerContext = {}) {
   return fetchJson(buildSeriesViewerUrl(apiBaseUrl, seriesUid, viewerContext));
 }
 
+// Loads stored ROI feature extractions from the backend.
 async function loadExtractions(apiBaseUrl) {
   const baseUrl = normalizeBaseUrl(apiBaseUrl);
   return fetchJson(`${baseUrl}/api/getExtractions`);
