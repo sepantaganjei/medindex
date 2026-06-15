@@ -1,3 +1,4 @@
+# Viewer asset service for resolving medical imaging series and rendering DICOM/NIfTI data with caching and remote support
 from __future__ import annotations
 
 import io
@@ -29,6 +30,7 @@ MAX_REMOTE_DICOM_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
 MAX_REMOTE_DICOM_SINGLE_FILE_BYTES = 2 * 1024 * 1024 * 1024
 
 
+# Represents resolved metadata context for a series used in viewer rendering
 @dataclass(frozen=True)
 class ViewerSeriesContext:
     collection: str
@@ -40,31 +42,37 @@ class ViewerSeriesContext:
     remote: bool = False
 
 
+# In-memory cached NIfTI volume representation for fast slice rendering
 @dataclass(frozen=True)
 class CachedNiftiVolume:
     array: np.ndarray
     size: tuple[int, ...]
 
 
+# Base exception for viewer asset processing errors
 class ViewerAssetError(RuntimeError):
     pass
 
 
+# Raised when a requested imaging series cannot be found
 class ViewerSeriesNotFound(ViewerAssetError):
     pass
 
 
+# Global object storage client initialized from configuration (MinIO/S3 abstraction)
 object_storage_service = ObjectStorageService(
     config.object_storage_endpoint,
     config.object_storage_access_key,
     config.object_storage_secret_key,
     config.object_storage_secure,
 )
-
+# LRU cache storing loaded NIfTI volumes indexed by object name
 nifti_volume_cache: OrderedDict[str, CachedNiftiVolume] = OrderedDict()
+# LRU cache storing rendered NIfTI slice PNGs indexed by (object, axis, slice)
 nifti_slice_png_cache: OrderedDict[tuple[str, str, int], bytes] = OrderedDict()
 
 
+# Resolves a series into a viewer context using DB or remote fallback
 def get_series_context(
     series_uid: str,
     collection: str | None = None,
@@ -77,7 +85,9 @@ def get_series_context(
     try:
         query = session.query(Series).filter(Series.series_instance_uid == series_uid)
         if collection:
-            query = query.join(Series.study).filter(Study.collection_name_study == collection)
+            query = query.join(Series.study).filter(
+                Study.collection_name_study == collection
+            )
         series = query.first()
 
         if not series and remote and collection and patient_id and study_uid:
@@ -111,13 +121,16 @@ def get_series_context(
             study_uid=series.study_instance_uid_series,
             series_uid=series.series_instance_uid,
             modality=series.modality,
-            collection_type=collection_record.type if collection_record else collection_type,
+            collection_type=collection_record.type
+            if collection_record
+            else collection_type,
             remote=bool(collection_record.remote) if collection_record else remote,
         )
     finally:
         session.close()
 
 
+# Builds object storage prefix path for a given series context
 def series_object_prefix(context: ViewerSeriesContext) -> str:
     return "/".join([
         context.collection,
@@ -128,6 +141,7 @@ def series_object_prefix(context: ViewerSeriesContext) -> str:
     ])
 
 
+# Lists all stored object names for a series in object storage
 def _list_series_object_names(context: ViewerSeriesContext) -> list[str]:
     objects = object_storage_service.list_objects(
         config.object_storage_bucket,
@@ -142,14 +156,17 @@ def _list_series_object_names(context: ViewerSeriesContext) -> list[str]:
     )
 
 
+# Checks whether an object represents a NIfTI file
 def _is_nifti_object(object_name: str) -> bool:
     return object_name.lower().endswith(NIFTI_SUFFIXES)
 
 
+# Checks whether an object represents a DICOM file
 def _is_dicom_object(object_name: str) -> bool:
     return object_name.lower().endswith(".dcm")
 
 
+# Builds a signed viewer rendering URL with query parameters
 def _render_url(base_url: str, path: str, object_name: str, **params) -> str:
     query_parts = [f"object_name={quote(object_name, safe='')}"]
     query_parts.extend(
@@ -158,6 +175,7 @@ def _render_url(base_url: str, path: str, object_name: str, **params) -> str:
     return f"{base_url.rstrip('/')}{path}?{'&'.join(query_parts)}"
 
 
+# Safely converts a value to int if possible
 def _safe_int(value) -> int | None:
     if value is None:
         return None
@@ -167,11 +185,13 @@ def _safe_int(value) -> int | None:
         return None
 
 
+# Sanitizes a string for safe use in object storage paths
 def _safe_object_segment(value: str | None, fallback: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value or "").strip())
     return cleaned.strip("._-") or fallback
 
 
+# Heuristically checks whether a dataset looks like a valid DICOM object
 def _looks_like_dicom_dataset(dataset) -> bool:
     return any(
         hasattr(dataset, field)
@@ -185,10 +205,12 @@ def _looks_like_dicom_dataset(dataset) -> bool:
     )
 
 
+# Detects symlink entries inside a ZIP archive
 def _is_zip_symlink(info: zipfile.ZipInfo) -> bool:
     return (info.external_attr >> 16) & 0o170000 == 0o120000
 
 
+# Validates remote DICOM ZIP constraints and returns safe file entries
 def _validate_remote_dicom_zip(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
     members = [info for info in archive.infolist() if not info.is_dir()]
     if len(members) > MAX_REMOTE_DICOM_ZIP_FILES:
@@ -199,7 +221,9 @@ def _validate_remote_dicom_zip(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo
         if _is_zip_symlink(info):
             raise ViewerAssetError("Remote DICOM ZIP contains unsupported symlinks.")
         if info.file_size > MAX_REMOTE_DICOM_SINGLE_FILE_BYTES:
-            raise ViewerAssetError("Remote DICOM ZIP contains a file that is too large.")
+            raise ViewerAssetError(
+                "Remote DICOM ZIP contains a file that is too large."
+            )
         total_size += info.file_size
         if total_size > MAX_REMOTE_DICOM_UNCOMPRESSED_BYTES:
             raise ViewerAssetError("Remote DICOM ZIP is too large.")
@@ -207,6 +231,7 @@ def _validate_remote_dicom_zip(archive: zipfile.ZipFile) -> list[zipfile.ZipInfo
     return members
 
 
+# Downloads a remote DICOM series ZIP and uploads valid instances to object storage
 def _upload_remote_dicom_series(context: ViewerSeriesContext) -> list[str]:
     try:
         response = extract.getZip(context.series_uid)
@@ -229,22 +254,23 @@ def _upload_remote_dicom_series(context: ViewerSeriesContext) -> list[str]:
 
                 if not _looks_like_dicom_dataset(dataset):
                     continue
-                if str(getattr(dataset, "SeriesInstanceUID", "")).strip() != context.series_uid:
+                if (
+                    str(getattr(dataset, "SeriesInstanceUID", "")).strip()
+                    != context.series_uid
+                ):
                     continue
 
                 sop_uid = _safe_object_segment(
                     str(getattr(dataset, "SOPInstanceUID", "") or ""),
                     _safe_object_segment(Path(info.filename).stem, "instance"),
                 )
-                object_name = "/".join(
-                    [
-                        context.collection,
-                        context.patient_id,
-                        context.study_uid,
-                        context.series_uid,
-                        f"{sop_uid}.dcm",
-                    ]
-                )
+                object_name = "/".join([
+                    context.collection,
+                    context.patient_id,
+                    context.study_uid,
+                    context.series_uid,
+                    f"{sop_uid}.dcm",
+                ])
                 object_storage_service.upload_bytes(
                     config.object_storage_bucket,
                     object_name,
@@ -253,21 +279,28 @@ def _upload_remote_dicom_series(context: ViewerSeriesContext) -> list[str]:
                 )
                 uploaded_objects.append(object_name)
     except zipfile.BadZipFile as exc:
-        raise ViewerAssetError("Remote DICOM response was not a valid ZIP file.") from exc
+        raise ViewerAssetError(
+            "Remote DICOM response was not a valid ZIP file."
+        ) from exc
     except Exception:
         for object_name in uploaded_objects:
             try:
-                object_storage_service.delete_object(config.object_storage_bucket, object_name)
+                object_storage_service.delete_object(
+                    config.object_storage_bucket, object_name
+                )
             except Exception:
                 pass
         raise
 
     if not uploaded_objects:
-        raise ViewerAssetError("Remote DICOM ZIP did not contain files for this series.")
+        raise ViewerAssetError(
+            "Remote DICOM ZIP did not contain files for this series."
+        )
 
     return sorted(uploaded_objects)
 
 
+# Sort DICOM objects by InstanceNumber, fallback to filename order if missing
 def _dicom_instance_sort_key(object_name: str) -> tuple[bool, int, str]:
     try:
         payload = object_storage_service.get_object_bytes(
@@ -282,6 +315,7 @@ def _dicom_instance_sort_key(object_name: str) -> tuple[bool, int, str]:
     return (instance_number is None, instance_number or 0, object_name)
 
 
+# Build viewer payload for a DICOM/NIfTI series (local or remote resolution)
 def build_series_viewer(
     series_uid: str,
     collection: str | None,
@@ -361,6 +395,7 @@ def build_series_viewer(
     raise ViewerAssetError("No DICOM or NIfTI file was found for this series.")
 
 
+# Extract first numeric value from DICOM windowing fields
 def _first_window_value(value) -> float | None:
     if value is None:
         return None
@@ -372,6 +407,7 @@ def _first_window_value(value) -> float | None:
         return None
 
 
+# Apply DICOM rescale + windowing to convert pixels into displayable grayscale
 def _normalize_grayscale(array: np.ndarray, dataset) -> np.ndarray:
     pixels = array.astype(np.float32)
 
@@ -400,6 +436,7 @@ def _normalize_grayscale(array: np.ndarray, dataset) -> np.ndarray:
     return pixels
 
 
+# Convert pixel array into PIL image handling frames and photometric interpretation
 def _image_from_pixels(pixels: np.ndarray, dataset, frame: int) -> Image.Image:
     if pixels.ndim == 4:
         pixels = pixels[min(frame, pixels.shape[0] - 1)]
@@ -411,11 +448,13 @@ def _image_from_pixels(pixels: np.ndarray, dataset, frame: int) -> Image.Image:
     return Image.fromarray(_normalize_grayscale(pixels, dataset), mode="L")
 
 
+# Decode DICOM image using pydicom pixel_array pipeline
 def _render_dicom_with_pydicom(payload: bytes, frame: int) -> Image.Image:
     dataset = pydicom.dcmread(io.BytesIO(payload), force=True)
     return _image_from_pixels(dataset.pixel_array, dataset, frame)
 
 
+# Decode DICOM image using SimpleITK fallback pipeline
 def _render_dicom_with_simpleitk(payload: bytes, frame: int) -> Image.Image:
     try:
         import SimpleITK as sitk
@@ -445,6 +484,7 @@ def _render_dicom_with_simpleitk(payload: bytes, frame: int) -> Image.Image:
     return Image.fromarray(pixels, mode="L")
 
 
+# Normalize numeric array to 8-bit grayscale PIL image
 def _normalize_array_to_image(array: np.ndarray) -> Image.Image:
     array = array.astype(np.float32)
     low = float(np.nanmin(array))
@@ -457,6 +497,7 @@ def _normalize_array_to_image(array: np.ndarray) -> Image.Image:
     return Image.fromarray(pixels, mode="L")
 
 
+# Retrieve NIfTI volume from cache or load and cache it
 def _get_cached_nifti_volume(object_name: str) -> CachedNiftiVolume:
     cached = nifti_volume_cache.get(object_name)
     if cached is not None:
@@ -469,6 +510,7 @@ def _get_cached_nifti_volume(object_name: str) -> CachedNiftiVolume:
     return volume
 
 
+# Load NIfTI file from object storage into memory as numpy volume
 def _load_nifti_volume(object_name: str) -> CachedNiftiVolume:
     try:
         import SimpleITK as sitk
@@ -489,17 +531,20 @@ def _load_nifti_volume(object_name: str) -> CachedNiftiVolume:
     )
 
 
+# Enforce LRU cache size by evicting oldest entries
 def _evict_lru(cache: OrderedDict, max_items: int) -> None:
     while len(cache) > max_items:
         cache.popitem(last=False)
 
 
+# Return number of slices along requested NIfTI axis
 def get_nifti_slice_count(object_name: str, axis: str = "z") -> int:
     volume = _get_cached_nifti_volume(object_name)
     axis_index = _axis_index(axis)
     return int(volume.size[axis_index]) if len(volume.size) > axis_index else 1
 
 
+# Render a single NIfTI slice as PNG with caching
 def render_nifti_png(object_name: str, axis: str = "z", slice_index: int = 0) -> bytes:
     volume = _get_cached_nifti_volume(object_name)
     safe_slice = _safe_nifti_slice_index(volume, axis, slice_index)
@@ -518,6 +563,7 @@ def render_nifti_png(object_name: str, axis: str = "z", slice_index: int = 0) ->
     return payload
 
 
+# Extract 2D slice from 3D NIfTI volume along given axis
 def _slice_nifti_array(
     volume: CachedNiftiVolume, axis: str, slice_index: int
 ) -> np.ndarray:
@@ -530,6 +576,7 @@ def _slice_nifti_array(
     return volume.array[safe_slice, :, :]
 
 
+# Restrict slice index within valid bounds for NIfTI volume
 def _safe_nifti_slice_index(
     volume: CachedNiftiVolume,
     axis: str,
@@ -541,6 +588,7 @@ def _safe_nifti_slice_index(
     return max(0, min(slice_index, int(volume.size[axis_index]) - 1))
 
 
+# Map axis label (x/y/z) to array dimension index
 def _axis_index(axis: str) -> int:
     axis_map = {"x": 0, "y": 1, "z": 2}
     try:
@@ -549,6 +597,7 @@ def _axis_index(axis: str) -> int:
         raise ViewerAssetError("axis must be x, y, or z.") from exc
 
 
+# Infer file suffix for temporary NIfTI loading
 def _object_suffix(object_name: str) -> str:
     return (
         ".nii.gz"
@@ -557,6 +606,7 @@ def _object_suffix(object_name: str) -> str:
     )
 
 
+# Render DICOM object to PNG using primary then fallback decoder
 def render_dicom_png(object_name: str, frame: int = 0) -> bytes:
     payload = object_storage_service.get_object_bytes(
         config.object_storage_bucket, object_name
