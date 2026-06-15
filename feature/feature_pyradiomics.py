@@ -15,11 +15,11 @@ from skimage.color import rgb2gray
 from skimage import img_as_ubyte
 
 
-# ==========================================================
-# ROI SELECTION
-# ==========================================================
-
 class RoiSelector:
+    """
+    This class was used to test the feature extraction with matplotlib while the web application was built.
+    The module used for the application is in api/
+    """
 
     def __init__(self, image_path):
 
@@ -66,9 +66,6 @@ class RoiSelector:
 
         plt.show()
 
-    # ======================================================
-    # CLICK EVENTS
-    # ======================================================
 
     def on_click(self, event):
 
@@ -110,10 +107,6 @@ class RoiSelector:
 
             print("ROI completata")
 
-    # ======================================================
-    # MOUSE MOVE
-    # ======================================================
-
     def on_move(self, event):
 
         if self.roi_done:
@@ -133,11 +126,8 @@ class RoiSelector:
         self.fig.canvas.draw()
 
 
-# ==========================================================
-# CREATE MASK
-# ==========================================================
-
 def create_mask(points, image_shape):
+    """ Creates the mask of the ROI on the image """
 
     h, w = image_shape[:2]
 
@@ -160,12 +150,8 @@ def create_mask(points, image_shape):
     return mask.astype(np.uint8)
 
 
-# ==========================================================
-# SAVE IMAGE + MASK
-# ==========================================================
-
 def save_for_radiomics(image, mask):
-
+    """ Prepares the image for the estraction """
     # RGB → grayscale
     if image.ndim == 3:
 
@@ -196,22 +182,10 @@ def save_for_radiomics(image, mask):
     return image_path, mask_path
 
 
-# ==========================================================
-# CROP ROI FROM POINTS
-# ==========================================================
 
 def crop_roi_from_points(points, image):
-    """
-    Ritaglia la ROI dall'immagine originale dato un insieme di punti
-    che definiscono il poligono della ROI.
-
-    Restituisce:
-        - roi_gray  : ndarray 2D float64, solo pixel interni alla ROI
-                      (pixel esterni = 0), scala [0, 255]
-        - mask_2d   : ndarray 2D bool, True dove il pixel è nella ROI
-        - roi_rgba  : ndarray (H, W, 4) float32 con alpha=0 fuori dalla ROI
-                      (comodo per visualizzazione)
-    """
+    """Crop the ROI from the original image given a set of points defining the ROI polygon."""
+    
     image = np.asarray(image)
     h, w = image.shape[:2]
 
@@ -267,31 +241,8 @@ def crop_roi_from_points(points, image):
     return roi_gray, mask_crop, roi_rgba
 
 
-# ==========================================================
-# ECCENTRICITY
-# ==========================================================
-
 def compute_eccentricity(points, image):
-    """
-    Calcola l'eccentricità della regione principale della ROI.
-
-    L'eccentricità è definita come il rapporto tra la distanza focale
-    e l'asse maggiore dell'ellisse equivalente alla regione:
-        - 0  → cerchio perfetto
-        - 1  → segmento (forma degenere)
-
-    Parameters
-    ----------
-    points : list of (x, y)
-        Vertici del poligono ROI (coordinate pixel).
-    image : ndarray
-        Immagine originale (RGB, RGBA o grayscale).
-
-    Returns
-    -------
-    ecc : float
-        Valore di eccentricità in [0, 1).
-    """
+    """Compute the eccentricity of the main region of the ROI."""
     roi_gray, mask_crop, _ = crop_roi_from_points(points, image)
 
     # Soglia di Otsu sulla ROI (solo pixel interni)
@@ -316,30 +267,8 @@ def compute_eccentricity(points, image):
     return float(largest.eccentricity)
 
 
-# ==========================================================
-# HISTOGRAM
-# ==========================================================
-
 def compute_histogram(points, image, bins=256, show=False):
-    """
-    Calcola l'istogramma dei livelli di grigio dei pixel interni alla ROI.
-
-    Parameters
-    ----------
-    points : list of (x, y)
-        Vertici del poligono ROI.
-    image : ndarray
-        Immagine originale (RGB, RGBA o grayscale).
-    bins : int
-        Numero di bin dell'istogramma (default 256).
-    show : bool
-        Se True, mostra a schermo ROI + istogramma.
-
-    Returns
-    -------
-    hist   : ndarray (bins,)   conteggio per ogni bin
-    edges  : ndarray (bins+1,) bordi dei bin in [0, 255]
-    """
+    """Compute the grayscale histogram of pixels inside the ROI. (Deprecated)"""
     roi_gray, mask_crop, roi_rgba = crop_roi_from_points(points, image)
 
     pixel_values = roi_gray[mask_crop]
@@ -373,49 +302,8 @@ def compute_histogram(points, image, bins=256, show=False):
     return hist, edges
 
 
-# ==========================================================
-# HISTOGRAM AS FRONTEND DATA
-# ==========================================================
-
 def histogram_as_frontend_data(points, image, bins=256):
-    """
-    Calcola l'istogramma della ROI e lo restituisce come dizionario
-    JSON-serializzabile, pronto per essere consumato da un frontend.
-
-    Parameters
-    ----------
-    points : list of (x, y)
-        Vertici del poligono ROI (coordinate pixel).
-    image : ndarray
-        Immagine originale (RGB, RGBA o grayscale).
-    bins : int
-        Numero di bin dell'istogramma (default 256).
-
-    Returns
-    -------
-    dict con le chiavi:
-        bins        : int   - numero di bin usati
-        labels      : list[float] - centro di ogni bin (asse X, intensità)
-        counts      : list[int]   - conteggio pixel per ogni bin (asse Y)
-        total_pixels: int   - pixel totali nella ROI
-        min_val     : float - intensità minima nella ROI
-        max_val     : float - intensità massima nella ROI
-        mean_val    : float - intensità media nella ROI
-        std_val     : float - deviazione standard nella ROI
-
-    Esempio di output
-    -----------------
-    {
-        "bins": 256,
-        "labels": [0.5, 1.5, ..., 254.5],
-        "counts": [0, 3, 17, ...],
-        "total_pixels": 4821,
-        "min_val": 12.0,
-        "max_val": 241.0,
-        "mean_val": 127.4,
-        "std_val": 38.2
-    }
-    """
+    """Compute the ROI histogram and return it as a JSON-serializable dict ready for frontend consumption. Deprecated"""
     roi_gray, mask_crop, _ = crop_roi_from_points(points, image)
 
     pixel_values = roi_gray[mask_crop]
@@ -449,30 +337,12 @@ def histogram_as_frontend_data(points, image, bins=256):
     }
 
 
-# ==========================================================
-# PYRADIOMICS EXTRACTION
-# ==========================================================
-
 def extract_radiomics_features(image_path, mask_path):
+    """Extract a fixed set of radiomic features from the given image and mask using PyRadiomics."""
 
     extractor = featureextractor.RadiomicsFeatureExtractor()
-
-    # ======================================================
-    # SETTINGS
-    # ======================================================
-
     extractor.settings['binWidth'] = 25
-
-    # ======================================================
-    # DISABILITA TUTTO
-    # ======================================================
-
     extractor.disableAllFeatures()
-
-    # ======================================================
-    # ABILITA SOLO LE FEATURE DESIDERATE
-    # ======================================================
-
     extractor.enableFeaturesByName(
 
         ngtdm=[
@@ -508,11 +378,8 @@ def extract_radiomics_features(image_path, mask_path):
     return result
 
 
-# ==========================================================
-# PRINT SELECTED FEATURES
-# ==========================================================
-
 def print_selected_features(features):
+    """ Printes the estracted features """
 
     wanted = [
 
@@ -541,15 +408,12 @@ def print_selected_features(features):
 
 
 def filter_features(features, desired_features):
+    """ Filters the output using only the requested features """
     result = {}
     for i in desired_features:
         result[i] = features[i]
     return result
 
-
-# ==========================================================
-# MAIN
-# ==========================================================
 
 if __name__ == "__main__":
 
@@ -557,39 +421,27 @@ if __name__ == "__main__":
 
     image = mpimg.imread(image_path)
 
-    # ======================================================
     # ROI SELECTION
-    # ======================================================
-
     selector = RoiSelector(image_path)
 
     points = list(zip(
         selector.punti_x,
         selector.punti_y
     ))
-
-    # ======================================================
+ 
     # CREATE MASK
-    # ======================================================
-
     mask = create_mask(
         points,
         image.shape
     )
 
-    # ======================================================
     # SAVE IMAGE + MASK
-    # ======================================================
-
     img_path, mask_path = save_for_radiomics(
         image,
         mask
     )
-
-    # ======================================================
+     
     # FEATURE EXTRACTION (pyradiomics)
-    # ======================================================
-
     features = extract_radiomics_features(
         img_path,
         mask_path
@@ -610,18 +462,12 @@ if __name__ == "__main__":
     print("\n========== PYRADIOMICS FEATURES ==========\n")
     for k, v in res.items():
         print(f"{k}: {v}")
-
-    # ======================================================
+     
     # ECCENTRICITY
-    # ======================================================
-
     ecc = compute_eccentricity(points, image)
     print(f"eccentricity: {ecc:.6f}")
 
-    # ======================================================
-    # HISTOGRAM
-    # ======================================================
-
+    # HISTOGRAM (deprecated)
     import json
 
     hist_data = histogram_as_frontend_data(points, image, bins=256)
