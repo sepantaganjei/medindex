@@ -1,3 +1,4 @@
+# FastAPI router exposing object storage operations (buckets, listing, search, upload)
 import os
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -15,10 +16,12 @@ object_storage_service = ObjectStorageService(
 )
 
 
+# Return provided bucket or fallback to default configured bucket
 def _resolve_bucket(bucket: str | None) -> str:
     return bucket or config.object_storage_bucket
 
 
+# Convert internal storage object into dictionary
 def _serialize_object(storage_object: object) -> dict[str, str | int | None]:
     last_modified = getattr(storage_object, "last_modified", None)
     return {
@@ -30,17 +33,20 @@ def _serialize_object(storage_object: object) -> dict[str, str | int | None]:
     }
 
 
+# Return list of available object storage buckets
 @router.get("/buckets")
 def list_buckets() -> dict[str, list[str]]:
     return {"buckets": object_storage_service.list_buckets()}
 
 
+# Ensure default bucket exists and return storage health status
 @router.get("/health")
 def object_storage_health() -> dict[str, str]:
     object_storage_service.ensure_bucket(config.object_storage_bucket)
     return {"status": "ok", "bucket": config.object_storage_bucket}
 
 
+# List objects in a bucket with optional filtering and pagination
 @router.get("/objects")
 def list_objects(
     prefix: str | None = None,
@@ -49,13 +55,16 @@ def list_objects(
     bucket: str | None = None,
 ) -> dict[str, list[dict[str, str | int | None]] | str]:
     resolved_bucket = _resolve_bucket(bucket)
-    objects = object_storage_service.list_objects(resolved_bucket, prefix, recursive, limit)
+    objects = object_storage_service.list_objects(
+        resolved_bucket, prefix, recursive, limit
+    )
     return {
         "bucket": resolved_bucket,
         "objects": [_serialize_object(storage_object) for storage_object in objects],
     }
 
 
+# Search objects by name substring within a bucket
 @router.get("/objects/search")
 def search_objects(
     query: str,
@@ -68,16 +77,20 @@ def search_objects(
     filtered_objects = [
         storage_object
         for storage_object in objects
-        if storage_object.object_name and query.lower() in storage_object.object_name.lower()
+        if storage_object.object_name
+        and query.lower() in storage_object.object_name.lower()
     ]
     if limit is not None:
         filtered_objects = filtered_objects[:limit]
     return {
         "bucket": resolved_bucket,
-        "objects": [_serialize_object(storage_object) for storage_object in filtered_objects],
+        "objects": [
+            _serialize_object(storage_object) for storage_object in filtered_objects
+        ],
     }
 
 
+# Upload a file stream to object storage
 @router.post("/upload")
 def upload_file(
     file: UploadFile = File(...),
@@ -86,7 +99,9 @@ def upload_file(
 ) -> dict[str, str | int | None]:
     resolved_object_name = object_name or file.filename
     if not resolved_object_name:
-        raise HTTPException(status_code=400, detail="object_name is required when filename is missing")
+        raise HTTPException(
+            status_code=400, detail="object_name is required when filename is missing"
+        )
 
     file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()

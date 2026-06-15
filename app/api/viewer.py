@@ -1,3 +1,5 @@
+# Viewer API router for series visualization and medical image rendering (DICOM/NIfTI)
+
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
@@ -6,6 +8,7 @@ from app.services import viewer_assets
 router = APIRouter(prefix="/api/viewer", tags=["viewer"])
 
 
+# Builds viewer configuration for a given series UID
 @router.get("/series/{series_uid}")
 def get_series_viewer(
     series_uid: str,
@@ -34,6 +37,7 @@ def get_series_viewer(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+# Renders a DICOM frame as a PNG image
 @router.get("/dicom/render")
 def render_dicom(
     object_name: str = Query(...),
@@ -47,6 +51,7 @@ def render_dicom(
     return Response(content=payload, media_type="image/png")
 
 
+# Renders a NIfTI slice as a PNG image along a given axis
 @router.get("/nifti/render")
 def render_nifti(
     object_name: str = Query(...),
