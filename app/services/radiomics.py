@@ -66,6 +66,7 @@ FEATURE_ALIASES.update({key: key for key in SUPPORTED_FEATURE_KEYS})
 
 
 def normalize_feature_keys(selected_features: Iterable[str] | None = None) -> list[str]:
+    """Resolve feature aliases to canonical keys, returning all supported keys if none are specified."""
     if selected_features is None:
         return list(SUPPORTED_FEATURE_KEYS)
 
@@ -92,6 +93,7 @@ def normalize_feature_keys(selected_features: Iterable[str] | None = None) -> li
 
 
 def decode_image_bytes(image_bytes: bytes) -> np.ndarray:
+    """Decode raw image bytes into a 2D float32 grayscale NumPy array."""
     try:
         with Image.open(BytesIO(image_bytes)) as image:
             grayscale = image.convert("L")
@@ -101,6 +103,7 @@ def decode_image_bytes(image_bytes: bytes) -> np.ndarray:
 
 
 def create_mask(points: Iterable[tuple[float, float]], image_shape: tuple[int, int]) -> np.ndarray:
+    """Build a binary uint8 mask where pixels inside the polygon defined by points are set to 1."""
     height, width = image_shape
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
@@ -117,6 +120,7 @@ def extract_pyradiomics_features(
     mask: np.ndarray,
     selected_features: Iterable[str] | None = None,
 ) -> dict[str, float | None]:
+    """Run PyRadiomics on the masked region of the image and return the requested feature values."""
     if image.ndim != 2:
         raise ValueError("Radiomics extraction expects a 2D grayscale image.")
     if image.shape != mask.shape:

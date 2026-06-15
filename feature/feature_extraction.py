@@ -17,6 +17,12 @@ from skimage import img_as_ubyte
 from skimage.feature import graycomatrix, graycoprops
 
 
+""" 
+This code was a first implementation of the feature extraction part. 
+It is now deprecated in favour of the version using pyradiomics
+"""
+
+
 class RoiSelector:
     def __init__(self, image_path):
         self.image_path = image_path 
@@ -99,61 +105,6 @@ class RoiSelector:
                     self.linea_temp.set_data([], [])
                     self.fig.canvas.draw()
                     print("ROI rifiutata, ridisegna.")
-
-    # def on_click(self, event):
-    #     if not self.roi_done:
-    #         # 1. Ignora se il click è fuori dagli assi
-    #         if event.inaxes != self.ax: 
-    #             return
-            
-    #         # 2. Ignora se lo strumento Zoom o Pan è attivo
-    #         # Se mode è diverso da una stringa vuota, l'utente sta navigando
-    #         if self.fig.canvas.toolbar.mode != "":
-    #             return
-
-    #         # Click sinistro: aggiungi punto
-    #         if event.button == 1:
-    #             self.punti_x.append(event.xdata)
-    #             self.punti_y.append(event.ydata)
-    #             self.linea_def.set_data(self.punti_x, self.punti_y)
-    #             self.fig.canvas.draw()
-
-    #         elif event.button == 3 and len(self.punti_x) > 2:
-    #             valid, error_msg = is_valid_polygon(self.punti_x, self.punti_y)
-
-    #             if not valid:
-    #                 # Mostra finestra di errore (tkinter, sempre disponibile con matplotlib)
-    #                 root = tk.Tk()
-    #                 root.withdraw()  # Nasconde la finestra principale
-    #                 messagebox.showerror("ROI non valida", f"Poligono non valido:\n{error_msg}\n\nRidisegna la ROI.")
-    #                 root.destroy()
-
-    #                 # Reset: riparte da zero
-    #                 self.punti_x.clear()
-    #                 self.punti_y.clear()
-    #                 self.linea_def.set_data([], [])
-    #                 self.linea_temp.set_data([], [])
-    #                 self.fig.canvas.draw()
-    #                 return
-
-    #             # Poligono valido: chiudi e segna come completato
-    #             self.punti_x.append(self.punti_x[0])
-    #             self.punti_y.append(self.punti_y[0])
-    #             self.linea_def.set_data(self.punti_x, self.punti_y)
-    #             self.linea_temp.set_data([], [])
-    #             self.fig.canvas.draw()
-    #             self.roi_done = True
-    #             print("ROI completata!")    
-    #         # # Click destro: chiudi poligono e termina
-    #         # elif event.button == 3 and len(self.punti_x) > 2:
-    #         #     self.punti_x.append(self.punti_x[0])
-    #         #     self.punti_y.append(self.punti_y[0])
-    #         #     self.linea_def.set_data(self.punti_x, self.punti_y)
-    #         #     self.linea_temp.set_data([], []) # Rimuovi l'elastico
-    #         #     self.fig.canvas.draw()
-    #         #     self.roi_done = True
-    #         #     print("ROI completata!")
-
 
     def on_move(self, event):
         if not self.roi_done and not self.roi_pending:

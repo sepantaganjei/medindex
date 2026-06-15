@@ -36,6 +36,7 @@ class RadiomicsResponse(BaseModel):
 
 
 def _render_source_png(render_source: RenderSource) -> bytes:
+    """Render a NIFTI or DICOM image as PNG bytes, raising HTTP 400 for unsupported sources."""
     source = render_source.source.strip().upper()
 
     if source == "NIFTI":
@@ -55,6 +56,7 @@ def _render_source_png(render_source: RenderSource) -> bytes:
 
 @router.post("/extract", response_model=RadiomicsResponse)
 def extract_features(payload: RadiomicsRequest) -> RadiomicsResponse:
+    """Render the requested image, build a ROI mask from the given points, and extract radiomic features."""
     try:
         image_bytes = _render_source_png(payload.render_source)
     except viewer_assets.ViewerAssetError as exc:
