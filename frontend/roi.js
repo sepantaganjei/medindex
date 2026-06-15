@@ -82,6 +82,7 @@ img.onerror = () => {
   setLoadStatus("Failed to load image");
 };
 
+// Updates the ROI image loading status text.
 function setLoadStatus(message) {
   if (loadStatus) {
     loadStatus.textContent = message;
@@ -98,6 +99,7 @@ if (viewerBackBtn) {
   });
 }
 
+// Initializes the ROI canvas to fit the loaded image.
 function initCanvas() {
   if (!img.naturalWidth) {
     return;
@@ -115,6 +117,7 @@ function initCanvas() {
   drawBase();
 }
 
+// Resizes the ROI canvas while preserving the current zoom state.
 function resizeCanvas() {
   if (!img.complete || !img.naturalWidth) return;
   const container = document.getElementById("canvasContainer");
@@ -141,6 +144,7 @@ ro.observe(document.getElementById("canvasContainer"));
    IMAGE LOADING
 ========================================= */
 
+// Reads image and render source details from the page URL.
 function getRenderSourceFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const imageUrl = params.get("image_url");
@@ -168,6 +172,7 @@ function getRenderSourceFromUrl() {
   return { imageUrl, renderSource, seriesUid, imageNumber };
 }
 
+// Loads the selected viewer image into the ROI canvas.
 async function loadRenderedImage(
   imageUrl,
   renderSource,
@@ -257,6 +262,7 @@ canvas.addEventListener(
    ZOOM HELPERS
 ========================================= */
 
+// Zooms around a fixed canvas point.
 function zoomAtPoint(cx, cy, factor) {
   const newZoom = zoomLevel * factor;
   if (newZoom < 0.05 || newZoom > 100) return;
@@ -274,6 +280,7 @@ function zoomAtPoint(cx, cy, factor) {
   redrawAll();
 }
 
+// Zooms around the center of the canvas.
 function zoomAtCenter(factor) {
   zoomAtPoint(canvas.width / 2, canvas.height / 2, factor);
 }
@@ -288,6 +295,7 @@ zoomOutBtn.addEventListener("click", () => zoomAtCenter(0.833));
    il canvas con quella porzione.
 ========================================= */
 
+// Zooms the canvas to a selected rectangle.
 function zoomToRect(r) {
   const x1 = Math.min(r.startX, r.endX);
   const y1 = Math.min(r.startY, r.endY);
@@ -314,6 +322,7 @@ function zoomToRect(r) {
    DISEGNO RETTANGOLO SELEZIONE (tratteggiato)
 ========================================= */
 
+// Draws the zoom selection rectangle overlay.
 function drawSelectionRect() {
   if (!selRect) return;
   const x = Math.min(selRect.startX, selRect.endX);
@@ -360,6 +369,7 @@ function drawSelectionRect() {
    COORDINATE HELPER
 ========================================= */
 
+// Converts pointer coordinates into image coordinates.
 function getImageCoords(e) {
   const rect = canvas.getBoundingClientRect();
   const ts = fitScale * zoomLevel;
@@ -369,6 +379,7 @@ function getImageCoords(e) {
   };
 }
 
+// Converts pointer coordinates into canvas coordinates.
 function getCanvasXY(e) {
   const rect = canvas.getBoundingClientRect();
   return { cx: e.clientX - rect.left, cy: e.clientY - rect.top };
@@ -378,6 +389,7 @@ function getCanvasXY(e) {
    DRAW BASE
 ========================================= */
 
+// Draws the base image using the current transform.
 function drawBase() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -389,6 +401,7 @@ function drawBase() {
   ctx.drawImage(img, 0, 0);
 }
 
+// Redraws the image and any active ROI overlay.
 function redrawAll() {
   drawBase();
   if (roiMode === "polygon" && points.length > 0) {
@@ -405,6 +418,7 @@ function redrawAll() {
    RESET
 ========================================= */
 
+// Clears ROI state and resets the canvas view.
 function resetAllROI() {
   roiClosed = false;
   points = [];
@@ -433,6 +447,7 @@ function resetAllROI() {
    PREVIEW
 ========================================= */
 
+// Draws a scaled ROI preview into the preview canvas.
 function drawPreviewScaled(sourceCanvas) {
   previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
   const scale = Math.min(
@@ -505,11 +520,13 @@ clearAllBtn.addEventListener("click", (e) => {
   updateFeatureBtn();
 });
 
+// Updates the feature menu button with the selected count.
 function updateFeatureBtn() {
   const n = selectedFeatures.size;
   featureBtn.innerText = n === 0 ? "Feature Extraction ▾" : `Feature Extraction (${n}) ▾`;
 }
 
+// Selects all feature extraction options by default.
 function selectDefaultFeatures() {
   selectedFeatures.clear();
   featureMenu.querySelectorAll("input[type=checkbox]").forEach((cb) => {
@@ -700,12 +717,14 @@ canvas.addEventListener("contextmenu", (e) => {
    STROKE / DOT HELPERS
 ========================================= */
 
+// Applies the standard ROI stroke style adjusted for zoom.
 function setStroke() {
   const ts = fitScale * zoomLevel;
   ctx.strokeStyle = "red";
   ctx.lineWidth = 2 / ts;
 }
 
+// Draws a control point marker on the ROI canvas.
 function drawDot(px, py) {
   const ts = fitScale * zoomLevel;
   ctx.beginPath();
@@ -718,6 +737,7 @@ function drawDot(px, py) {
    POLYGON
 ========================================= */
 
+// Draws the in-progress polygon ROI.
 function drawPolygonPreview(mouseX = null, mouseY = null) {
   drawBase();
   if (!points.length) return;
@@ -730,6 +750,7 @@ function drawPolygonPreview(mouseX = null, mouseY = null) {
   points.forEach((p) => drawDot(p.x, p.y));
 }
 
+// Draws the completed polygon ROI.
 function drawPolygonClosed() {
   drawBase();
   ctx.beginPath();
@@ -745,6 +766,7 @@ function drawPolygonClosed() {
    FREEHAND
 ========================================= */
 
+// Draws the freehand ROI path.
 function drawFreehand() {
   drawBase();
   if (freehandPath.length < 2) return;
@@ -759,6 +781,7 @@ function drawFreehand() {
    ELLIPSE
 ========================================= */
 
+// Draws the in-progress ellipse ROI.
 function drawEllipsePreview() {
   drawBase();
   if (!ellipseCenter || !ellipsePreview) return;
@@ -775,6 +798,7 @@ function drawEllipsePreview() {
    CREATE ROI
 ========================================= */
 
+// Creates a cropped preview from the polygon ROI.
 function createPolygonROI() {
   let minX = Infinity,
     minY = Infinity,
@@ -801,6 +825,7 @@ function createPolygonROI() {
   drawPreviewScaled(tc);
 }
 
+// Creates a cropped preview from the freehand ROI.
 function createFreehandROI() {
   let minX = Infinity,
     minY = Infinity,
@@ -828,6 +853,7 @@ function createFreehandROI() {
   drawPreviewScaled(tc);
 }
 
+// Creates a cropped preview from the ellipse ROI.
 function createEllipseROI() {
   const rx = Math.abs(ellipsePreview.x - ellipseCenter.x);
   const ry = Math.abs(ellipsePreview.y - ellipseCenter.y);
@@ -850,6 +876,7 @@ function createEllipseROI() {
    nel sistema di coordinate dell'immagine.
 ========================================= */
 
+// Approximates an ellipse ROI as exportable points.
 function getEllipsePoints(cx, cy, rx, ry) {
   // Approssimazione della circonferenza (Ramanujan)
   const perimeter =
@@ -872,6 +899,7 @@ function getEllipsePoints(cx, cy, rx, ry) {
   return pts;
 }
 
+// Returns the confirmed ROI points for the active ROI mode.
 function getROIPoints() {
   if (roiMode === "polygon") {
     return points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }));
@@ -891,6 +919,7 @@ function getROIPoints() {
   return null;
 }
 
+// Renders extracted radiomics features in the ROI panel.
 function renderFeatures(features) {
   const entries = Object.entries(features ?? {});
   if (entries.length === 0) {
@@ -907,6 +936,7 @@ function renderFeatures(features) {
     .join("");
 }
 
+// Converts extracted features into the backend storage shape.
 function buildStoredFeaturePayload(features) {
   return Object.entries(features ?? {})
     .map(([featureName, value]) => ({
@@ -916,6 +946,7 @@ function buildStoredFeaturePayload(features) {
     .filter((feature) => Number.isFinite(feature.value));
 }
 
+// Saves ROI coordinates and extracted features to the backend.
 async function saveExtraction(roi, features) {
   if (!currentSeriesUid) {
     throw new Error("Missing series UID for saved extraction.");
