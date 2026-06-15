@@ -18,6 +18,7 @@ import re
 
 _VALUE_MAPPINGS_AVAILABLE = None
 
+# Attribute mappings for metadata uploaded via Zip file
 MODEL_FIELD_ALIASES = {
     Collection: {
         "name": "collection_name",
@@ -42,6 +43,7 @@ MODEL_FIELD_ALIASES = {
     },
 }
 
+# Name mapping for extracted features: from pyradiomics name to internal data model name
 RADIOMICS_FEATURE_MAPPING_KEYS = {
     "original_ngtdm_Busyness": "NGTDM Busyness",
     "original_ngtdm_Contrast": "NGTDM Contrast",
@@ -55,6 +57,7 @@ RADIOMICS_FEATURE_MAPPING_KEYS = {
 }
 
 
+# Check on json response
 def get_json_or_empty(response):
     response.raise_for_status()
 
@@ -64,6 +67,7 @@ def get_json_or_empty(response):
     return response.json()
 
 
+# Check existence of a value mapping
 def value_mappings_available(session):
     global _VALUE_MAPPINGS_AVAILABLE
 
@@ -73,10 +77,12 @@ def value_mappings_available(session):
     return _VALUE_MAPPINGS_AVAILABLE
 
 
+# Get mapping for the name of the extracted feature
 def get_radiomics_feature_mapping_key(feature_name):
     return RADIOMICS_FEATURE_MAPPING_KEYS.get(feature_name, feature_name)
 
 
+# Get mapping for the names of the attribtues coming form a dataset uploaded via Zip file
 def _to_model_fields(model, data: dict) -> dict:
     aliases = MODEL_FIELD_ALIASES.get(model, {})
     model_columns = set(model.__table__.columns.keys())
@@ -90,6 +96,7 @@ def _to_model_fields(model, data: dict) -> dict:
     return normalized
 
 
+# Fallback in case collection name is missing
 def _add_if_missing(session, model, key: str, data: dict) -> bool:
     model_data = _to_model_fields(model, data)
     if key not in model_data:
@@ -101,6 +108,7 @@ def _add_if_missing(session, model, key: str, data: dict) -> bool:
     return False
 
 
+# Check existence of collection
 def collection_exists(collection_name: str) -> bool:
     session = SessionLocal()
     try:
@@ -115,6 +123,7 @@ def collection_exists(collection_name: str) -> bool:
         session.close()
 
 
+# Actual insertion into the relational model of the set of metadata associated with a collection
 def _insert_dataset_records(
     session,
     collection: dict,
@@ -141,6 +150,7 @@ def _insert_dataset_records(
     return counts
 
 
+# Main fuction for storage of a dataset uploaded locally
 def insert_dataset_records(
     collection: dict,
     patients: list[dict],
@@ -168,7 +178,7 @@ def insert_dataset_records(
 # - session object
 # - collection data in dictionary form
 # Output
-# - obejct that we added or that we found
+# - object that we added or that we found
 def create_collection(session, data: dict):
     obj = (
         session
@@ -253,6 +263,7 @@ def create_series(session, data: dict):
     return obj
 
 
+# Creation and storage of a feature extraction object
 def create_extraction(session, data: dict):
     obj = Extraction(**data)
     session.add(obj)
@@ -260,6 +271,7 @@ def create_extraction(session, data: dict):
     return obj
 
 
+# Creation and storage of a roi object
 def create_roi(session, data: dict):
     obj = Roi(**data)
     session.add(obj)
@@ -268,6 +280,9 @@ def create_roi(session, data: dict):
 
 
 # GET OPERATIONS
+# No comments because name is self-explanatory
+
+
 def get_all_studies(session):
     return session.query(Study).all()
 
@@ -299,6 +314,7 @@ def get_patient_on_id(session, id):
     return session.query(Patient).filter(Patient.patient_id == id).first()
 
 
+# Get all feature extraction from the relational DB
 def get_all_extractions(session):
     rows = (
         session
@@ -318,6 +334,7 @@ def get_all_extractions(session):
     return mapped_rows
 
 
+# Get all medical series belonging to a TCIA collection from the remote archive
 def get_series_on_demand(collectionName):
     url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
 
@@ -327,6 +344,7 @@ def get_series_on_demand(collectionName):
     return get_json_or_empty(response)
 
 
+# Get all medical series belonging to a TCIA collection from the remote archive
 def get_series_on_demand_on_uid(uid):
     url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
 
@@ -337,6 +355,7 @@ def get_series_on_demand_on_uid(uid):
     return data
 
 
+# Fetch all series belonging to a study
 def get_series_on_demand_on_study_uid(study_uid):
     url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getSeries"
 
@@ -346,6 +365,7 @@ def get_series_on_demand_on_study_uid(study_uid):
     return get_json_or_empty(response)
 
 
+# Fetch all studies belonging to a collection
 def get_studies_on_demand(collectionName):
     url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/NewStudiesInPatientCollection"
 
@@ -379,6 +399,7 @@ def get_studies_on_demand(collectionName):
     return data
 
 
+# Fetch all patients and enrich them with age data
 def get_patients_on_demand(collectionName):
 
     print("Sending request")
@@ -434,6 +455,7 @@ def get_patients_on_demand(collectionName):
     return patients
 
 
+# Fetch a patient by ID and enrich it with age data
 def get_patients_on_demand_on_id(collectionName, patient_id):
 
     print("Sending request")
@@ -496,12 +518,14 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
     return patients[0]
 
 
+# Retrieve all DICOM to SNOMED field mappings
 def get_SNOMED_fields(session):
     return session.query(
         FieldMapping.field_name_dicom, FieldMapping.standardized_field_name
     ).all()
 
 
+# Map an original value to its standardized SNOMED value
 def SNOMED_value_mapping(session, original_value):
     global _VALUE_MAPPINGS_AVAILABLE
 

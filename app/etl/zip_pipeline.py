@@ -1,3 +1,6 @@
+# This file contains the code that handles the ingestion of a zipped DICOM/ NIFTI
+# dataset that has been uploaded by the user through the web application
+
 import csv
 import hashlib
 import json
@@ -17,20 +20,22 @@ import app.db.repository as repo
 from app.services.object_storage_service import ObjectStorageService
 
 
-ALLOWED_DATASET_TYPES = {"dicom", "nifti"}
-NIFTI_SUFFIXES = (".nii", ".nii.gz")
-METADATA_SUFFIXES = (".xlsx", ".csv")
-MAX_ZIP_FILES = 20_000
-MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024
-MAX_SINGLE_FILE_BYTES = 2 * 1024 * 1024 * 1024
+ALLOWED_DATASET_TYPES = {"dicom", "nifti"}  # supported ingestion dataset types
+NIFTI_SUFFIXES = (".nii", ".nii.gz")  # valid NIfTI file extensions
+METADATA_SUFFIXES = (".xlsx", ".csv")  # supported tabular metadata formats
+MAX_ZIP_FILES = 20_000  # max number of files allowed inside ZIP
+MAX_UNCOMPRESSED_BYTES = 20 * 1024 * 1024 * 1024  # max total uncompressed size (20GB)
+MAX_SINGLE_FILE_BYTES = 2 * 1024 * 1024 * 1024  # max allowed size per file (2GB)
 
 
+# Custom exception for dataset ingestion errors with HTTP-like status codes
 class ZipIngestionError(Exception):
     def __init__(self, message: str, status_code: int = 400) -> None:
         super().__init__(message)
         self.status_code = status_code
 
 
+# Represents a single file identity and its resolved dataset hierarchy metadata
 @dataclass(frozen=True)
 class FileIdentity:
     source_path: Path
@@ -41,6 +46,7 @@ class FileIdentity:
     sop_uid: str | None = None
 
 
+# Entry point for ZIP ingestion pipeline (DICOM or NIfTI)
 def ingest_zip_dataset(
     *,
     dataset_type: str,
@@ -91,6 +97,7 @@ def ingest_zip_dataset(
     return result
 
 
+# Resolve final collection name from input, ZIP structure, or filename
 def resolve_collection_name(
     zip_file_name: str | None,
     extracted_root: Path,
@@ -116,6 +123,7 @@ def resolve_collection_name(
     return "dataset"
 
 
+# Scan filesystem and extract valid DICOM datasets with required identifiers
 def discover_dicom_files(root: Path) -> tuple[list[tuple[Path, Any]], dict[str, int]]:
     try:
         import pydicom
@@ -150,6 +158,7 @@ def discover_dicom_files(root: Path) -> tuple[list[tuple[Path, Any]], dict[str, 
     return valid_files, skipped
 
 
+# Build structured patient/study/series records from parsed DICOM files
 def build_dicom_records_from_files(
     files: list[tuple[Path, Any]],
     collection_name: str,
@@ -272,6 +281,7 @@ def build_dicom_records_from_files(
     )
 
 
+# Recursively discover all NIfTI files in dataset directory
 def discover_nifti_files(root: Path) -> list[Path]:
     return sorted(
         path
@@ -280,6 +290,7 @@ def discover_nifti_files(root: Path) -> list[Path]:
     )
 
 
+# Load metadata from CSV or Excel into normalized row dictionaries
 def load_tabular_metadata_file(path: Path) -> list[dict[str, Any]]:
     suffix = path.suffix.lower()
     if suffix not in METADATA_SUFFIXES:
@@ -293,6 +304,7 @@ def load_tabular_metadata_file(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+# Load metadata either from external file or from dataset directory
 def load_optional_tabular_metadata(
     root: Path,
     metadata_path: Path | None = None,
@@ -320,6 +332,7 @@ def load_optional_tabular_metadata(
     return load_tabular_metadata_file(metadata_files[0]), warnings
 
 
+# Match NIfTI files to metadata rows using file, patient and series heuristics
 def match_nifti_rows_to_files(
     rows: list[dict[str, Any]],
     files: list[Path],
@@ -380,6 +393,7 @@ def match_nifti_rows_to_files(
     return matches, unresolved, warnings
 
 
+# Derive patient, study and series identifiers from NIfTI file path structure
 def derive_nifti_identity_from_path(
     file: Path, collection_name: str, root: Path | None = None
 ) -> tuple[str, str, str]:
@@ -406,6 +420,7 @@ def derive_nifti_identity_from_path(
     return patient_id, study_uid, series_uid
 
 
+# Upload dataset files to object storage and return stored object names
 def upload_dataset_files_to_minio(files: list[FileIdentity]) -> list[str]:
     storage = ObjectStorageService(
         config.object_storage_endpoint,
@@ -436,6 +451,7 @@ def upload_dataset_files_to_minio(files: list[FileIdentity]) -> list[str]:
     return uploaded_objects
 
 
+# Best-effort cleanup of already uploaded objects in case of failure
 def cleanup_uploaded_objects(
     object_names: list[str],
     storage: ObjectStorageService | None = None,
@@ -453,6 +469,7 @@ def cleanup_uploaded_objects(
             pass
 
 
+# Persist dataset records and ensure storage consistency with rollback on failure
 def persist_uploaded_dataset(
     collection: dict[str, Any],
     patients: list[dict[str, Any]],
@@ -474,6 +491,7 @@ def persist_uploaded_dataset(
     return len(uploaded_objects), inserted_counts
 
 
+# Sanitize path segment to safe filesystem and object storage identifier
 def sanitize_path_segment(value: Any) -> str:
     text = str(value).strip() if value is not None else ""
     text = text.replace("\\", "/").split("/")[-1]
@@ -481,10 +499,12 @@ def sanitize_path_segment(value: Any) -> str:
     return text or "missing"
 
 
+# Build collection-scoped identifier for uniqueness across datasets
 def _collection_scoped_id(collection_name: str, value: Any) -> str:
     return f"{sanitize_path_segment(collection_name)}__{sanitize_path_segment(value)}"
 
 
+# Ingest and persist a DICOM ZIP dataset into storage and database
 def _ingest_dicom_zip(
     root: Path, collection_name: str, description: str | None, remote: bool
 ) -> dict[str, Any]:
@@ -527,6 +547,7 @@ def _ingest_dicom_zip(
     )
 
 
+# Ingest and persist a NIfTI ZIP dataset with optional tabular metadata
 def _ingest_nifti_zip(
     root: Path,
     collection_name: str,
@@ -586,6 +607,7 @@ def _ingest_nifti_zip(
     )
 
 
+# Build normalized collection, patient, study and series records from NIfTI files
 def _build_nifti_records(
     root: Path,
     files: list[Path],
@@ -785,6 +807,7 @@ def _build_nifti_records(
     )
 
 
+# Prevent duplicate ingestion for an existing collection
 def _raise_if_collection_exists(collection_name: str) -> None:
     if repo.collection_exists(collection_name):
         raise ZipIngestionError(
@@ -793,6 +816,7 @@ def _raise_if_collection_exists(collection_name: str) -> None:
         )
 
 
+# Extract ZIP archive safely after validation
 def _safe_extract_zip(upload_file, target_root: Path) -> None:
     target_root.mkdir(parents=True, exist_ok=True)
     try:
@@ -804,6 +828,7 @@ def _safe_extract_zip(upload_file, target_root: Path) -> None:
         raise ZipIngestionError("Malformed ZIP file.", 400) from exc
 
 
+# Validate ZIP archive size and security constraints
 def _validate_zip_archive(archive: zipfile.ZipFile, target_root: Path) -> None:
     members = archive.infolist()
     if len(members) > MAX_ZIP_FILES:
@@ -829,6 +854,7 @@ def _validate_zip_archive(archive: zipfile.ZipFile, target_root: Path) -> None:
             )
 
 
+# Validate individual ZIP entry for path traversal and symlink risks
 def _validate_zip_member(member: zipfile.ZipInfo, target_root_resolved: Path) -> None:
     member_path = Path(member.filename)
     if member_path.is_absolute():
@@ -841,11 +867,13 @@ def _validate_zip_member(member: zipfile.ZipInfo, target_root_resolved: Path) ->
         raise ZipIngestionError("ZIP contains an unsafe path.", 400)
 
 
+# Detect symlink entries in ZIP archive
 def _is_zip_symlink(member: zipfile.ZipInfo) -> bool:
     unix_mode = member.external_attr >> 16
     return stat.S_ISLNK(unix_mode)
 
 
+# Persist uploaded external metadata file to temporary storage
 def _save_external_metadata_file(metadata_file, temp_root: Path) -> Path | None:
     if metadata_file is None:
         return None
@@ -863,6 +891,7 @@ def _save_external_metadata_file(metadata_file, temp_root: Path) -> Path | None:
     return metadata_path
 
 
+# Parse and normalize column mapping configuration
 def _parse_column_mapping(
     column_mapping: str | dict[str, str] | None,
 ) -> dict[str, str]:
@@ -884,6 +913,7 @@ def _parse_column_mapping(
     }
 
 
+# Check if dataset contains DICOM-like attributes
 def _looks_like_dicom(dataset: Any) -> bool:
     return any(
         hasattr(dataset, field)
@@ -897,6 +927,7 @@ def _looks_like_dicom(dataset: Any) -> bool:
     )
 
 
+# Safely extract string value from DICOM dataset field
 def _dicom_str(dataset: Any, field: str, default: str | None = None) -> str | None:
     value = getattr(dataset, field, None)
     if value is None or str(value).strip() == "":
@@ -904,16 +935,19 @@ def _dicom_str(dataset: Any, field: str, default: str | None = None) -> str | No
     return str(value).strip()
 
 
+# Generate fallback SOP identifier from file path hash
 def _fallback_sop_name(path: Path) -> str:
     digest = hashlib.sha1(str(path).encode("utf-8")).hexdigest()[:12]
     return f"{sanitize_path_segment(path.stem)}_{digest}"
 
 
+# Extract numeric age from raw value
 def _extract_age(value: Any) -> int:
     match = re.search(r"\d+", str(value or ""))
     return int(match.group(0)) if match else -1
 
 
+# Parse date value into standardized date object
 def _parse_date(value: Any):
     if value is None or str(value).strip() == "":
         return None
@@ -923,6 +957,7 @@ def _parse_date(value: Any):
         return None
 
 
+# Safely convert value to integer
 def _safe_int(value: Any) -> int | None:
     if value is None or str(value).strip() == "":
         return None
@@ -932,10 +967,12 @@ def _safe_int(value: Any) -> int | None:
         return None
 
 
+# Normalize row column names for consistent access
 def _normalize_row(row: dict[str, Any]) -> dict[str, Any]:
     return {_normalize_column_name(key): value for key, value in row.items()}
 
 
+# Apply external column mapping to normalized row
 def _apply_column_mapping(
     row: dict[str, Any], column_mapping: dict[str, str]
 ) -> dict[str, Any]:
@@ -950,11 +987,13 @@ def _apply_column_mapping(
     return mapped
 
 
+# Normalize column name for matching across datasets
 def _normalize_column_name(value: Any) -> str:
     text = str(value).strip().lower().replace("_", " ")
     return re.sub(r"\s+", " ", text)
 
 
+# Find best matching rows for a given file using exact and token overlap
 def _candidate_rows_for_file(
     rows: list[dict[str, Any]], file_path: Path, root: Path | None
 ) -> list[dict[str, Any]]:
@@ -997,6 +1036,7 @@ def _candidate_rows_for_file(
     return []
 
 
+# Match rows by patient identifier extracted from NIfTI path
 def _candidate_rows_for_patient(
     rows: list[dict[str, Any]], file_path: Path, root: Path | None
 ) -> list[dict[str, Any]]:
@@ -1015,6 +1055,7 @@ def _candidate_rows_for_patient(
     ]
 
 
+# Match rows to NIfTI series using token overlap scoring
 def _candidate_rows_for_nifti_series(
     rows: list[dict[str, Any]],
     file_path: Path,
@@ -1044,6 +1085,7 @@ def _candidate_rows_for_nifti_series(
     return candidates
 
 
+# Match rows using best token overlap on description-like fields
 def _candidate_rows_for_nifti_description(
     rows: list[dict[str, Any]],
     tokens: set[str],
@@ -1071,12 +1113,14 @@ def _candidate_rows_for_nifti_description(
     return candidates
 
 
+# Annotate row with matching scope metadata
 def _row_with_match_scope(row: dict[str, Any], scope: str) -> dict[str, Any]:
     scoped = dict(row)
     scoped["__match_scope"] = scope
     return scoped
 
 
+# Extract patient identifier from NIfTI file path structure
 def _patient_id_from_nifti_path(file_path: Path, root: Path | None) -> str | None:
     relative = (
         file_path.relative_to(root)
@@ -1097,16 +1141,19 @@ def _patient_id_from_nifti_path(file_path: Path, root: Path | None) -> str | Non
     return None
 
 
+# Normalize text for token-based comparison
 def _normalize_text(value: Any) -> str:
     text = str(value or "").replace("\\", "/").strip().lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
+# Convert normalized text into token set
 def _text_tokens(value: Any) -> set[str]:
     return {token for token in _normalize_text(value).split() if token}
 
 
+# Compute best token overlap score across row fields
 def _row_token_overlap_score(row: dict[str, Any], tokens: set[str]) -> int:
     best = 0
     for value in row.values():
@@ -1121,10 +1168,12 @@ def _row_token_overlap_score(row: dict[str, Any], tokens: set[str]) -> int:
     return best
 
 
+# Normalize identifier for exact matching
 def _normalized_identifier(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
+# Retrieve first available value from matched rows using alias priority
 def _first_row_value(
     row_matches: dict[Path, dict[str, Any]], aliases: list[str]
 ) -> Any:
@@ -1135,10 +1184,12 @@ def _first_row_value(
     return None
 
 
+# Normalize filesystem path string for comparison
 def _normalized_path(value: Any) -> str:
     return str(value or "").replace("\\", "/").strip().lower()
 
 
+# Extract NIfTI filename stem without compression extensions
 def _nifti_stem(name: str) -> str:
     lowered = name.lower()
     if lowered.endswith(".nii.gz"):
@@ -1148,6 +1199,7 @@ def _nifti_stem(name: str) -> str:
     return Path(name).stem
 
 
+# Estimate number of slices in NIfTI image
 def _nifti_image_count(path: Path) -> int:
     try:
         import SimpleITK as sitk
@@ -1159,6 +1211,7 @@ def _nifti_image_count(path: Path) -> int:
         return 1
 
 
+# Retrieve first non-empty value from row using column aliases
 def _row_value(row: dict[str, Any] | None, aliases: list[str]) -> Any:
     if not row:
         return None
@@ -1169,12 +1222,14 @@ def _row_value(row: dict[str, Any] | None, aliases: list[str]) -> Any:
     return None
 
 
+# Return fallback when value is empty or missing
 def _present_or_fallback(value: Any, fallback: str) -> Any:
     if value is None or str(value).strip() == "":
         return fallback
     return value
 
 
+# Build standardized ingestion response payload
 def _response(
     *,
     dataset_type: str,

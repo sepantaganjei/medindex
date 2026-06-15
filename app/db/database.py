@@ -1,3 +1,4 @@
+# Database engine configuration and automatic schema migration utilities
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 
@@ -19,6 +20,7 @@ SessionLocal = sessionmaker(
 Base = declarative_base()
 
 
+# Rename column if legacy schema name is detected
 def _rename_column_if_needed(connection, table_columns, table_name, old_name, new_name):
     if new_name not in table_columns and old_name in table_columns:
         connection.execute(
@@ -26,14 +28,13 @@ def _rename_column_if_needed(connection, table_columns, table_name, old_name, ne
         )
 
 
+# Ensure database schema matches expected internal data model
 def ensure_schema_compatibility():
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
 
     column_names_by_table = {
-        table_name: {
-            column["name"] for column in inspector.get_columns(table_name)
-        }
+        table_name: {column["name"] for column in inspector.get_columns(table_name)}
         for table_name in table_names
     }
 

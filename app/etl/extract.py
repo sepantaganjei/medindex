@@ -88,6 +88,7 @@ def getZip(series_uid):
     return response
 
 
+# Retrieve all DICOM collections available for download in the TCIA archive
 def getAllDICOMCollections():
     base_url = "https://nbia.cancerimagingarchive.net/nbia-api/services/v4/getCollectionDescriptions"
     response = requests.get(base_url, timeout=30)

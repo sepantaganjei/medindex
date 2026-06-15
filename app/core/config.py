@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# Load application and infrastructure configuration from environment variables
 @dataclass(frozen=True)
 class Config:
     app_host: str = os.getenv("APP_HOST", "0.0.0.0")
@@ -17,11 +18,19 @@ class Config:
     db_host: str = os.getenv("DB_HOST", "postgres")
     db_port: str = os.getenv("DB_PORT", "5432")
     db_name: str = os.getenv("DB_NAME", "bioimages")
-    object_storage_endpoint: str = os.getenv("OBJECT_STORAGE_ENDPOINT", "localhost:9000")
-    object_storage_access_key: str = os.getenv("OBJECT_STORAGE_ACCESS_KEY", "minioadmin")
-    object_storage_secret_key: str = os.getenv("OBJECT_STORAGE_SECRET_KEY", "minioadmin")
+    object_storage_endpoint: str = os.getenv(
+        "OBJECT_STORAGE_ENDPOINT", "localhost:9000"
+    )
+    object_storage_access_key: str = os.getenv(
+        "OBJECT_STORAGE_ACCESS_KEY", "minioadmin"
+    )
+    object_storage_secret_key: str = os.getenv(
+        "OBJECT_STORAGE_SECRET_KEY", "minioadmin"
+    )
     object_storage_bucket: str = os.getenv("OBJECT_STORAGE_BUCKET", "bioimages")
-    object_storage_secure: bool = os.getenv("OBJECT_STORAGE_SECURE", "false").lower() == "true"
+    object_storage_secure: bool = (
+        os.getenv("OBJECT_STORAGE_SECURE", "false").lower() == "true"
+    )
     cors_allow_origins: tuple[str, ...] = tuple(
         origin.strip()
         for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
@@ -31,6 +40,7 @@ class Config:
         "http://127.0.0.1:8080",
     )
 
+    # Build SQLAlchemy database connection URL
     @property
     def database_url(self) -> str:
         return (

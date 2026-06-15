@@ -1,3 +1,5 @@
+# This code is obsolete. It is associated with an API call that has been upgraded.
+# We are leaving this code for explanatory purposes.
 # This file handles the transformation of metadata coming from NIFTI datasets
 
 import pandas as pd

@@ -164,6 +164,7 @@ def add_extraction(extraction: ExtractionInput):
 # ==========
 
 
+# Clean and normalize collection descriptions
 def _clean_description(text):
     if not text:
         return ""
@@ -173,6 +174,7 @@ def _clean_description(text):
     return text
 
 
+# Fetch all downloadable DICOM collections
 def get_collections_available_for_download():
     print("starting extractions")
     collections = extract.getAllDICOMCollections()
@@ -192,6 +194,7 @@ def get_collections_available_for_download():
     return list_of_collections
 
 
+# Fetch series and apply SNOMED value mappings
 def get_all_series(collection_name):
     fields_to_map = [
         "modality",
@@ -228,6 +231,7 @@ def get_all_series(collection_name):
         session.close()
 
 
+# Fetch a patient and apply SNOMED value mappings
 def get_patient_on_id(id):
     fields_to_map = ["patient_sex", "ethnic_group"]
     session = SessionLocal()
@@ -247,6 +251,7 @@ def get_patient_on_id(id):
         session.close()
 
 
+# Fetch all collections from the database
 def get_all_collections():
     session = SessionLocal()
 
@@ -257,6 +262,7 @@ def get_all_collections():
         session.close()
 
 
+# Fetch all ROI extractions and group features by ROI
 def get_all_extractions():
     list_of_rois = []
     current_roi = {}
@@ -331,6 +337,7 @@ def get_all_extractions():
 # On demand
 
 
+# Fetch collection series and apply SNOMED value mappings
 def get_series_on_demand(collectionName):
     # Retrieval
     to_select = [
@@ -412,6 +419,7 @@ def get_series_on_demand(collectionName):
         session.close()
 
 
+# Fetch a series by UID and apply SNOMED value mappings
 def get_series_on_demand_on_uid(uid):
     to_select = [
         "SeriesInstanceUID",
@@ -488,6 +496,7 @@ def get_series_on_demand_on_uid(uid):
         session.close()
 
 
+# Fetch study series and apply SNOMED value mappings
 def get_series_on_demand_on_study_uid(study_uid):
     # Retrieval
     to_select = [
@@ -569,6 +578,7 @@ def get_series_on_demand_on_study_uid(study_uid):
         session.close()
 
 
+# Fetch studies and apply SNOMED value mappings
 def get_studies_on_demand(collectionName):
     to_select = [
         "StudyInstanceUID",
@@ -624,6 +634,7 @@ def get_studies_on_demand(collectionName):
         session.close()
 
 
+# Fetch patients and apply SNOMED value mappings
 def get_patients_on_demand(collectionName):
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
@@ -660,6 +671,7 @@ def get_patients_on_demand(collectionName):
         session.close()
 
 
+# Fetch a patient by ID and apply SNOMED value mappings
 def get_patients_on_demand_on_id(collectionName, patient_id):
     to_select = ["PatientId", "PatientSex", "PatientAge", "EthnicGroup"]
 
@@ -697,6 +709,7 @@ def get_patients_on_demand_on_id(collectionName, patient_id):
 # SNOMED mapped fields retrieval
 
 
+# Fetch SNOMED mappings for series fields
 def get_series_SNOMED_fields():
     to_select = [
         "series_instance_uid",
@@ -731,6 +744,7 @@ def get_series_SNOMED_fields():
         session.close()
 
 
+# Fetch SNOMED mappings for study fields
 def get_study_SNOMED_fields():
     to_select = [
         "study_instance_uid",
@@ -757,6 +771,7 @@ def get_study_SNOMED_fields():
         session.close()
 
 
+# Fetch SNOMED mappings for patient fields
 def get_patient_SNOMED_fields():
     to_select = ["patient_id", "patient_sex", "patient_age", "ethnic_group"]
 
